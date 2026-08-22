@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>de.foerderverein</groupId>
+  <artifactId>kasse</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Foerderverein Kasse</name>
+  <description>Kassenfuehrung fuer den Schul-Foerderverein: Umsatzverwaltung mit HBCI-Anbindung, Mitgliederverwaltung, Berichte.</description>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <javafx.version>21.0.12</javafx.version>
+    <sqlite-jdbc.version>3.53.2.1</sqlite-jdbc.version>
+    <flyway.version>13.3.0</flyway.version>
+    <hbci4j.version>4.1.12</hbci4j.version>
+    <java-keyring.version>1.0.4</java-keyring.version>
+    <slf4j.version>2.0.18</slf4j.version>
+    <logback.version>1.5.38</logback.version>
+    <junit.version>5.11.4</junit.version>
+    <openpdf.version>3.0.5</openpdf.version>
+
+    <!-- Overridden per OS profile below -->
+    <javafx.platform>mac-aarch64</javafx.platform>
+    <app.main.class>de.foerderverein.kasse.app.Launcher</app.main.class>
+  </properties>
+
+  <dependencies>
+    <!-- UI -->
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
+    </dependency>
+
+    <!-- Persistenz -->
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <version>${sqlite-jdbc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+      <version>${flyway.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-nc-sqlite</artifactId>
+      <version>${flyway.version}</version>
+    </dependency>
+
+    <!-- HBCI/FinTS -->
+    <dependency>
+      <groupId>com.github.hbci4j</groupId>
+      <artifactId>hbci4j-core</artifactId>
+      <version>${hbci4j.version}</version>
+    </dependency>
+
+    <!-- Zugangsdaten im OS-Schluesselbund -->
+    <dependency>
+      <groupId>com.github.javakeyring</groupId>
+      <artifactId>java-keyring</artifactId>
+      <version>${java-keyring.version}</version>
+    </dependency>
+
+    <!-- PDF-Berichte -->
+    <dependency>
+      <groupId>com.github.librepdf</groupId>
+      <artifactId>openpdf</artifactId>
+      <version>${openpdf.version}</version>
+    </dependency>
+
+    <!-- Logging -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.version}</version>
+    </dependency>
+
+    <!-- Tests -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>kasse</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.14.1</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+      </plugin>
+
+      <!-- Baut ein Uber-Jar inkl. JavaFX (plattformspezifisch) als reine Klassenpfad-Anwendung,
+           damit jpackage kein JavaFX-Modulpfad-Setup braucht. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.2</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <finalName>kasse-app</finalName>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${app.main.class}</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+              </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>module-info.class</exclude>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>mac-aarch64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>mac-aarch64</javafx.platform>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.panteleyev</groupId>
+            <artifactId>jpackage-maven-plugin</artifactId>
+            <version>1.8.0</version>
+            <configuration>
+              <name>Foerderverein-Kasse</name>
+              <appVersion>1.0.0</appVersion>
+              <vendor>Foerderverein</vendor>
+              <input>${project.build.directory}</input>
+              <mainJar>kasse-app.jar</mainJar>
+              <mainClass>${app.main.class}</mainClass>
+              <destination>${project.build.directory}/dist</destination>
+              <type>DMG</type>
+              <javaOptions>
+                <option>-Dfile.encoding=UTF-8</option>
+              </javaOptions>
+              <addModules>
+                <module>java.base</module>
+                <module>java.sql</module>
+                <module>java.naming</module>
+                <module>java.desktop</module>
+                <module>java.logging</module>
+                <module>java.xml</module>
+                <module>jdk.crypto.ec</module>
+                <module>jdk.crypto.cryptoki</module>
+                <module>jdk.localedata</module>
+              </addModules>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>mac-x86_64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>mac</javafx.platform>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.panteleyev</groupId>
+            <artifactId>jpackage-maven-plugin</artifactId>
+            <version>1.8.0</version>
+            <configuration>
+              <name>Foerderverein-Kasse</name>
+              <appVersion>1.0.0</appVersion>
+              <vendor>Foerderverein</vendor>
+              <input>${project.build.directory}</input>
+              <mainJar>kasse-app.jar</mainJar>
+              <mainClass>${app.main.class}</mainClass>
+              <destination>${project.build.directory}/dist</destination>
+              <type>DMG</type>
+              <addModules>
+                <module>java.base</module>
+                <module>java.sql</module>
+                <module>java.naming</module>
+                <module>java.desktop</module>
+                <module>java.logging</module>
+                <module>java.xml</module>
+                <module>jdk.crypto.ec</module>
+                <module>jdk.crypto.cryptoki</module>
+                <module>jdk.localedata</module>
+              </addModules>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>windows</id>
+      <activation>
+        <os>
+          <family>windows</family>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>win</javafx.platform>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.panteleyev</groupId>
+            <artifactId>jpackage-maven-plugin</artifactId>
+            <version>1.8.0</version>
+            <configuration>
+              <name>Foerderverein-Kasse</name>
+              <appVersion>1.0.0</appVersion>
+              <vendor>Foerderverein</vendor>
+              <input>${project.build.directory}</input>
+              <mainJar>kasse-app.jar</mainJar>
+              <mainClass>${app.main.class}</mainClass>
+              <destination>${project.build.directory}/dist</destination>
+              <type>EXE</type>
+              <winDirChooser>true</winDirChooser>
+              <winMenu>true</winMenu>
+              <winShortcut>true</winShortcut>
+              <addModules>
+                <module>java.base</module>
+                <module>java.sql</module>
+                <module>java.naming</module>
+                <module>java.desktop</module>
+                <module>java.logging</module>
+                <module>java.xml</module>
+                <module>jdk.crypto.ec</module>
+                <module>jdk.crypto.cryptoki</module>
+                <module>jdk.localedata</module>
+              </addModules>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

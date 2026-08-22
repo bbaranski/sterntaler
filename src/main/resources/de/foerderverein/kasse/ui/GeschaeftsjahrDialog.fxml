@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" prefWidth="780" prefHeight="560"
+            fx:controller="de.foerderverein.kasse.ui.GeschaeftsjahrDialogController">
+    <center>
+        <VBox spacing="12">
+            <padding>
+                <Insets top="12" right="12" bottom="12" left="12" />
+            </padding>
+            <HBox spacing="12" VBox.vgrow="ALWAYS">
+                <TableView fx:id="jahreTable" prefWidth="380" HBox.hgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="bezeichnungColumn" text="Bezeichnung" prefWidth="140" />
+                        <TableColumn fx:id="zeitraumColumn" text="Zeitraum" prefWidth="160" />
+                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="100" />
+                        <TableColumn fx:id="pruefungColumn" text="Kassenprüfung" prefWidth="160" />
+                    </columns>
+                </TableView>
+                <VBox spacing="8" prefWidth="240">
+                    <Label text="Bezeichnung" />
+                    <TextField fx:id="bezeichnungField" promptText="z. B. 2025/2026" />
+                    <Label text="Startdatum" />
+                    <DatePicker fx:id="startDatumPicker" maxWidth="Infinity" />
+                    <Label text="Enddatum" />
+                    <DatePicker fx:id="endDatumPicker" maxWidth="Infinity" />
+                    <Label text="Startsaldo (€)" />
+                    <TextField fx:id="startsaldoField" promptText="z. B. 1234,56" />
+                    <Button fx:id="neuButton" text="Neu" onAction="#onNeu" maxWidth="Infinity" />
+                    <Button fx:id="speichernButton" text="Speichern" onAction="#onSpeichern" maxWidth="Infinity" defaultButton="true" />
+                </VBox>
+            </HBox>
+
+            <Separator />
+
+            <VBox spacing="8">
+                <Label text="Ausgewähltes Geschäftsjahr abschließen" style="-fx-font-weight: bold;" />
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="Prüfungsdatum" />
+                    <DatePicker fx:id="pruefungsdatumPicker" />
+                    <Label text="Kassenprüfer/-in" />
+                    <TextField fx:id="pruefungNameField" prefWidth="180" />
+                </HBox>
+                <HBox spacing="8">
+                    <Button fx:id="abschliessenButton" text="Abschließen" onAction="#onAbschliessen" disable="true" />
+                    <Button fx:id="wiederOeffnenButton" text="Wieder öffnen" onAction="#onWiederOeffnen" disable="true" />
+                </HBox>
+            </VBox>
+
+            <Label fx:id="fehlerLabel" styleClass="fehler-label" wrapText="true" />
+        </VBox>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT">
+            <padding>
+                <Insets top="0" right="12" bottom="12" left="12" />
+            </padding>
+            <Button text="Schließen" onAction="#onSchliessen" />
+        </HBox>
+    </bottom>
+</BorderPane>

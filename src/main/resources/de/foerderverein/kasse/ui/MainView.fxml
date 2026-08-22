@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="de.foerderverein.kasse.ui.MainController">
+    <top>
+        <HBox spacing="8" styleClass="toolbar">
+            <padding>
+                <Insets top="8" right="8" bottom="8" left="8" />
+            </padding>
+            <Button text="Neue Buchung" onAction="#onNeueBuchung" />
+            <Button fx:id="bearbeitenButton" text="Bearbeiten" onAction="#onBearbeiten" disable="true" />
+            <Button fx:id="stornierenButton" text="Stornieren" onAction="#onStornieren" disable="true" />
+            <Separator orientation="VERTICAL" />
+            <Button text="HBCI-Abruf…" onAction="#onHbciAbruf" />
+            <Separator orientation="VERTICAL" />
+            <Button text="Kategorien…" onAction="#onKategorien" />
+            <Button text="Mitglieder…" onAction="#onMitglieder" />
+            <Button text="Konto-Einstellungen…" onAction="#onKontoEinstellungen" />
+            <Separator orientation="VERTICAL" />
+            <Button text="Geschäftsjahre…" onAction="#onGeschaeftsjahre" />
+            <Button text="Kassenbericht…" onAction="#onKassenbericht" />
+            <Button text="Mitgliederliste exportieren…" onAction="#onMitgliederlisteExport" />
+        </HBox>
+    </top>
+    <center>
+        <TableView fx:id="buchungenTable" editable="true">
+            <columns>
+                <TableColumn fx:id="datumColumn" text="Datum" prefWidth="90" />
+                <TableColumn fx:id="geschaeftsjahrColumn" text="Geschäftsjahr" prefWidth="110" />
+                <TableColumn fx:id="betragColumn" text="Betrag" prefWidth="100" />
+                <TableColumn fx:id="saldoColumn" text="Saldo" prefWidth="100" />
+                <TableColumn fx:id="kategorieColumn" text="Kategorie" prefWidth="160" />
+                <TableColumn fx:id="mitgliedColumn" text="Mitglied" prefWidth="140" />
+                <TableColumn fx:id="verwendungszweckColumn" text="Verwendungszweck" prefWidth="260" />
+                <TableColumn fx:id="gegenkontoColumn" text="Gegenkonto" prefWidth="160" />
+                <TableColumn fx:id="quelleColumn" text="Quelle" prefWidth="100" />
+            </columns>
+        </TableView>
+    </center>
+    <bottom>
+        <HBox styleClass="statusbar">
+            <padding>
+                <Insets top="4" right="8" bottom="4" left="8" />
+            </padding>
+            <Label fx:id="statusLabel" text=" " />
+        </HBox>
+    </bottom>
+</BorderPane>

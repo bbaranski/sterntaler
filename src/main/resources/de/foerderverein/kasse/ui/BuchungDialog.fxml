@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="de.foerderverein.kasse.ui.BuchungDialogController">
+    <center>
+        <GridPane hgap="8" vgap="8">
+            <padding>
+                <Insets top="16" right="16" bottom="16" left="16" />
+            </padding>
+            <Label text="Konto" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+            <ComboBox fx:id="kontoCombo" GridPane.rowIndex="0" GridPane.columnIndex="1" maxWidth="Infinity" />
+
+            <Label text="Datum" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+            <DatePicker fx:id="datumPicker" GridPane.rowIndex="1" GridPane.columnIndex="1" maxWidth="Infinity" />
+
+            <Label text="Betrag (€)" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+            <TextField fx:id="betragField" GridPane.rowIndex="2" GridPane.columnIndex="1"
+                       promptText="z. B. -25,00 oder 100,00" />
+
+            <Label text="Kategorie" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+            <ComboBox fx:id="kategorieCombo" GridPane.rowIndex="3" GridPane.columnIndex="1" maxWidth="Infinity" />
+
+            <Label text="Mitglied (optional)" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+            <ComboBox fx:id="mitgliedCombo" GridPane.rowIndex="4" GridPane.columnIndex="1" maxWidth="Infinity" />
+
+            <Label text="Verwendungszweck" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+            <TextField fx:id="verwendungszweckField" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+            <Label text="Gegenkonto Name" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+            <TextField fx:id="gegenkontoNameField" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+            <Label text="Gegenkonto IBAN" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+            <TextField fx:id="gegenkontoIbanField" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+
+            <columnConstraints>
+                <javafx.scene.layout.ColumnConstraints minWidth="140" />
+                <javafx.scene.layout.ColumnConstraints minWidth="280" hgrow="ALWAYS" />
+            </columnConstraints>
+        </GridPane>
+    </center>
+    <bottom>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+            <padding>
+                <Insets top="8" right="16" bottom="16" left="16" />
+            </padding>
+            <Label fx:id="fehlerLabel" styleClass="fehler-label" />
+            <Button text="Abbrechen" onAction="#onAbbrechen" />
+            <Button text="Speichern" onAction="#onSpeichern" defaultButton="true" />
+        </HBox>
+    </bottom>
+</BorderPane>
