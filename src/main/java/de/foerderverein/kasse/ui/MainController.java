@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.ComboBoxTableCell;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -67,6 +69,7 @@ public class MainController {
     @FXML private TableColumn<Buchung, String> quelleColumn;
     @FXML private javafx.scene.control.Button bearbeitenButton;
     @FXML private javafx.scene.control.Button stornierenButton;
+    @FXML private javafx.scene.control.Button verlaufButton;
     @FXML private Label statusLabel;
 
     private static final DateTimeFormatter DATUM_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -142,6 +145,7 @@ public class MainController {
         buchungenTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
             bearbeitenButton.setDisable(sel == null);
             stornierenButton.setDisable(sel == null || sel.isStorniert());
+            verlaufButton.setDisable(sel == null);
         });
 
         ladeStammdaten();
@@ -252,6 +256,28 @@ public class MainController {
             } catch (IllegalStateException e) {
                 zeigeFehler("Buchung konnte nicht storniert werden", e);
             }
+        }
+    }
+
+    @FXML
+    private void onVerlauf() {
+        Buchung ausgewaehlt = buchungenTable.getSelectionModel().getSelectedItem();
+        if (ausgewaehlt == null) {
+            return;
+        }
+        try {
+            FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/BuchungVerlaufDialog.fxml");
+            Parent root = loader.load();
+            BuchungVerlaufDialogController controller = loader.getController();
+            controller.setBuchung(ausgewaehlt);
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle("Verlauf");
+            stage.setScene(Views.scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            zeigeFehler("Verlauf konnte nicht geoeffnet werden", e);
         }
     }
 
@@ -441,6 +467,29 @@ public class MainController {
             oeffneDatei(datei);
         } catch (IOException e) {
             zeigeFehler("Mitgliederliste konnte nicht exportiert werden", e);
+        }
+    }
+
+    @FXML
+    private void onDatensicherung() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Ordner fuer die Datensicherung waehlen");
+        File ordner = directoryChooser.showDialog(buchungenTable.getScene().getWindow());
+        if (ordner == null) {
+            return;
+        }
+
+        String zeitstempel = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm"));
+        Path dbZiel = ordner.toPath().resolve("kasse-sicherung-" + zeitstempel + ".db");
+        Path csvZiel = ordner.toPath().resolve("buchungen-" + zeitstempel + ".csv");
+
+        try {
+            ctx.backupService.sichereDatenbank(dbZiel);
+            ctx.backupService.exportiereAlleBuchungen(csvZiel);
+            statusLabel.setText("Datensicherung erstellt: " + ordner);
+            oeffneDatei(ordner);
+        } catch (IOException e) {
+            zeigeFehler("Datensicherung konnte nicht erstellt werden", e);
         }
     }
 

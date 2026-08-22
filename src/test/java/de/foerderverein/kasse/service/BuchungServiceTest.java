@@ -2,6 +2,7 @@ package de.foerderverein.kasse.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -10,10 +11,12 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import de.foerderverein.kasse.domain.AuditAktion;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Konto;
+import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
@@ -30,7 +33,8 @@ class BuchungServiceTest {
     void setUp() {
         Database database = TestDatabase.create();
         geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
-        buchungService = new BuchungService(new BuchungRepository(database), geschaeftsjahrRepository);
+        buchungService = new BuchungService(new BuchungRepository(database), geschaeftsjahrRepository,
+                new AuditLogRepository(database));
         Konto neu = new Konto();
         neu.setBezeichnung("Vereinskonto");
         neu.setIban("DE02120300000000202051");
@@ -86,6 +90,33 @@ class BuchungServiceTest {
         int importiert = buchungService.importiereHbciBuchungen(List.of(buchung));
 
         assertEquals(0, importiert);
+    }
+
+    @Test
+    void erfasseManuellSchreibtAuditEintrag() {
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+
+        buchungService.erfasseManuell(buchung, "tester");
+
+        var verlauf = buchungService.findVerlauf(buchung.getId());
+        assertEquals(1, verlauf.size());
+        assertEquals(AuditAktion.ANGELEGT, verlauf.get(0).getAktion());
+        assertEquals("tester", verlauf.get(0).getBenutzer());
+    }
+
+    @Test
+    void aktualisiereUndStornioreSchreibenAuditEintraege() {
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchungService.erfasseManuell(buchung, "tester");
+
+        buchung.setVerwendungszweck("Geaendert");
+        buchungService.aktualisiere(buchung);
+        buchungService.storniere(buchung);
+
+        var verlauf = buchungService.findVerlauf(buchung.getId());
+        assertEquals(3, verlauf.size());
+        assertTrue(verlauf.stream().anyMatch(e -> e.getAktion() == AuditAktion.GEAENDERT));
+        assertTrue(verlauf.stream().anyMatch(e -> e.getAktion() == AuditAktion.STORNIERT));
     }
 
     private Buchung buchung(BigDecimal betrag) {

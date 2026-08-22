@@ -1,0 +1,90 @@
+package de.foerderverein.kasse.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.time.LocalDate;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import de.foerderverein.kasse.domain.Buchung;
+import de.foerderverein.kasse.domain.BuchungsQuelle;
+import de.foerderverein.kasse.domain.Konto;
+import de.foerderverein.kasse.persistence.BuchungRepository;
+import de.foerderverein.kasse.persistence.Database;
+import de.foerderverein.kasse.persistence.KategorieRepository;
+import de.foerderverein.kasse.persistence.KontoRepository;
+import de.foerderverein.kasse.persistence.MitgliedRepository;
+import de.foerderverein.kasse.persistence.TestDatabase;
+
+class BackupServiceTest {
+
+    @Test
+    void sichereDatenbankErzeugtOeffenbareKonsistenteKopie() throws IOException, java.sql.SQLException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Buchung buchung = neueBuchung(konto.getId());
+        buchungRepository.insert(buchung);
+
+        BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
+                new KategorieRepository(database), new MitgliedRepository(database));
+
+        Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("sicherung.db");
+        backupService.sichereDatenbank(ziel);
+
+        assertTrue(Files.exists(ziel));
+        assertTrue(Files.size(ziel) > 0);
+
+        try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + ziel.toAbsolutePath());
+             Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM buchung")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1));
+        }
+    }
+
+    @Test
+    void exportiereAlleBuchungenSchreibtCsv() throws IOException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        buchungRepository.insert(neueBuchung(konto.getId()));
+
+        BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
+                new KategorieRepository(database), new MitgliedRepository(database));
+
+        Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("buchungen.csv");
+        backupService.exportiereAlleBuchungen(ziel);
+
+        List<String> zeilen = Files.readAllLines(ziel);
+        assertTrue(zeilen.get(0).startsWith("Datum;Konto;Betrag"));
+        assertTrue(zeilen.stream().anyMatch(z -> z.contains("Vereinskonto") && z.contains("Testverwendungszweck")));
+    }
+
+    private Konto neuesKonto() {
+        Konto konto = new Konto();
+        konto.setBezeichnung("Vereinskonto");
+        konto.setIban("DE02120300000000202051");
+        return konto;
+    }
+
+    private Buchung neueBuchung(Long kontoId) {
+        Buchung buchung = new Buchung();
+        buchung.setKontoId(kontoId);
+        buchung.setBuchungsdatum(LocalDate.of(2026, 3, 1));
+        buchung.setBetragEuro(new BigDecimal("42.50"));
+        buchung.setVerwendungszweck("Testverwendungszweck");
+        buchung.setQuelle(BuchungsQuelle.MANUELL);
+        return buchung;
+    }
+}
