@@ -11,6 +11,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
 import de.foerderverein.kasse.domain.Buchung;
@@ -108,7 +111,7 @@ class BerichtServiceTest {
     }
 
     @Test
-    void erstelltMitgliederlisteCsv() throws IOException {
+    void erstelltMitgliederlisteAlsExcel() throws Exception {
         Database database = TestDatabase.create();
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(
@@ -118,14 +121,24 @@ class BerichtServiceTest {
         mitglied.setVorname("Erika");
         mitglied.setNachname("Musterfrau");
         mitglied.setEmail("erika@example.org");
+        mitglied.setEintrittsdatum(LocalDate.of(2020, 1, 1));
         mitgliedRepository.save(mitglied);
 
-        Path ziel = Files.createTempDirectory("kasse-mitgliederliste-test").resolve("mitglieder.csv");
+        Path ziel = Files.createTempDirectory("kasse-mitgliederliste-test").resolve("mitglieder.xlsx");
         berichtService.exportiereMitgliederliste(ziel);
 
-        List<String> zeilen = Files.readAllLines(ziel);
-        assertTrue(zeilen.get(0).startsWith("Vorname;Nachname"));
-        assertTrue(zeilen.stream().anyMatch(z -> z.contains("Erika") && z.contains("erika@example.org")));
+        assertTrue(Files.exists(ziel));
+        try (XSSFWorkbook workbook = new XSSFWorkbook(ziel.toFile())) {
+            Sheet sheet = workbook.getSheet("Mitglieder");
+            Row kopfzeile = sheet.getRow(0);
+            assertEquals("Vorname", kopfzeile.getCell(0).getStringCellValue());
+            assertEquals("E-Mail", kopfzeile.getCell(5).getStringCellValue());
+
+            Row datenzeile = sheet.getRow(1);
+            assertEquals("Erika", datenzeile.getCell(0).getStringCellValue());
+            assertEquals("erika@example.org", datenzeile.getCell(5).getStringCellValue());
+            assertEquals("01.01.2020", datenzeile.getCell(6).getStringCellValue());
+        }
     }
 
     private Buchung neueBuchung(Long kontoId, Long kategorieId, LocalDate datum, BigDecimal betrag) {

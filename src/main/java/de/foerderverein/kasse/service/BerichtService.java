@@ -2,21 +2,22 @@ package de.foerderverein.kasse.service;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openpdf.text.Document;
 import org.openpdf.text.DocumentException;
 import org.openpdf.text.Element;
@@ -37,8 +38,9 @@ import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.MitgliedRepository;
 
 /** Erzeugt die Basis-Berichte fuer die jaehrliche Kassenpruefung: Kassenbericht als PDF und
- * Mitgliederliste als CSV. Bewusst schlicht gehalten (Tabellen, keine grafische Auswertung) -
- * fuer den vorgesehenen Zweck (Ausdruck/Ablage, Vorlage beim Kassenpruefer) ausreichend. */
+ * Mitgliederliste als Excel-Datei. Bewusst schlicht gehalten (Tabellen, keine grafische
+ * Auswertung) - fuer den vorgesehenen Zweck (Ausdruck/Ablage, Vorlage beim Kassenpruefer,
+ * Weiterverarbeitung in Excel) ausreichend. */
 public class BerichtService {
 
     private static final DateTimeFormatter DATUM_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -170,28 +172,56 @@ public class BerichtService {
         return cell;
     }
 
-    /** Einfache CSV-Datei (Semikolon-getrennt, da Excel im DACH-Raum das Komma als
-     * Dezimaltrennzeichen erwartet und sonst falsch importiert). */
+    private static final String[] MITGLIEDER_SPALTEN = {
+            "Vorname", "Nachname", "Straße", "PLZ", "Ort", "E-Mail", "Eintrittsdatum", "Austrittsdatum", "Status"
+    };
+
+    /** Excel-Datei (.xlsx) mit allen Mitgliedern - fuer Weitergabe/Weiterverarbeitung ausserhalb
+     * der Anwendung (z. B. Serienbriefe, Abgleich mit anderen Listen). */
     public void exportiereMitgliederliste(Path ziel) throws IOException {
-        List<Mitglied> mitglieder = new ArrayList<>(mitgliedRepository.findAll());
+        List<Mitglied> mitglieder = mitgliedRepository.findAll();
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
-        try (Writer writer = new OutputStreamWriter(new FileOutputStream(ziel.toFile()), StandardCharsets.UTF_8)) {
-            writer.write("Vorname;Nachname;Strasse;PLZ;Ort;E-Mail;Eintrittsdatum;Austrittsdatum;Status\n");
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Mitglieder");
+
+            org.apache.poi.ss.usermodel.Font kopfSchrift = workbook.createFont();
+            kopfSchrift.setBold(true);
+            CellStyle kopfStil = workbook.createCellStyle();
+            kopfStil.setFont(kopfSchrift);
+
+            Row kopfzeile = sheet.createRow(0);
+            for (int i = 0; i < MITGLIEDER_SPALTEN.length; i++) {
+                Cell zelle = kopfzeile.createCell(i);
+                zelle.setCellValue(MITGLIEDER_SPALTEN[i]);
+                zelle.setCellStyle(kopfStil);
+            }
+
+            int zeilenIndex = 1;
             for (Mitglied m : mitglieder) {
-                writer.write(csv(m.getVorname()) + ";" + csv(m.getNachname()) + ";" + csv(m.getStrasse()) + ";"
-                        + csv(m.getPlz()) + ";" + csv(m.getOrt()) + ";" + csv(m.getEmail()) + ";"
-                        + csv(m.getEintrittsdatum() != null ? m.getEintrittsdatum().format(DATUM_FORMAT) : null) + ";"
-                        + csv(m.getAustrittsdatum() != null ? m.getAustrittsdatum().format(DATUM_FORMAT) : null) + ";"
-                        + csv(m.getStatus().name()) + "\n");
+                Row zeile = sheet.createRow(zeilenIndex++);
+                zeile.createCell(0).setCellValue(wert(m.getVorname()));
+                zeile.createCell(1).setCellValue(wert(m.getNachname()));
+                zeile.createCell(2).setCellValue(wert(m.getStrasse()));
+                zeile.createCell(3).setCellValue(wert(m.getPlz()));
+                zeile.createCell(4).setCellValue(wert(m.getOrt()));
+                zeile.createCell(5).setCellValue(wert(m.getEmail()));
+                zeile.createCell(6).setCellValue(m.getEintrittsdatum() != null ? m.getEintrittsdatum().format(DATUM_FORMAT) : "");
+                zeile.createCell(7).setCellValue(m.getAustrittsdatum() != null ? m.getAustrittsdatum().format(DATUM_FORMAT) : "");
+                zeile.createCell(8).setCellValue(m.getStatus().name());
+            }
+
+            for (int i = 0; i < MITGLIEDER_SPALTEN.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
+                workbook.write(out);
             }
         }
     }
 
-    private String csv(String wert) {
-        if (wert == null) {
-            return "";
-        }
-        String bereinigt = wert.replace("\"", "\"\"");
-        return bereinigt.contains(";") || bereinigt.contains("\"") ? "\"" + bereinigt + "\"" : bereinigt;
+    private String wert(String text) {
+        return text != null ? text : "";
     }
 }

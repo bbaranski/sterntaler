@@ -1,6 +1,7 @@
 package de.foerderverein.kasse.app;
 
-import de.foerderverein.kasse.config.AppConfig;
+import java.nio.file.Path;
+
 import de.foerderverein.kasse.hbci.CredentialStore;
 import de.foerderverein.kasse.hbci.HbciImportService;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
@@ -47,8 +48,8 @@ public final class AppContext {
         this.credentialStore = credentialStore;
     }
 
-    public static AppContext create() {
-        Database database = new Database(AppConfig.databaseFile());
+    public static AppContext create(Path databaseFile) {
+        Database database = new Database(databaseFile);
         database.migrate();
 
         KontoRepository kontoRepository = new KontoRepository(database);

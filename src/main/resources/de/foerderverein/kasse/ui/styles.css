@@ -15,6 +15,16 @@
     -fx-font-weight: bold;
 }
 
+.warnung-label {
+    -fx-text-fill: derive(orange, -20%);
+    -fx-font-size: 0.85em;
+}
+
+.warnung-feld {
+    -fx-border-color: derive(orange, -20%);
+    -fx-border-width: 1.5;
+}
+
 .table-row-cell:storniert {
     -fx-opacity: 0.55;
 }

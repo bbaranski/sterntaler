@@ -29,6 +29,14 @@ public class MitgliedService {
         if (mitglied.getNachname() == null || mitglied.getNachname().isBlank()) {
             throw new IllegalArgumentException("Nachname darf nicht leer sein");
         }
+        if (mitglied.getIban() != null) {
+            String normalisiert = mitglied.getIban().replace(" ", "").toUpperCase();
+            mitglied.setIban(normalisiert.isBlank() ? null : normalisiert);
+        }
+        if (mitglied.getBic() != null) {
+            String normalisiert = mitglied.getBic().replace(" ", "").toUpperCase();
+            mitglied.setBic(normalisiert.isBlank() ? null : normalisiert);
+        }
         return repository.save(mitglied);
     }
 

@@ -71,8 +71,8 @@ public class MitgliedRepository {
     private Mitglied insert(Mitglied mitglied) {
         String sql = """
                 INSERT INTO mitglied (vorname, nachname, strasse, plz, ort, email, eintrittsdatum,
-                       austrittsdatum, status, notiz)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       austrittsdatum, status, notiz, iban, bic, jahresbeitrag_cent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -91,13 +91,14 @@ public class MitgliedRepository {
     private Mitglied update(Mitglied mitglied) {
         String sql = """
                 UPDATE mitglied SET vorname = ?, nachname = ?, strasse = ?, plz = ?, ort = ?, email = ?,
-                       eintrittsdatum = ?, austrittsdatum = ?, status = ?, notiz = ?
+                       eintrittsdatum = ?, austrittsdatum = ?, status = ?, notiz = ?, iban = ?, bic = ?,
+                       jahresbeitrag_cent = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, mitglied);
-            ps.setLong(11, mitglied.getId());
+            ps.setLong(14, mitglied.getId());
             ps.executeUpdate();
             return mitglied;
         } catch (SQLException e) {
@@ -116,6 +117,13 @@ public class MitgliedRepository {
         ps.setString(8, mitglied.getAustrittsdatum() != null ? mitglied.getAustrittsdatum().toString() : null);
         ps.setString(9, mitglied.getStatus().name());
         ps.setString(10, mitglied.getNotiz());
+        ps.setString(11, mitglied.getIban());
+        ps.setString(12, mitglied.getBic());
+        if (mitglied.getJahresbeitragCent() != null) {
+            ps.setLong(13, mitglied.getJahresbeitragCent());
+        } else {
+            ps.setNull(13, java.sql.Types.INTEGER);
+        }
     }
 
     private Mitglied map(ResultSet rs) throws SQLException {
@@ -133,6 +141,10 @@ public class MitgliedRepository {
         mitglied.setAustrittsdatum(austritt != null ? LocalDate.parse(austritt) : null);
         mitglied.setStatus(MitgliedStatus.valueOf(rs.getString("status")));
         mitglied.setNotiz(rs.getString("notiz"));
+        mitglied.setIban(rs.getString("iban"));
+        mitglied.setBic(rs.getString("bic"));
+        long jahresbeitragCent = rs.getLong("jahresbeitrag_cent");
+        mitglied.setJahresbeitragCent(rs.wasNull() ? null : jahresbeitragCent);
         return mitglied;
     }
 }

@@ -1,5 +1,7 @@
 package de.foerderverein.kasse.domain;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 public class Mitglied {
@@ -15,6 +17,9 @@ public class Mitglied {
     private LocalDate austrittsdatum;
     private MitgliedStatus status = MitgliedStatus.AKTIV;
     private String notiz;
+    private String iban;
+    private String bic;
+    private Long jahresbeitragCent;
 
     public Long getId() {
         return id;
@@ -102,6 +107,41 @@ public class Mitglied {
 
     public void setNotiz(String notiz) {
         this.notiz = notiz;
+    }
+
+    public String getIban() {
+        return iban;
+    }
+
+    public void setIban(String iban) {
+        this.iban = iban;
+    }
+
+    public String getBic() {
+        return bic;
+    }
+
+    public void setBic(String bic) {
+        this.bic = bic;
+    }
+
+    public Long getJahresbeitragCent() {
+        return jahresbeitragCent;
+    }
+
+    public void setJahresbeitragCent(Long jahresbeitragCent) {
+        this.jahresbeitragCent = jahresbeitragCent;
+    }
+
+    /** Jahresbeitrag in Euro, oder null falls fuer dieses Mitglied nicht hinterlegt. */
+    public BigDecimal getJahresbeitragEuro() {
+        return jahresbeitragCent != null ? BigDecimal.valueOf(jahresbeitragCent, 2) : null;
+    }
+
+    public void setJahresbeitragEuro(BigDecimal jahresbeitragEuro) {
+        this.jahresbeitragCent = jahresbeitragEuro != null
+                ? jahresbeitragEuro.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact()
+                : null;
     }
 
     public String getVollerName() {
