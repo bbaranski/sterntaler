@@ -13,8 +13,8 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 
 import de.foerderverein.kasse.app.AppContext;
+import de.foerderverein.kasse.domain.Bereich;
 import de.foerderverein.kasse.domain.Kategorie;
-import de.foerderverein.kasse.domain.KategorieTyp;
 
 public class KategorieDialogController {
 
@@ -23,9 +23,9 @@ public class KategorieDialogController {
 
     @FXML private TableView<Kategorie> kategorienTable;
     @FXML private TableColumn<Kategorie, String> nameColumn;
-    @FXML private TableColumn<Kategorie, String> typColumn;
+    @FXML private TableColumn<Kategorie, String> bereichColumn;
     @FXML private TextField nameField;
-    @FXML private ComboBox<KategorieTyp> typCombo;
+    @FXML private ComboBox<Bereich> bereichCombo;
     @FXML private CheckBox aktivCheck;
     @FXML private Label fehlerLabel;
 
@@ -38,8 +38,8 @@ public class KategorieDialogController {
     @FXML
     private void initialize() {
         nameColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getName()));
-        typColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getTyp().name()));
-        typCombo.setItems(FXCollections.observableArrayList(KategorieTyp.values()));
+        bereichColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getBereich().name()));
+        bereichCombo.setItems(FXCollections.observableArrayList(Bereich.values()));
         kategorienTable.setItems(kategorien);
 
         kategorienTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> zeigeInFormular(sel));
@@ -56,12 +56,12 @@ public class KategorieDialogController {
         ausgewaehlt = kategorie;
         if (kategorie == null) {
             nameField.clear();
-            typCombo.setValue(KategorieTyp.AUSGABE);
+            bereichCombo.setValue(Bereich.IDEELLER_BEREICH);
             aktivCheck.setSelected(true);
             return;
         }
         nameField.setText(kategorie.getName());
-        typCombo.setValue(kategorie.getTyp());
+        bereichCombo.setValue(kategorie.getBereich());
         aktivCheck.setSelected(kategorie.isAktiv());
     }
 
@@ -77,7 +77,7 @@ public class KategorieDialogController {
         try {
             Kategorie ziel = ausgewaehlt != null ? ausgewaehlt : new Kategorie();
             ziel.setName(nameField.getText());
-            ziel.setTyp(typCombo.getValue());
+            ziel.setBereich(bereichCombo.getValue());
             ziel.setAktiv(aktivCheck.isSelected());
             ctx.kategorieService.save(ziel);
             lade();

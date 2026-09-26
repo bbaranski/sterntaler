@@ -32,3 +32,16 @@
 .table-row-cell:storniert .text {
     -fx-strikethrough: true;
 }
+
+/* Nicht auswaehlbare Bereich-Kopfzeile im Kategorie-Dropdown (siehe KategorieAuswahl) - als
+   eigene, deaktivierte Zelle dargestellt; die :disabled-Kombination ist noetig, damit dieser
+   Regelsatz die staerkere Standard-Abdunkelung deaktivierter Steuerelemente ueberschreibt. */
+.kategorie-bereich-zeile {
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-mid-text-color;
+    -fx-background-color: derive(-fx-control-inner-background, -4%);
+}
+
+.kategorie-bereich-zeile:disabled {
+    -fx-opacity: 1;
+}

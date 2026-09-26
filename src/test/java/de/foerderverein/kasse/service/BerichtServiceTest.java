@@ -17,17 +17,13 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
-import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Anrede;
-import de.foerderverein.kasse.domain.Bereich;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
-import de.foerderverein.kasse.domain.KategorieTyp;
 import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
-import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
@@ -45,12 +41,11 @@ class BerichtServiceTest {
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository, new MitgliedService(mitgliedRepository, buchungRepository),
-                new AktivitaetRepository(database));
+                buchungRepository, kategorieRepository, new MitgliedService(mitgliedRepository, buchungRepository));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Kategorie spenden = kategorieRepository.findAll().stream()
-                .filter(k -> k.getName().equals("Spenden") && k.getTyp() == KategorieTyp.EINNAHME)
+                .filter(k -> k.getName().equals("Mitgliedsbeiträge"))
                 .findFirst().orElseThrow();
 
         Buchung buchung = new Buchung();
@@ -85,18 +80,17 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository, new MitgliedService(mitgliedRepository, buchungRepository),
-                new AktivitaetRepository(database));
+                buchungRepository, kategorieRepository, new MitgliedService(mitgliedRepository, buchungRepository));
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Geschaeftsjahr jahr = geschaeftsjahrRepository.save(neuesJahr());
 
         Kategorie spenden = kategorieRepository.findAll().stream()
-                .filter(k -> k.getName().equals("Spenden") && k.getTyp() == KategorieTyp.EINNAHME)
+                .filter(k -> k.getName().equals("Mitgliedsbeiträge"))
                 .findFirst().orElseThrow();
         Kategorie ausgabe = kategorieRepository.findAll().stream()
-                .filter(k -> k.getTyp() == KategorieTyp.AUSGABE)
+                .filter(k -> k.getName().equals("Kontoführung und Bankgebühren"))
                 .findFirst().orElseThrow();
 
         Buchung einnahme = neueBuchung(konto.getId(), spenden.getId(), LocalDate.of(2026, 3, 1), new BigDecimal("100.00"));
@@ -124,8 +118,7 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
-                new KategorieRepository(database), new MitgliedService(mitgliedRepository, new BuchungRepository(database)),
-                new AktivitaetRepository(database));
+                new KategorieRepository(database), new MitgliedService(mitgliedRepository, new BuchungRepository(database)));
 
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
@@ -176,45 +169,38 @@ class BerichtServiceTest {
     }
 
     @Test
-    void berechneSteuerreportBucketedNachBereichUndAktivitaet() {
+    void berechneSteuerreportBucketedNachKategorieBereich() {
         Database database = TestDatabase.create();
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
-        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository, new MitgliedService(new MitgliedRepository(database), buchungRepository),
-                aktivitaetRepository);
+                buchungRepository, kategorieRepository, new MitgliedService(new MitgliedRepository(database), buchungRepository));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
 
         Kategorie spenden = kategorieRepository.findAll().stream()
-                .filter(k -> k.getName().equals("Spenden") && k.getTyp() == KategorieTyp.EINNAHME)
+                .filter(k -> k.getName().equals("Mitgliedsbeiträge"))
                 .findFirst().orElseThrow();
         Kategorie vereinsbedarf = kategorieRepository.findAll().stream()
-                .filter(k -> k.getName().equals("Vereinsbedarf") && k.getTyp() == KategorieTyp.AUSGABE)
+                .filter(k -> k.getName().equals("Kontoführung und Bankgebühren"))
                 .findFirst().orElseThrow();
 
-        Kategorie veranstaltungErloese = kategorieRepository.findAll().stream()
-                .filter(k -> k.getName().equals("Veranstaltungserloese") && k.getTyp() == KategorieTyp.EINNAHME)
+        // Bereits als WIRTSCHAFTLICHER_GESCHAEFTSBETRIEB geseedet (siehe V17) - der Bereich haengt
+        // an der Kategorie selbst, eine verknuepfte Aktivitaet spielt fuer die Steuererklaerung
+        // keine Rolle mehr.
+        Kategorie geschaeftsbetrieb = kategorieRepository.findAll().stream()
+                .filter(k -> k.getName().equals("Kuchen- und Getränkeverkauf"))
                 .findFirst().orElseThrow();
 
-        // Der Bereich haengt an der Aktivitaet, nicht mehr an der Kategorie.
-        Aktivitaet sanktMartin = neueAktivitaet("Sankt Martin");
-        sanktMartin.setBereich(Bereich.WIRTSCHAFTLICHER_GESCHAEFTSBETRIEB);
-        aktivitaetRepository.save(sanktMartin);
-
-        // Ideeller Bereich (keine Aktivitaet zugeordnet): Spende (Einnahme) + Vereinsbedarf (Ausgabe)
+        // Ideeller Bereich (Standard-Bereich der Starter-Kategorien): Spende (Einnahme) + Vereinsbedarf (Ausgabe)
         buchungRepository.insert(neueBuchung(konto.getId(), spenden.getId(), LocalDate.of(2026, 3, 1), new BigDecimal("100.00")));
         buchungRepository.insert(neueBuchung(konto.getId(), vereinsbedarf.getId(), LocalDate.of(2026, 3, 5), new BigDecimal("-40.00")));
 
-        // Wirtschaftlicher Geschaeftsbetrieb ueber die zugeordnete Aktivitaet Sankt Martin
-        Buchung mitAktivitaet = neueBuchung(konto.getId(), veranstaltungErloese.getId(), LocalDate.of(2026, 6, 1), new BigDecimal("50.00"));
-        mitAktivitaet.setAktivitaetId(sanktMartin.getId());
-        buchungRepository.insert(mitAktivitaet);
+        // Wirtschaftlicher Geschaeftsbetrieb ueber die Kategorie selbst
+        buchungRepository.insert(neueBuchung(konto.getId(), geschaeftsbetrieb.getId(), LocalDate.of(2026, 6, 1), new BigDecimal("50.00")));
 
-        // Dieselbe Kategorie, aber ohne Aktivitaet zugeordnet - faellt jetzt in den Ideeller
-        // Bereich (Standardfall), da die Kategorie selbst keinen Bereich mehr traegt.
-        buchungRepository.insert(neueBuchung(konto.getId(), veranstaltungErloese.getId(), LocalDate.of(2026, 6, 2), new BigDecimal("20.00")));
+        // Buchung ohne Kategorie faellt in den Ideeller Bereich (Standardfall)
+        buchungRepository.insert(neueBuchung(konto.getId(), null, LocalDate.of(2026, 6, 2), new BigDecimal("20.00")));
 
         // Stornierte Buchung darf nicht mitgezaehlt werden
         Buchung storniert = neueBuchung(konto.getId(), spenden.getId(), LocalDate.of(2026, 3, 10), new BigDecimal("999.00"));
@@ -226,14 +212,14 @@ class BerichtServiceTest {
 
         SteuerreportDaten daten = berichtService.berechneSteuerreport(konto, 2026);
 
-        assertEquals(10000L, daten.einnahmenProKategorieIdeell().get("Spenden"));
-        assertEquals(4000L, daten.ausgabenProKategorieIdeell().get("Vereinsbedarf"));
-        assertEquals(2000L, daten.einnahmenProKategorieIdeell().get("Veranstaltungserloese"));
+        assertEquals(10000L, daten.einnahmenProKategorieIdeell().get("Mitgliedsbeiträge"));
+        assertEquals(4000L, daten.ausgabenProKategorieIdeell().get("Kontoführung und Bankgebühren"));
+        assertEquals(2000L, daten.einnahmenProKategorieIdeell().get("(ohne Kategorie)"));
         assertTrue(daten.einnahmenProKategorieVermoegen().isEmpty());
         assertTrue(daten.einnahmenProKategorieZweckbetrieb().isEmpty());
 
-        assertEquals(1, daten.summenProAktivitaetGeschaeftsbetrieb().size());
-        assertEquals(5000L, daten.summenProAktivitaetGeschaeftsbetrieb().get("Sankt Martin").einnahmenCent());
+        assertEquals(1, daten.einnahmenProKategorieGeschaeftsbetrieb().size());
+        assertEquals(5000L, daten.einnahmenProKategorieGeschaeftsbetrieb().get("Kuchen- und Getränkeverkauf"));
     }
 
     @Test
@@ -242,11 +228,11 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                new MitgliedService(new MitgliedRepository(database), buchungRepository), new AktivitaetRepository(database));
+                new MitgliedService(new MitgliedRepository(database), buchungRepository));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Kategorie spenden = kategorieRepository.findAll().stream()
-                .filter(k -> k.getName().equals("Spenden") && k.getTyp() == KategorieTyp.EINNAHME)
+                .filter(k -> k.getName().equals("Mitgliedsbeiträge"))
                 .findFirst().orElseThrow();
         buchungRepository.insert(neueBuchung(konto.getId(), spenden.getId(), LocalDate.of(2026, 3, 1), new BigDecimal("100.00")));
 
@@ -263,8 +249,7 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
-                new KategorieRepository(database), new MitgliedService(mitgliedRepository, new BuchungRepository(database)),
-                new AktivitaetRepository(database));
+                new KategorieRepository(database), new MitgliedService(mitgliedRepository, new BuchungRepository(database)));
 
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
@@ -287,8 +272,7 @@ class BerichtServiceTest {
         Database zielDatenbank = TestDatabase.create();
         MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
-                new KategorieRepository(zielDatenbank), new MitgliedService(zielRepository, new BuchungRepository(zielDatenbank)),
-                new AktivitaetRepository(zielDatenbank));
+                new KategorieRepository(zielDatenbank), new MitgliedService(zielRepository, new BuchungRepository(zielDatenbank)));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
 
@@ -313,8 +297,7 @@ class BerichtServiceTest {
         Database quellDatenbank = TestDatabase.create();
         MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
         BerichtService quellService = new BerichtService(new BuchungRepository(quellDatenbank),
-                new KategorieRepository(quellDatenbank), new MitgliedService(quellRepository, new BuchungRepository(quellDatenbank)),
-                new AktivitaetRepository(quellDatenbank));
+                new KategorieRepository(quellDatenbank), new MitgliedService(quellRepository, new BuchungRepository(quellDatenbank)));
 
         Mitglied gueltig = new Mitglied();
         gueltig.setVorname("Erika");
@@ -332,8 +315,7 @@ class BerichtServiceTest {
         Database zielDatenbank = TestDatabase.create();
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
                 new KategorieRepository(zielDatenbank),
-                new MitgliedService(new MitgliedRepository(zielDatenbank), new BuchungRepository(zielDatenbank)),
-                new AktivitaetRepository(zielDatenbank));
+                new MitgliedService(new MitgliedRepository(zielDatenbank), new BuchungRepository(zielDatenbank)));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
 
@@ -346,8 +328,7 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
-                new MitgliedService(new MitgliedRepository(database), new BuchungRepository(database)),
-                new AktivitaetRepository(database));
+                new MitgliedService(new MitgliedRepository(database), new BuchungRepository(database)));
 
         Path falscheDatei = Files.createTempDirectory("kasse-mitgliederliste-falsch").resolve("falsch.xlsx");
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
@@ -359,12 +340,6 @@ class BerichtServiceTest {
         }
 
         assertThrows(IOException.class, () -> berichtService.importiereMitgliederliste(falscheDatei));
-    }
-
-    private Aktivitaet neueAktivitaet(String name) {
-        Aktivitaet aktivitaet = new Aktivitaet();
-        aktivitaet.setName(name);
-        return aktivitaet;
     }
 
     private Buchung neueBuchung(Long kontoId, Long kategorieId, LocalDate datum, BigDecimal betrag) {

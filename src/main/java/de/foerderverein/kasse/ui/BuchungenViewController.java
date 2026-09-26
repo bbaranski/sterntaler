@@ -8,6 +8,7 @@ import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +27,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -123,7 +125,7 @@ public class BuchungenViewController {
         saldoColumn.setCellFactory(SpaltenFormat.betragCentZelle(BETRAG_FORMAT));
         kategorieColumn.setCellValueFactory(cd ->
                 new ReadOnlyObjectWrapper<>(kategorienById.get(cd.getValue().getKategorieId())));
-        kategorieColumn.setCellFactory(ComboBoxTableCell.forTableColumn(kategorienFuerAuswahl));
+        kategorieColumn.setCellFactory(col -> kategorieZelle());
         kategorieColumn.setOnEditCommit(event -> {
             Buchung b = event.getRowValue();
             Long alt = b.getKategorieId();
@@ -280,7 +282,7 @@ public class BuchungenViewController {
         }
 
         // Haelt die Dropdown-Optionen der inline editierbaren Tabellenspalten aktuell.
-        kategorienFuerAuswahl.setAll(kategorienAktiv());
+        kategorienFuerAuswahl.setAll(KategorieAuswahl.mitBereichKoepfen(kategorienAktiv()));
         mitgliederFuerAuswahl.setAll(mitgliederAktiv());
         aktivitaetenFuerAuswahl.setAll(aktivitaetenAktiv());
         buchungenTable.refresh();
@@ -319,7 +321,72 @@ public class BuchungenViewController {
     }
 
     private List<Kategorie> kategorienAktiv() {
-        return kategorienById.values().stream().filter(Kategorie::isAktiv).toList();
+        return kategorienById.values().stream().filter(Kategorie::isAktiv)
+                .sorted(Comparator.comparing(Kategorie::getBereich).thenComparing(Kategorie::getName))
+                .toList();
+    }
+
+    /** Eigene TableCell statt ComboBoxTableCell.forTableColumn(...), da diese eingebaute Zelle
+     * keine Anpassung der Dropdown-Darstellung erlaubt (kein Zugriff auf die intern verwaltete
+     * ComboBox) - hier aber gebraucht, um Bereich-Kopfzeilen anzuzeigen (siehe KategorieAuswahl). */
+    private TableCell<Buchung, Kategorie> kategorieZelle() {
+        return new TableCell<>() {
+            private final ComboBox<Kategorie> comboBox = new ComboBox<>(kategorienFuerAuswahl);
+            {
+                KategorieAuswahl.konfiguriere(comboBox);
+                comboBox.setMaxWidth(Double.MAX_VALUE);
+                // setOnAction statt eines valueProperty-Listeners: Action-Events feuern nur bei
+                // echter Nutzerauswahl (Klick in der Liste/Enter), nicht bei einem programmatischen
+                // setValue(...) - genau das brauchen wir hier, da startEdit() den aktuellen Wert per
+                // setValue(...) vorbelegt und das sonst sofort einen ungewollten Commit ausloesen
+                // wuerde (setValue selbst zaehlt fuer einen valueProperty-Listener als Aenderung).
+                comboBox.setOnAction(event -> {
+                    if (isEditing()) {
+                        commitEdit(comboBox.getValue());
+                    }
+                });
+            }
+
+            @Override
+            public void startEdit() {
+                if (!isEditable() || !getTableView().isEditable() || !getTableColumn().isEditable()) {
+                    return;
+                }
+                super.startEdit();
+                comboBox.setValue(getItem());
+                setText(null);
+                setGraphic(comboBox);
+                // Muss verzoegert erfolgen: unmittelbar nach setGraphic(...) ist die ComboBox noch
+                // nicht vollstaendig im Scene-Graph verankert, show() haette dann keine Wirkung
+                // oder platziert das Popup falsch. Erwartetes Verhalten wie beim zuvor genutzten
+                // ComboBoxTableCell, das den Dropdown-Vorschlag beim Editier-Start sofort oeffnet.
+                comboBox.requestFocus();
+                Platform.runLater(comboBox::show);
+            }
+
+            @Override
+            public void cancelEdit() {
+                super.cancelEdit();
+                setText(getItem() == null ? "" : getItem().getName());
+                setGraphic(null);
+            }
+
+            @Override
+            protected void updateItem(Kategorie item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText(null);
+                    setGraphic(null);
+                } else if (isEditing()) {
+                    comboBox.setValue(item);
+                    setText(null);
+                    setGraphic(comboBox);
+                } else {
+                    setText(item == null ? "" : item.getName());
+                    setGraphic(null);
+                }
+            }
+        };
     }
 
     private List<Mitglied> mitgliederAktiv() {

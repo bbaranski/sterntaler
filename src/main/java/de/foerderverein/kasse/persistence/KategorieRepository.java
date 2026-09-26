@@ -6,13 +6,21 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import de.foerderverein.kasse.domain.Bereich;
 import de.foerderverein.kasse.domain.Kategorie;
-import de.foerderverein.kasse.domain.KategorieTyp;
 
 public class KategorieRepository {
+
+    // Sortiert nach der fachlich korrekten, deklarierten Reihenfolge des Bereich-Enums (Ideeller
+    // Bereich, Vermoegensverwaltung, Zweckbetrieb, Wirtschaftlicher Geschaeftsbetrieb) statt nach
+    // dem alphabetischen Enum-Text (was z. B. "Wirtschaftlicher Geschaeftsbetrieb" faelschlich vor
+    // "Zweckbetrieb" einsortieren wuerde) - deshalb Java-seitig statt per SQL ORDER BY.
+    private static final Comparator<Kategorie> SORTIERUNG =
+            Comparator.comparing(Kategorie::getBereich).thenComparing(Kategorie::getName);
 
     private final Database database;
 
@@ -21,12 +29,12 @@ public class KategorieRepository {
     }
 
     public List<Kategorie> findAllAktiv() {
-        String sql = "SELECT * FROM kategorie WHERE aktiv = 1 ORDER BY typ, name";
+        String sql = "SELECT * FROM kategorie WHERE aktiv = 1";
         return query(sql);
     }
 
     public List<Kategorie> findAll() {
-        String sql = "SELECT * FROM kategorie ORDER BY typ, name";
+        String sql = "SELECT * FROM kategorie";
         return query(sql);
     }
 
@@ -38,7 +46,7 @@ public class KategorieRepository {
             while (rs.next()) {
                 result.add(map(rs));
             }
-            return result;
+            return result.stream().sorted(SORTIERUNG).toList();
         } catch (SQLException e) {
             throw new PersistenceException("Kategorien konnten nicht geladen werden", e);
         }
@@ -63,7 +71,7 @@ public class KategorieRepository {
 
     private Kategorie insert(Kategorie kategorie) {
         String sql = """
-                INSERT INTO kategorie (name, typ, uebergeordnete_kategorie_id, aktiv)
+                INSERT INTO kategorie (name, bereich, uebergeordnete_kategorie_id, aktiv)
                 VALUES (?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
@@ -82,7 +90,7 @@ public class KategorieRepository {
 
     private Kategorie update(Kategorie kategorie) {
         String sql = """
-                UPDATE kategorie SET name = ?, typ = ?, uebergeordnete_kategorie_id = ?, aktiv = ?
+                UPDATE kategorie SET name = ?, bereich = ?, uebergeordnete_kategorie_id = ?, aktiv = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
@@ -98,7 +106,7 @@ public class KategorieRepository {
 
     private void bind(PreparedStatement ps, Kategorie kategorie) throws SQLException {
         ps.setString(1, kategorie.getName());
-        ps.setString(2, kategorie.getTyp().name());
+        ps.setString(2, kategorie.getBereich().name());
         if (kategorie.getUebergeordneteKategorieId() != null) {
             ps.setLong(3, kategorie.getUebergeordneteKategorieId());
         } else {
@@ -111,7 +119,7 @@ public class KategorieRepository {
         Kategorie kategorie = new Kategorie();
         kategorie.setId(rs.getLong("id"));
         kategorie.setName(rs.getString("name"));
-        kategorie.setTyp(KategorieTyp.valueOf(rs.getString("typ")));
+        kategorie.setBereich(Bereich.valueOf(rs.getString("bereich")));
         long parent = rs.getLong("uebergeordnete_kategorie_id");
         kategorie.setUebergeordneteKategorieId(rs.wasNull() ? null : parent);
         kategorie.setAktiv(rs.getInt("aktiv") == 1);

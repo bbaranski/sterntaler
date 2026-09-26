@@ -12,24 +12,24 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" prefWidth="520" prefHeight="420"
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" prefWidth="600" prefHeight="460"
             fx:controller="de.foerderverein.kasse.ui.KategorieDialogController">
     <center>
         <HBox spacing="12">
             <padding>
                 <Insets top="12" right="12" bottom="12" left="12" />
             </padding>
-            <TableView fx:id="kategorienTable" prefWidth="280" HBox.hgrow="ALWAYS">
+            <TableView fx:id="kategorienTable" prefWidth="340" HBox.hgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="nameColumn" text="Name" prefWidth="180" />
-                    <TableColumn fx:id="typColumn" text="Typ" prefWidth="90" />
+                    <TableColumn fx:id="nameColumn" text="Name" prefWidth="160" />
+                    <TableColumn fx:id="bereichColumn" text="Bereich" prefWidth="220" />
                 </columns>
             </TableView>
             <VBox spacing="8" prefWidth="200">
                 <Label text="Name" />
                 <TextField fx:id="nameField" />
-                <Label text="Typ" />
-                <ComboBox fx:id="typCombo" maxWidth="Infinity" />
+                <Label text="Bereich" />
+                <ComboBox fx:id="bereichCombo" maxWidth="Infinity" />
                 <CheckBox fx:id="aktivCheck" text="Aktiv" />
                 <Button text="Neu" onAction="#onNeu" maxWidth="Infinity" />
                 <Button text="Speichern" onAction="#onSpeichern" maxWidth="Infinity" defaultButton="true" />

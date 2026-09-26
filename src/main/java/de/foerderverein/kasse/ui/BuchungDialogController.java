@@ -41,10 +41,15 @@ public class BuchungDialogController {
         this.ctx = ctx;
     }
 
+    @FXML
+    private void initialize() {
+        KategorieAuswahl.konfiguriere(kategorieCombo);
+    }
+
     public void setDaten(Buchung bestehend, List<Konto> konten, List<Kategorie> kategorien, List<Mitglied> mitglieder,
                           List<Aktivitaet> aktivitaeten) {
         kontoCombo.setItems(FXCollections.observableArrayList(konten));
-        kategorieCombo.setItems(FXCollections.observableArrayList(kategorien));
+        kategorieCombo.setItems(FXCollections.observableArrayList(KategorieAuswahl.mitBereichKoepfen(kategorien)));
         mitgliedCombo.setItems(FXCollections.observableArrayList(mitglieder));
         aktivitaetCombo.setItems(FXCollections.observableArrayList(aktivitaeten));
 

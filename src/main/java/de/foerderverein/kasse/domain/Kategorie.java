@@ -4,7 +4,7 @@ public class Kategorie {
 
     private Long id;
     private String name;
-    private KategorieTyp typ;
+    private Bereich bereich = Bereich.IDEELLER_BEREICH;
     private Long uebergeordneteKategorieId;
     private boolean aktiv = true;
 
@@ -24,12 +24,12 @@ public class Kategorie {
         this.name = name;
     }
 
-    public KategorieTyp getTyp() {
-        return typ;
+    public Bereich getBereich() {
+        return bereich;
     }
 
-    public void setTyp(KategorieTyp typ) {
-        this.typ = typ;
+    public void setBereich(Bereich bereich) {
+        this.bereich = bereich;
     }
 
     public Long getUebergeordneteKategorieId() {

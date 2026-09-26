@@ -12,5 +12,6 @@ record SteuerreportDaten(
         Map<String, Long> ausgabenProKategorieVermoegen,
         Map<String, Long> einnahmenProKategorieZweckbetrieb,
         Map<String, Long> ausgabenProKategorieZweckbetrieb,
-        Map<String, AktivitaetSumme> summenProAktivitaetGeschaeftsbetrieb) {
+        Map<String, Long> einnahmenProKategorieGeschaeftsbetrieb,
+        Map<String, Long> ausgabenProKategorieGeschaeftsbetrieb) {
 }

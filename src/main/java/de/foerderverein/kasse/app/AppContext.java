@@ -80,7 +80,7 @@ public final class AppContext {
                 new AktivitaetService(aktivitaetRepository),
                 new BelegService(belegRepository),
                 new GeschaeftsjahrService(geschaeftsjahrRepository),
-                new BerichtService(buchungRepository, kategorieRepository, mitgliedService, aktivitaetRepository),
+                new BerichtService(buchungRepository, kategorieRepository, mitgliedService),
                 new BackupService(database, buchungRepository, kontoRepository, kategorieRepository, mitgliedRepository),
                 new HbciImportService(buchungRepository, credentialStore),
                 credentialStore);

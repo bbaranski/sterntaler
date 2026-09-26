@@ -25,8 +25,8 @@ public class KategorieService {
         if (kategorie.getName() == null || kategorie.getName().isBlank()) {
             throw new IllegalArgumentException("Name darf nicht leer sein");
         }
-        if (kategorie.getTyp() == null) {
-            throw new IllegalArgumentException("Typ (Einnahme/Ausgabe) muss gesetzt sein");
+        if (kategorie.getBereich() == null) {
+            throw new IllegalArgumentException("Bereich muss gesetzt sein");
         }
         return repository.save(kategorie);
     }

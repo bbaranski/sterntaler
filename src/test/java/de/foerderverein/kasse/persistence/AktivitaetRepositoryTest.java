@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import de.foerderverein.kasse.domain.Aktivitaet;
-import de.foerderverein.kasse.domain.Bereich;
 
 class AktivitaetRepositoryTest {
 
@@ -21,27 +20,6 @@ class AktivitaetRepositoryTest {
         var alle = repository.findAll();
         assertEquals(1, alle.size());
         assertEquals("Sankt Martin", alle.get(0).getName());
-    }
-
-    @Test
-    void defaultBereichIstIdeeller() {
-        AktivitaetRepository repository = new AktivitaetRepository(TestDatabase.create());
-        Aktivitaet aktivitaet = repository.save(neueAktivitaet());
-
-        var neuGeladen = repository.findById(aktivitaet.getId()).orElseThrow();
-        assertEquals(Bereich.IDEELLER_BEREICH, neuGeladen.getBereich());
-    }
-
-    @Test
-    void bereichWirdGespeichertUndGeladen() {
-        AktivitaetRepository repository = new AktivitaetRepository(TestDatabase.create());
-        Aktivitaet aktivitaet = neueAktivitaet();
-        aktivitaet.setBereich(Bereich.WIRTSCHAFTLICHER_GESCHAEFTSBETRIEB);
-
-        repository.save(aktivitaet);
-
-        var neuGeladen = repository.findById(aktivitaet.getId()).orElseThrow();
-        assertEquals(Bereich.WIRTSCHAFTLICHER_GESCHAEFTSBETRIEB, neuGeladen.getBereich());
     }
 
     @Test

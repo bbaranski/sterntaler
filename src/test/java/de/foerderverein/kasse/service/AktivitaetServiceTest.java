@@ -20,16 +20,6 @@ class AktivitaetServiceTest {
     }
 
     @Test
-    void bereichFehltWirdAbgelehnt() {
-        AktivitaetService service = new AktivitaetService(new AktivitaetRepository(TestDatabase.create()));
-        Aktivitaet aktivitaet = new Aktivitaet();
-        aktivitaet.setName("Sankt Martin");
-        aktivitaet.setBereich(null);
-
-        assertThrows(IllegalArgumentException.class, () -> service.save(aktivitaet));
-    }
-
-    @Test
     void deaktiviereSetztAktivFalse() {
         AktivitaetService service = new AktivitaetService(new AktivitaetRepository(TestDatabase.create()));
         Aktivitaet aktivitaet = new Aktivitaet();

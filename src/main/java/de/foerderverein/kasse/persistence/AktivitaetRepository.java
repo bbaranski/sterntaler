@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 import de.foerderverein.kasse.domain.Aktivitaet;
-import de.foerderverein.kasse.domain.Bereich;
 
 public class AktivitaetRepository {
 
@@ -68,7 +67,7 @@ public class AktivitaetRepository {
     }
 
     private Aktivitaet insert(Aktivitaet aktivitaet) {
-        String sql = "INSERT INTO aktivitaet (name, notiz, aktiv, bereich) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO aktivitaet (name, notiz, aktiv) VALUES (?, ?, ?)";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             bind(ps, aktivitaet);
@@ -84,11 +83,11 @@ public class AktivitaetRepository {
     }
 
     private Aktivitaet update(Aktivitaet aktivitaet) {
-        String sql = "UPDATE aktivitaet SET name = ?, notiz = ?, aktiv = ?, bereich = ? WHERE id = ?";
+        String sql = "UPDATE aktivitaet SET name = ?, notiz = ?, aktiv = ? WHERE id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, aktivitaet);
-            ps.setLong(5, aktivitaet.getId());
+            ps.setLong(4, aktivitaet.getId());
             ps.executeUpdate();
             return aktivitaet;
         } catch (SQLException e) {
@@ -100,7 +99,6 @@ public class AktivitaetRepository {
         ps.setString(1, aktivitaet.getName());
         ps.setString(2, aktivitaet.getNotiz());
         ps.setInt(3, aktivitaet.isAktiv() ? 1 : 0);
-        ps.setString(4, aktivitaet.getBereich().name());
     }
 
     private Aktivitaet map(ResultSet rs) throws SQLException {
@@ -109,7 +107,6 @@ public class AktivitaetRepository {
         aktivitaet.setName(rs.getString("name"));
         aktivitaet.setNotiz(rs.getString("notiz"));
         aktivitaet.setAktiv(rs.getInt("aktiv") == 1);
-        aktivitaet.setBereich(Bereich.valueOf(rs.getString("bereich")));
         return aktivitaet;
     }
 }

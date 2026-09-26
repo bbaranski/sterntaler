@@ -25,9 +25,6 @@ public class AktivitaetService {
         if (aktivitaet.getName() == null || aktivitaet.getName().isBlank()) {
             throw new IllegalArgumentException("Name darf nicht leer sein");
         }
-        if (aktivitaet.getBereich() == null) {
-            throw new IllegalArgumentException("Bereich muss gesetzt sein");
-        }
         return repository.save(aktivitaet);
     }
 

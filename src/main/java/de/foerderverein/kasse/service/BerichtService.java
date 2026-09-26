@@ -31,7 +31,6 @@ import org.openpdf.text.pdf.PdfPCell;
 import org.openpdf.text.pdf.PdfPTable;
 import org.openpdf.text.pdf.PdfWriter;
 
-import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Anrede;
 import de.foerderverein.kasse.domain.Bereich;
 import de.foerderverein.kasse.domain.Buchung;
@@ -40,7 +39,6 @@ import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
-import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.KategorieRepository;
 
@@ -56,14 +54,12 @@ public class BerichtService {
     private final BuchungRepository buchungRepository;
     private final KategorieRepository kategorieRepository;
     private final MitgliedService mitgliedService;
-    private final AktivitaetRepository aktivitaetRepository;
 
     public BerichtService(BuchungRepository buchungRepository, KategorieRepository kategorieRepository,
-                           MitgliedService mitgliedService, AktivitaetRepository aktivitaetRepository) {
+                           MitgliedService mitgliedService) {
         this.buchungRepository = buchungRepository;
         this.kategorieRepository = kategorieRepository;
         this.mitgliedService = mitgliedService;
-        this.aktivitaetRepository = aktivitaetRepository;
     }
 
     public void erstelleKassenbericht(Path ziel, Konto konto, Geschaeftsjahr jahr) throws IOException {
@@ -141,10 +137,11 @@ public class BerichtService {
     }
 
     /** Jaehrliche "Ergaenzung zur Steuererklaerung": Gegenueberstellung von Einnahmen und
-     * Ausgaben, klassifiziert nach den vier steuerlichen Sphaeren (Bereich), mit Aufschluesselung
-     * des Wirtschaftlichen Geschaeftsbetriebs je Aktivitaet/Veranstaltung. Anders als der
-     * Kassenbericht ohne Start-/Endsaldo-Konzept - reine Kalenderjahresbetrachtung fuer das
-     * Finanzamt, daher eigene Jahresangabe statt eines (moeglicherweise nicht kalenderjahrgleichen)
+     * Ausgaben, klassifiziert nach den vier steuerlichen Sphaeren (Bereich) der jeweiligen
+     * Kategorie (siehe Kategorie.getBereich()) - Aktivitaeten/Veranstaltungen spielen hier keine
+     * Rolle mehr, sie sind reines optionales Reporting-Metadatum. Anders als der Kassenbericht
+     * ohne Start-/Endsaldo-Konzept - reine Kalenderjahresbetrachtung fuer das Finanzamt, daher
+     * eigene Jahresangabe statt eines (moeglicherweise nicht kalenderjahrgleichen)
      * Geschaeftsjahres. */
     public void erstelleSteuerreport(Path ziel, Konto konto, int jahr) throws IOException {
         SteuerreportDaten daten = berechneSteuerreport(konto, jahr);
@@ -155,10 +152,8 @@ public class BerichtService {
         long ausgabenVermoegen = summe(daten.ausgabenProKategorieVermoegen());
         long einnahmenZweckbetrieb = summe(daten.einnahmenProKategorieZweckbetrieb());
         long ausgabenZweckbetrieb = summe(daten.ausgabenProKategorieZweckbetrieb());
-        long einnahmenGeschaeftsbetrieb = daten.summenProAktivitaetGeschaeftsbetrieb().values().stream()
-                .mapToLong(AktivitaetSumme::einnahmenCent).sum();
-        long ausgabenGeschaeftsbetrieb = daten.summenProAktivitaetGeschaeftsbetrieb().values().stream()
-                .mapToLong(AktivitaetSumme::ausgabenCent).sum();
+        long einnahmenGeschaeftsbetrieb = summe(daten.einnahmenProKategorieGeschaeftsbetrieb());
+        long ausgabenGeschaeftsbetrieb = summe(daten.ausgabenProKategorieGeschaeftsbetrieb());
 
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         Document document = new Document(PageSize.A4, 40, 40, 50, 50);
@@ -214,11 +209,14 @@ public class BerichtService {
             document.add(leerzeile());
 
             document.add(new Paragraph("D. Wirtschaftlicher Geschäftsbetrieb", abschnitt));
-            if (daten.summenProAktivitaetGeschaeftsbetrieb().isEmpty()) {
+            if (daten.einnahmenProKategorieGeschaeftsbetrieb().isEmpty() && daten.ausgabenProKategorieGeschaeftsbetrieb().isEmpty()) {
                 document.add(new Paragraph("Keine", untertitel));
             } else {
-                document.add(aktivitaetenTabelle(daten.summenProAktivitaetGeschaeftsbetrieb(),
-                        einnahmenGeschaeftsbetrieb, ausgabenGeschaeftsbetrieb));
+                document.add(new Paragraph("Einnahmen", untertitel));
+                document.add(kategorieTabelle(daten.einnahmenProKategorieGeschaeftsbetrieb(), einnahmenGeschaeftsbetrieb));
+                document.add(leerzeile());
+                document.add(new Paragraph("Ausgaben", untertitel));
+                document.add(kategorieTabelle(daten.ausgabenProKategorieGeschaeftsbetrieb(), ausgabenGeschaeftsbetrieb));
                 document.add(leerzeile());
                 document.add(ueberschussVerlustZeile("Gewinn", einnahmenGeschaeftsbetrieb, ausgabenGeschaeftsbetrieb, abschnitt));
             }
@@ -251,10 +249,6 @@ public class BerichtService {
         for (Kategorie k : kategorieRepository.findAll()) {
             kategorienById.put(k.getId(), k);
         }
-        Map<Long, Aktivitaet> aktivitaetenById = new LinkedHashMap<>();
-        for (Aktivitaet a : aktivitaetRepository.findAll()) {
-            aktivitaetenById.put(a.getId(), a);
-        }
 
         java.time.LocalDate start = java.time.LocalDate.of(jahr, 1, 1);
         java.time.LocalDate ende = java.time.LocalDate.of(jahr, 12, 31);
@@ -272,16 +266,16 @@ public class BerichtService {
         Map<String, Long> ausgabenVermoegen = new LinkedHashMap<>();
         Map<String, Long> einnahmenZweckbetrieb = new LinkedHashMap<>();
         Map<String, Long> ausgabenZweckbetrieb = new LinkedHashMap<>();
-        Map<String, AktivitaetSumme> summenProAktivitaet = new LinkedHashMap<>();
+        Map<String, Long> einnahmenGeschaeftsbetrieb = new LinkedHashMap<>();
+        Map<String, Long> ausgabenGeschaeftsbetrieb = new LinkedHashMap<>();
 
         for (Buchung b : buchungen) {
             Kategorie k = kategorienById.get(b.getKategorieId());
             String kategorieName = k != null ? k.getName() : "(ohne Kategorie)";
-            // Die steuerliche Sphaere haengt an der Aktivitaet, nicht an der Kategorie (siehe
-            // Aktivitaet.getBereich): eine Kategorie wie "Spenden" beschreibt nur die Art der
-            // Ein-/Ausgabe. Ohne zugeordnete Aktivitaet gilt der Ideeller Bereich als Standardfall.
-            Aktivitaet a = aktivitaetenById.get(b.getAktivitaetId());
-            Bereich bereich = a != null ? a.getBereich() : Bereich.IDEELLER_BEREICH;
+            // Die steuerliche Sphaere haengt an der Kategorie (siehe Kategorie.getBereich()) -
+            // Aktivitaeten/Veranstaltungen spielen hier keine Rolle mehr. Ohne zugeordnete
+            // Kategorie gilt der Ideeller Bereich als Standardfall.
+            Bereich bereich = k != null ? k.getBereich() : Bereich.IDEELLER_BEREICH;
             boolean istEinnahme = b.getBetragCent() >= 0;
             long betrag = Math.abs(b.getBetragCent());
 
@@ -308,19 +302,17 @@ public class BerichtService {
                     }
                 }
                 case WIRTSCHAFTLICHER_GESCHAEFTSBETRIEB -> {
-                    // a ist hier nie null - der Bereich stammt selbst von dieser Aktivitaet.
-                    String name = a.getName();
-                    AktivitaetSumme alt = summenProAktivitaet.getOrDefault(name, new AktivitaetSumme(0, 0));
-                    AktivitaetSumme neu = istEinnahme
-                            ? new AktivitaetSumme(alt.einnahmenCent() + betrag, alt.ausgabenCent())
-                            : new AktivitaetSumme(alt.einnahmenCent(), alt.ausgabenCent() + betrag);
-                    summenProAktivitaet.put(name, neu);
+                    if (istEinnahme) {
+                        einnahmenGeschaeftsbetrieb.merge(kategorieName, betrag, Long::sum);
+                    } else {
+                        ausgabenGeschaeftsbetrieb.merge(kategorieName, betrag, Long::sum);
+                    }
                 }
             }
         }
 
         return new SteuerreportDaten(einnahmenIdeell, ausgabenIdeell, einnahmenVermoegen, ausgabenVermoegen,
-                einnahmenZweckbetrieb, ausgabenZweckbetrieb, summenProAktivitaet);
+                einnahmenZweckbetrieb, ausgabenZweckbetrieb, einnahmenGeschaeftsbetrieb, ausgabenGeschaeftsbetrieb);
     }
 
     private long summe(Map<String, Long> summenProKategorie) {
@@ -331,49 +323,6 @@ public class BerichtService {
         long saldo = einnahmenCent - ausgabenCent;
         String label = saldo >= 0 ? positivLabel : "Verlust";
         return new Paragraph(label + ": " + BETRAG_FORMAT.format(BigDecimal.valueOf(Math.abs(saldo), 2)), font);
-    }
-
-    private PdfPTable aktivitaetenTabelle(Map<String, AktivitaetSumme> summenProAktivitaet,
-                                           long gesamtEinnahmen, long gesamtAusgaben) {
-        PdfPTable tabelle = new PdfPTable(5);
-        tabelle.setWidthPercentage(100);
-        try {
-            tabelle.setWidths(new float[] {30, 17.5f, 17.5f, 17.5f, 17.5f});
-        } catch (DocumentException e) {
-            // Feste Spaltenzahl, kann hier nicht auftreten.
-        }
-        tabelle.addCell(kopfzelle("Veranstaltung"));
-        tabelle.addCell(kopfzelle("Einnahmen"));
-        tabelle.addCell(kopfzelle("Ausgaben"));
-        tabelle.addCell(kopfzelle("Gewinn"));
-        tabelle.addCell(kopfzelle("Verlust"));
-
-        long gesamtGewinn = 0;
-        long gesamtVerlust = 0;
-        for (Map.Entry<String, AktivitaetSumme> entry : summenProAktivitaet.entrySet()) {
-            long einnahmen = entry.getValue().einnahmenCent();
-            long ausgaben = entry.getValue().ausgabenCent();
-            long differenz = einnahmen - ausgaben;
-            long gewinn = Math.max(differenz, 0);
-            long verlust = Math.max(-differenz, 0);
-            gesamtGewinn += gewinn;
-            gesamtVerlust += verlust;
-
-            tabelle.addCell(entry.getKey());
-            tabelle.addCell(betragZelle(einnahmen));
-            tabelle.addCell(betragZelle(ausgaben));
-            tabelle.addCell(betragZelle(gewinn));
-            tabelle.addCell(betragZelle(verlust));
-        }
-
-        Font fettSchrift = new Font(Font.HELVETICA, 10, Font.BOLD);
-        PdfPCell summeLabel = new PdfPCell(new org.openpdf.text.Phrase("Summe", fettSchrift));
-        tabelle.addCell(summeLabel);
-        tabelle.addCell(betragZelle(gesamtEinnahmen));
-        tabelle.addCell(betragZelle(gesamtAusgaben));
-        tabelle.addCell(betragZelle(gesamtGewinn));
-        tabelle.addCell(betragZelle(gesamtVerlust));
-        return tabelle;
     }
 
     private PdfPTable gesamtuebersichtTabelle(long netA, long netB, long netC, long netD) {
