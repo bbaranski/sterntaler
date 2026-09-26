@@ -13,6 +13,7 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 
 import de.foerderverein.kasse.app.AppContext;
+import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
@@ -27,6 +28,7 @@ public class BuchungDialogController {
     @FXML private TextField betragField;
     @FXML private ComboBox<Kategorie> kategorieCombo;
     @FXML private ComboBox<Mitglied> mitgliedCombo;
+    @FXML private ComboBox<Aktivitaet> aktivitaetCombo;
     @FXML private TextField verwendungszweckField;
     @FXML private TextField gegenkontoNameField;
     @FXML private TextField gegenkontoIbanField;
@@ -39,10 +41,12 @@ public class BuchungDialogController {
         this.ctx = ctx;
     }
 
-    public void setDaten(Buchung bestehend, List<Konto> konten, List<Kategorie> kategorien, List<Mitglied> mitglieder) {
+    public void setDaten(Buchung bestehend, List<Konto> konten, List<Kategorie> kategorien, List<Mitglied> mitglieder,
+                          List<Aktivitaet> aktivitaeten) {
         kontoCombo.setItems(FXCollections.observableArrayList(konten));
         kategorieCombo.setItems(FXCollections.observableArrayList(kategorien));
         mitgliedCombo.setItems(FXCollections.observableArrayList(mitglieder));
+        aktivitaetCombo.setItems(FXCollections.observableArrayList(aktivitaeten));
 
         this.buchung = bestehend;
         if (bestehend != null) {
@@ -55,6 +59,8 @@ public class BuchungDialogController {
                     .findFirst().ifPresent(kategorieCombo::setValue);
             mitglieder.stream().filter(m -> bestehend.getMitgliedId() != null && m.getId().equals(bestehend.getMitgliedId()))
                     .findFirst().ifPresent(mitgliedCombo::setValue);
+            aktivitaeten.stream().filter(a -> bestehend.getAktivitaetId() != null && a.getId().equals(bestehend.getAktivitaetId()))
+                    .findFirst().ifPresent(aktivitaetCombo::setValue);
             verwendungszweckField.setText(bestehend.getVerwendungszweck());
             gegenkontoNameField.setText(bestehend.getGegenkontoName());
             gegenkontoIbanField.setText(bestehend.getGegenkontoIban());
@@ -105,6 +111,8 @@ public class BuchungDialogController {
             ziel.setKategorieId(kategorie != null ? kategorie.getId() : null);
             Mitglied mitglied = mitgliedCombo.getValue();
             ziel.setMitgliedId(mitglied != null ? mitglied.getId() : null);
+            Aktivitaet aktivitaet = aktivitaetCombo.getValue();
+            ziel.setAktivitaetId(aktivitaet != null ? aktivitaet.getId() : null);
             ziel.setVerwendungszweck(verwendungszweckField.getText());
             ziel.setGegenkontoName(gegenkontoNameField.getText());
             ziel.setGegenkontoIban(gegenkontoIbanField.getText());

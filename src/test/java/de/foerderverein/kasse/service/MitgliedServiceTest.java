@@ -2,11 +2,21 @@ package de.foerderverein.kasse.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 
+import de.foerderverein.kasse.domain.Buchung;
+import de.foerderverein.kasse.domain.BuchungsQuelle;
+import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
+import de.foerderverein.kasse.persistence.BuchungRepository;
+import de.foerderverein.kasse.persistence.Database;
+import de.foerderverein.kasse.persistence.KontoRepository;
 import de.foerderverein.kasse.persistence.MitgliedRepository;
 import de.foerderverein.kasse.persistence.TestDatabase;
 
@@ -14,7 +24,8 @@ class MitgliedServiceTest {
 
     @Test
     void nachnameFehltWirdAbgelehnt() {
-        MitgliedService service = new MitgliedService(new MitgliedRepository(TestDatabase.create()));
+        Database database = TestDatabase.create();
+        MitgliedService service = new MitgliedService(new MitgliedRepository(database), new BuchungRepository(database));
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
 
@@ -23,7 +34,8 @@ class MitgliedServiceTest {
 
     @Test
     void austretenSetztStatusInaktiv() {
-        MitgliedService service = new MitgliedService(new MitgliedRepository(TestDatabase.create()));
+        Database database = TestDatabase.create();
+        MitgliedService service = new MitgliedService(new MitgliedRepository(database), new BuchungRepository(database));
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
         mitglied.setNachname("Musterfrau");
@@ -32,5 +44,52 @@ class MitgliedServiceTest {
         service.austreten(mitglied);
 
         assertEquals(MitgliedStatus.INAKTIV, mitglied.getStatus());
+    }
+
+    @Test
+    void loeschenEntferntMitgliedOhneBuchungen() {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        MitgliedService service = new MitgliedService(mitgliedRepository, new BuchungRepository(database));
+        Mitglied mitglied = new Mitglied();
+        mitglied.setVorname("Erika");
+        mitglied.setNachname("Musterfrau");
+        service.save(mitglied);
+
+        service.loeschen(mitglied);
+
+        assertTrue(mitgliedRepository.findById(mitglied.getId()).isEmpty());
+    }
+
+    @Test
+    void loeschenWirdAbgelehntWennBuchungZugeordnetIst() {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        MitgliedService service = new MitgliedService(mitgliedRepository, buchungRepository);
+
+        Mitglied mitglied = new Mitglied();
+        mitglied.setVorname("Erika");
+        mitglied.setNachname("Musterfrau");
+        service.save(mitglied);
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Buchung buchung = new Buchung();
+        buchung.setKontoId(konto.getId());
+        buchung.setMitgliedId(mitglied.getId());
+        buchung.setBuchungsdatum(LocalDate.of(2026, 1, 15));
+        buchung.setBetragEuro(new BigDecimal("24.00"));
+        buchung.setQuelle(BuchungsQuelle.MANUELL);
+        buchungRepository.insert(buchung);
+
+        assertThrows(IllegalStateException.class, () -> service.loeschen(mitglied));
+        assertTrue(mitgliedRepository.findById(mitglied.getId()).isPresent());
+    }
+
+    private Konto neuesKonto() {
+        Konto konto = new Konto();
+        konto.setBezeichnung("Vereinskonto");
+        konto.setIban("DE02120300000000202051");
+        return konto;
     }
 }

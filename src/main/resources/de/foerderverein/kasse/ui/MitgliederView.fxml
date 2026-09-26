@@ -2,13 +2,10 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
@@ -19,6 +16,10 @@
         <padding>
             <Insets top="8" right="8" bottom="8" left="8" />
         </padding>
+        <Button text="Neu" onAction="#onNeu" />
+        <Button fx:id="bearbeitenButton" text="Bearbeiten" onAction="#onBearbeiten" disable="true" />
+        <Button fx:id="loeschenButton" text="Löschen" onAction="#onLoeschen" disable="true" />
+        <Separator orientation="VERTICAL" />
         <Button text="Spalten…" onAction="#onSpalten" />
         <Separator orientation="VERTICAL" />
         <TextField fx:id="suchFeld" promptText="Suchen…" prefWidth="220" />
@@ -26,66 +27,25 @@
         <Button fx:id="suchWeiterButton" text="▶" />
         <Label fx:id="suchTrefferLabel" />
     </HBox>
-    <HBox spacing="12" VBox.vgrow="ALWAYS">
-        <padding>
-            <Insets top="0" right="12" bottom="12" left="12" />
-        </padding>
-        <TableView fx:id="mitgliederTable" prefWidth="560" HBox.hgrow="ALWAYS">
-            <columns>
-                <TableColumn fx:id="nameColumn" text="Name" prefWidth="160" />
-                <TableColumn fx:id="emailColumn" text="E-Mail" prefWidth="160" />
-                <TableColumn fx:id="eintrittsdatumColumn" text="Eintrittsdatum" prefWidth="100" />
-                <TableColumn fx:id="austrittsdatumColumn" text="Austrittsdatum" prefWidth="100" />
-                <TableColumn fx:id="statusColumn" text="Status" prefWidth="80" />
-                <TableColumn fx:id="vornameColumn" text="Vorname" prefWidth="120" visible="false" />
-                <TableColumn fx:id="nachnameColumn" text="Nachname" prefWidth="120" visible="false" />
-                <TableColumn fx:id="strasseColumn" text="Straße" prefWidth="160" visible="false" />
-                <TableColumn fx:id="plzColumn" text="PLZ" prefWidth="70" visible="false" />
-                <TableColumn fx:id="ortColumn" text="Ort" prefWidth="120" visible="false" />
-                <TableColumn fx:id="notizColumn" text="Notiz" prefWidth="200" visible="false" />
-                <TableColumn fx:id="ibanColumn" text="IBAN" prefWidth="180" visible="false" />
-                <TableColumn fx:id="bicColumn" text="BIC" prefWidth="100" visible="false" />
-                <TableColumn fx:id="jahresbeitragColumn" text="Jahresbeitrag" prefWidth="100" visible="false" />
-                <TableColumn fx:id="idColumn" text="ID" prefWidth="60" visible="false" />
-            </columns>
-        </TableView>
-        <VBox spacing="8" prefWidth="280">
-            <Label text="Vorname" />
-            <TextField fx:id="vornameField" />
-            <Label text="Nachname" />
-            <TextField fx:id="nachnameField" />
-            <Label text="Straße" />
-            <TextField fx:id="strasseField" />
-            <HBox spacing="8">
-                <VBox spacing="8" HBox.hgrow="ALWAYS">
-                    <Label text="PLZ" />
-                    <TextField fx:id="plzField" />
-                </VBox>
-                <VBox spacing="8" HBox.hgrow="ALWAYS">
-                    <Label text="Ort" />
-                    <TextField fx:id="ortField" />
-                </VBox>
-            </HBox>
-            <Label text="E-Mail" />
-            <TextField fx:id="emailField" />
-            <Label text="Eintrittsdatum" />
-            <DatePicker fx:id="eintrittsdatumPicker" maxWidth="Infinity" />
-            <Label text="Austrittsdatum" />
-            <DatePicker fx:id="austrittsdatumPicker" maxWidth="Infinity" />
-            <Label text="Status" />
-            <ComboBox fx:id="statusCombo" maxWidth="Infinity" />
-            <Label text="IBAN" />
-            <TextField fx:id="ibanField" />
-            <Label fx:id="ibanHinweisLabel" styleClass="warnung-label" wrapText="true" />
-            <Label text="BIC" />
-            <TextField fx:id="bicField" />
-            <Label text="Jahresbeitrag (Euro)" />
-            <TextField fx:id="jahresbeitragField" promptText="z. B. 24,00" />
-            <Label text="Notiz" />
-            <TextArea fx:id="notizField" prefRowCount="2" wrapText="true" />
-            <Button text="Neu" onAction="#onNeu" />
-            <Button text="Speichern" onAction="#onSpeichern" defaultButton="true" />
-            <Label fx:id="fehlerLabel" styleClass="fehler-label" wrapText="true" />
-        </VBox>
-    </HBox>
+    <TableView fx:id="mitgliederTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="idColumn" text="ID" prefWidth="60" />
+            <TableColumn fx:id="anredeColumn" text="Anrede" prefWidth="70" />
+            <TableColumn fx:id="vornameColumn" text="Vorname" prefWidth="120" />
+            <TableColumn fx:id="nachnameColumn" text="Nachname" prefWidth="120" />
+            <TableColumn fx:id="strasseColumn" text="Straße" prefWidth="160" />
+            <TableColumn fx:id="plzColumn" text="PLZ" prefWidth="70" />
+            <TableColumn fx:id="ortColumn" text="Ort" prefWidth="120" />
+            <TableColumn fx:id="emailColumn" text="E-Mail" prefWidth="160" />
+            <TableColumn fx:id="eintrittsdatumColumn" text="Eintrittsdatum" prefWidth="100" />
+            <TableColumn fx:id="austrittsdatumColumn" text="Austrittsdatum" prefWidth="100" />
+            <TableColumn fx:id="statusColumn" text="Status" prefWidth="80" />
+            <TableColumn fx:id="jahresbeitragColumn" text="Jahresbeitrag" prefWidth="100" />
+            <TableColumn fx:id="ibanColumn" text="IBAN" prefWidth="180" />
+            <TableColumn fx:id="bicColumn" text="BIC" prefWidth="100" />
+            <TableColumn fx:id="mandatsreferenzColumn" text="Mandatsreferenz" prefWidth="140" />
+            <TableColumn fx:id="sammellastschriftColumn" text="Sammellastschrift" prefWidth="140" />
+            <TableColumn fx:id="notizColumn" text="Notiz" prefWidth="200" />
+        </columns>
+    </TableView>
 </VBox>

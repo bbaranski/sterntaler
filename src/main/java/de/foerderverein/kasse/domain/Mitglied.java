@@ -2,23 +2,25 @@ package de.foerderverein.kasse.domain;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 
 public class Mitglied {
 
     private Long id;
+    private Anrede anrede;
     private String vorname;
     private String nachname;
     private String strasse;
     private String plz;
     private String ort;
     private String email;
-    private LocalDate eintrittsdatum;
-    private LocalDate austrittsdatum;
+    private String eintrittsdatum;
+    private String austrittsdatum;
     private MitgliedStatus status = MitgliedStatus.AKTIV;
     private String notiz;
     private String iban;
     private String bic;
+    private Long mandatsreferenz;
+    private String sammellastschrift;
     private Long jahresbeitragCent;
 
     public Long getId() {
@@ -27,6 +29,14 @@ public class Mitglied {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Anrede getAnrede() {
+        return anrede;
+    }
+
+    public void setAnrede(Anrede anrede) {
+        this.anrede = anrede;
     }
 
     public String getVorname() {
@@ -77,19 +87,19 @@ public class Mitglied {
         this.email = email;
     }
 
-    public LocalDate getEintrittsdatum() {
+    public String getEintrittsdatum() {
         return eintrittsdatum;
     }
 
-    public void setEintrittsdatum(LocalDate eintrittsdatum) {
+    public void setEintrittsdatum(String eintrittsdatum) {
         this.eintrittsdatum = eintrittsdatum;
     }
 
-    public LocalDate getAustrittsdatum() {
+    public String getAustrittsdatum() {
         return austrittsdatum;
     }
 
-    public void setAustrittsdatum(LocalDate austrittsdatum) {
+    public void setAustrittsdatum(String austrittsdatum) {
         this.austrittsdatum = austrittsdatum;
     }
 
@@ -123,6 +133,22 @@ public class Mitglied {
 
     public void setBic(String bic) {
         this.bic = bic;
+    }
+
+    public Long getMandatsreferenz() {
+        return mandatsreferenz;
+    }
+
+    public void setMandatsreferenz(Long mandatsreferenz) {
+        this.mandatsreferenz = mandatsreferenz;
+    }
+
+    public String getSammellastschrift() {
+        return sammellastschrift;
+    }
+
+    public void setSammellastschrift(String sammellastschrift) {
+        this.sammellastschrift = sammellastschrift;
     }
 
     public Long getJahresbeitragCent() {

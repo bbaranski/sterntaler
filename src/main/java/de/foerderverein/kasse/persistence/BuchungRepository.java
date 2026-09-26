@@ -50,12 +50,28 @@ public class BuchungRepository {
         }
     }
 
+    /** Fuer MitgliedService.loeschen: ein Mitglied darf nur geloescht werden, wenn ihm keine
+     * Buchung zugeordnet ist. */
+    public boolean existsByMitgliedId(long mitgliedId) {
+        String sql = "SELECT 1 FROM buchung WHERE mitglied_id = ? LIMIT 1";
+        try (Connection c = database.connection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, mitgliedId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException("Pruefung auf verknuepfte Buchungen fehlgeschlagen", e);
+        }
+    }
+
     public Buchung insert(Buchung buchung) {
         String sql = """
-                INSERT INTO buchung (konto_id, kategorie_id, mitglied_id, buchungsdatum, wertstellung, betrag_cent,
-                       waehrung, verwendungszweck, gegenkonto_iban, gegenkonto_name, quelle,
-                       hbci_import_hash, storniert, storno_referenz_id, erstellt_von, erstellt_am)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                INSERT INTO buchung (konto_id, kategorie_id, mitglied_id, aktivitaet_id, buchungsdatum,
+                       wertstellung, betrag_cent, waehrung, verwendungszweck, gegenkonto_iban,
+                       gegenkonto_name, quelle, hbci_import_hash, storniert, storno_referenz_id,
+                       erstellt_von, erstellt_am)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -70,22 +86,27 @@ public class BuchungRepository {
             } else {
                 ps.setNull(3, java.sql.Types.INTEGER);
             }
-            ps.setString(4, buchung.getBuchungsdatum().toString());
-            ps.setString(5, buchung.getWertstellung() != null ? buchung.getWertstellung().toString() : null);
-            ps.setLong(6, buchung.getBetragCent());
-            ps.setString(7, buchung.getWaehrung());
-            ps.setString(8, buchung.getVerwendungszweck());
-            ps.setString(9, buchung.getGegenkontoIban());
-            ps.setString(10, buchung.getGegenkontoName());
-            ps.setString(11, buchung.getQuelle().name());
-            ps.setString(12, buchung.getHbciImportHash());
-            if (buchung.getStornoReferenzId() != null) {
-                ps.setLong(13, buchung.getStornoReferenzId());
+            if (buchung.getAktivitaetId() != null) {
+                ps.setLong(4, buchung.getAktivitaetId());
             } else {
-                ps.setNull(13, java.sql.Types.INTEGER);
+                ps.setNull(4, java.sql.Types.INTEGER);
             }
-            ps.setString(14, buchung.getErstelltVon());
-            ps.setString(15, LocalDateTime.now().toString());
+            ps.setString(5, buchung.getBuchungsdatum().toString());
+            ps.setString(6, buchung.getWertstellung() != null ? buchung.getWertstellung().toString() : null);
+            ps.setLong(7, buchung.getBetragCent());
+            ps.setString(8, buchung.getWaehrung());
+            ps.setString(9, buchung.getVerwendungszweck());
+            ps.setString(10, buchung.getGegenkontoIban());
+            ps.setString(11, buchung.getGegenkontoName());
+            ps.setString(12, buchung.getQuelle().name());
+            ps.setString(13, buchung.getHbciImportHash());
+            if (buchung.getStornoReferenzId() != null) {
+                ps.setLong(14, buchung.getStornoReferenzId());
+            } else {
+                ps.setNull(14, java.sql.Types.INTEGER);
+            }
+            ps.setString(15, buchung.getErstelltVon());
+            ps.setString(16, LocalDateTime.now().toString());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 keys.next();
@@ -99,9 +120,9 @@ public class BuchungRepository {
 
     public void update(Buchung buchung) {
         String sql = """
-                UPDATE buchung SET kategorie_id = ?, mitglied_id = ?, buchungsdatum = ?, wertstellung = ?,
-                       betrag_cent = ?, verwendungszweck = ?, gegenkonto_iban = ?, gegenkonto_name = ?,
-                       geaendert_am = ?
+                UPDATE buchung SET kategorie_id = ?, mitglied_id = ?, aktivitaet_id = ?, buchungsdatum = ?,
+                       wertstellung = ?, betrag_cent = ?, verwendungszweck = ?, gegenkonto_iban = ?,
+                       gegenkonto_name = ?, geaendert_am = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
@@ -116,14 +137,19 @@ public class BuchungRepository {
             } else {
                 ps.setNull(2, java.sql.Types.INTEGER);
             }
-            ps.setString(3, buchung.getBuchungsdatum().toString());
-            ps.setString(4, buchung.getWertstellung() != null ? buchung.getWertstellung().toString() : null);
-            ps.setLong(5, buchung.getBetragCent());
-            ps.setString(6, buchung.getVerwendungszweck());
-            ps.setString(7, buchung.getGegenkontoIban());
-            ps.setString(8, buchung.getGegenkontoName());
-            ps.setString(9, LocalDateTime.now().toString());
-            ps.setLong(10, buchung.getId());
+            if (buchung.getAktivitaetId() != null) {
+                ps.setLong(3, buchung.getAktivitaetId());
+            } else {
+                ps.setNull(3, java.sql.Types.INTEGER);
+            }
+            ps.setString(4, buchung.getBuchungsdatum().toString());
+            ps.setString(5, buchung.getWertstellung() != null ? buchung.getWertstellung().toString() : null);
+            ps.setLong(6, buchung.getBetragCent());
+            ps.setString(7, buchung.getVerwendungszweck());
+            ps.setString(8, buchung.getGegenkontoIban());
+            ps.setString(9, buchung.getGegenkontoName());
+            ps.setString(10, LocalDateTime.now().toString());
+            ps.setLong(11, buchung.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new PersistenceException("Buchung konnte nicht aktualisiert werden", e);
@@ -151,6 +177,8 @@ public class BuchungRepository {
         buchung.setKategorieId(rs.wasNull() ? null : kategorieId);
         long mitgliedId = rs.getLong("mitglied_id");
         buchung.setMitgliedId(rs.wasNull() ? null : mitgliedId);
+        long aktivitaetId = rs.getLong("aktivitaet_id");
+        buchung.setAktivitaetId(rs.wasNull() ? null : aktivitaetId);
         buchung.setBuchungsdatum(LocalDate.parse(rs.getString("buchungsdatum")));
         String wertstellung = rs.getString("wertstellung");
         buchung.setWertstellung(wertstellung != null ? LocalDate.parse(wertstellung) : null);

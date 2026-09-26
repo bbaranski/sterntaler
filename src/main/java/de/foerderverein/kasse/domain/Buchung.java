@@ -11,6 +11,7 @@ public class Buchung {
     private Long kontoId;
     private Long kategorieId;
     private Long mitgliedId;
+    private Long aktivitaetId;
     private LocalDate buchungsdatum;
     private LocalDate wertstellung;
     private long betragCent;
@@ -56,6 +57,14 @@ public class Buchung {
 
     public void setMitgliedId(Long mitgliedId) {
         this.mitgliedId = mitgliedId;
+    }
+
+    public Long getAktivitaetId() {
+        return aktivitaetId;
+    }
+
+    public void setAktivitaetId(Long aktivitaetId) {
+        this.aktivitaetId = aktivitaetId;
     }
 
     public LocalDate getBuchungsdatum() {

@@ -5,11 +5,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import de.foerderverein.kasse.domain.Anrede;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
 
@@ -68,11 +68,23 @@ public class MitgliedRepository {
         return mitglied.getId() == null ? insert(mitglied) : update(mitglied);
     }
 
+    public void loesche(long id) {
+        String sql = "DELETE FROM mitglied WHERE id = ?";
+        try (Connection c = database.connection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new PersistenceException("Mitglied konnte nicht geloescht werden", e);
+        }
+    }
+
     private Mitglied insert(Mitglied mitglied) {
         String sql = """
                 INSERT INTO mitglied (vorname, nachname, strasse, plz, ort, email, eintrittsdatum,
-                       austrittsdatum, status, notiz, iban, bic, jahresbeitrag_cent)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       austrittsdatum, status, notiz, iban, bic, jahresbeitrag_cent, anrede,
+                       mandatsreferenz, sammellastschrift)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -92,13 +104,13 @@ public class MitgliedRepository {
         String sql = """
                 UPDATE mitglied SET vorname = ?, nachname = ?, strasse = ?, plz = ?, ort = ?, email = ?,
                        eintrittsdatum = ?, austrittsdatum = ?, status = ?, notiz = ?, iban = ?, bic = ?,
-                       jahresbeitrag_cent = ?
+                       jahresbeitrag_cent = ?, anrede = ?, mandatsreferenz = ?, sammellastschrift = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, mitglied);
-            ps.setLong(14, mitglied.getId());
+            ps.setLong(17, mitglied.getId());
             ps.executeUpdate();
             return mitglied;
         } catch (SQLException e) {
@@ -113,8 +125,8 @@ public class MitgliedRepository {
         ps.setString(4, mitglied.getPlz());
         ps.setString(5, mitglied.getOrt());
         ps.setString(6, mitglied.getEmail());
-        ps.setString(7, mitglied.getEintrittsdatum() != null ? mitglied.getEintrittsdatum().toString() : null);
-        ps.setString(8, mitglied.getAustrittsdatum() != null ? mitglied.getAustrittsdatum().toString() : null);
+        ps.setString(7, mitglied.getEintrittsdatum());
+        ps.setString(8, mitglied.getAustrittsdatum());
         ps.setString(9, mitglied.getStatus().name());
         ps.setString(10, mitglied.getNotiz());
         ps.setString(11, mitglied.getIban());
@@ -124,6 +136,13 @@ public class MitgliedRepository {
         } else {
             ps.setNull(13, java.sql.Types.INTEGER);
         }
+        ps.setString(14, mitglied.getAnrede() != null ? mitglied.getAnrede().name() : null);
+        if (mitglied.getMandatsreferenz() != null) {
+            ps.setLong(15, mitglied.getMandatsreferenz());
+        } else {
+            ps.setNull(15, java.sql.Types.INTEGER);
+        }
+        ps.setString(16, mitglied.getSammellastschrift());
     }
 
     private Mitglied map(ResultSet rs) throws SQLException {
@@ -135,16 +154,19 @@ public class MitgliedRepository {
         mitglied.setPlz(rs.getString("plz"));
         mitglied.setOrt(rs.getString("ort"));
         mitglied.setEmail(rs.getString("email"));
-        String eintritt = rs.getString("eintrittsdatum");
-        mitglied.setEintrittsdatum(eintritt != null ? LocalDate.parse(eintritt) : null);
-        String austritt = rs.getString("austrittsdatum");
-        mitglied.setAustrittsdatum(austritt != null ? LocalDate.parse(austritt) : null);
+        mitglied.setEintrittsdatum(rs.getString("eintrittsdatum"));
+        mitglied.setAustrittsdatum(rs.getString("austrittsdatum"));
         mitglied.setStatus(MitgliedStatus.valueOf(rs.getString("status")));
         mitglied.setNotiz(rs.getString("notiz"));
         mitglied.setIban(rs.getString("iban"));
         mitglied.setBic(rs.getString("bic"));
         long jahresbeitragCent = rs.getLong("jahresbeitrag_cent");
         mitglied.setJahresbeitragCent(rs.wasNull() ? null : jahresbeitragCent);
+        String anrede = rs.getString("anrede");
+        mitglied.setAnrede(anrede != null ? Anrede.valueOf(anrede) : null);
+        long mandatsreferenz = rs.getLong("mandatsreferenz");
+        mitglied.setMandatsreferenz(rs.wasNull() ? null : mandatsreferenz);
+        mitglied.setSammellastschrift(rs.getString("sammellastschrift"));
         return mitglied;
     }
 }

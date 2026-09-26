@@ -1,5 +1,9 @@
 package de.foerderverein.kasse.ui;
 
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,17 +27,22 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxTableCell;
+import javafx.scene.layout.HBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
 import de.foerderverein.kasse.app.AppContext;
 import de.foerderverein.kasse.app.Views;
+import de.foerderverein.kasse.domain.Aktivitaet;
+import de.foerderverein.kasse.domain.Beleg;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
@@ -51,9 +60,12 @@ public class BuchungenViewController {
     private final ObservableList<Buchung> buchungen = FXCollections.observableArrayList();
     private final ObservableList<Kategorie> kategorienFuerAuswahl = FXCollections.observableArrayList();
     private final ObservableList<Mitglied> mitgliederFuerAuswahl = FXCollections.observableArrayList();
+    private final ObservableList<Aktivitaet> aktivitaetenFuerAuswahl = FXCollections.observableArrayList();
     private Map<Long, Kategorie> kategorienById = new HashMap<>();
     private Map<Long, Konto> kontenById = new HashMap<>();
     private Map<Long, Mitglied> mitgliederById = new HashMap<>();
+    private Map<Long, Aktivitaet> aktivitaetenById = new HashMap<>();
+    private Map<Long, Beleg> belegeByBuchungId = new HashMap<>();
     private List<Geschaeftsjahr> geschaeftsjahre = List.of();
     private Map<Long, Geschaeftsjahr> geschaeftsjahrByBuchungId = Map.of();
     private Map<Long, Long> laufendeSalden = Map.of();
@@ -65,9 +77,11 @@ public class BuchungenViewController {
     @FXML private TableColumn<Buchung, Long> saldoColumn;
     @FXML private TableColumn<Buchung, Kategorie> kategorieColumn;
     @FXML private TableColumn<Buchung, Mitglied> mitgliedColumn;
+    @FXML private TableColumn<Buchung, Aktivitaet> aktivitaetColumn;
     @FXML private TableColumn<Buchung, String> verwendungszweckColumn;
     @FXML private TableColumn<Buchung, String> gegenkontoColumn;
     @FXML private TableColumn<Buchung, String> quelleColumn;
+    @FXML private TableColumn<Buchung, Buchung> belegColumn;
     @FXML private TableColumn<Buchung, String> kontoColumn;
     @FXML private TableColumn<Buchung, LocalDate> wertstellungColumn;
     @FXML private TableColumn<Buchung, String> waehrungColumn;
@@ -140,12 +154,56 @@ public class BuchungenViewController {
             }
             buchungenTable.refresh();
         });
+
+        aktivitaetColumn.setCellValueFactory(cd ->
+                new ReadOnlyObjectWrapper<>(aktivitaetenById.get(cd.getValue().getAktivitaetId())));
+        aktivitaetColumn.setCellFactory(ComboBoxTableCell.forTableColumn(aktivitaetenFuerAuswahl));
+        aktivitaetColumn.setOnEditCommit(event -> {
+            Buchung b = event.getRowValue();
+            Long alt = b.getAktivitaetId();
+            Aktivitaet neu = event.getNewValue();
+            b.setAktivitaetId(neu != null ? neu.getId() : null);
+            try {
+                ctx.buchungService.aktualisiere(b);
+            } catch (IllegalStateException e) {
+                b.setAktivitaetId(alt);
+                zeigeFehler("Aktivität konnte nicht geändert werden", e);
+            }
+            buchungenTable.refresh();
+        });
         verwendungszweckColumn.setCellValueFactory(cd ->
                 new ReadOnlyStringWrapper(cd.getValue().getVerwendungszweck()));
         gegenkontoColumn.setCellValueFactory(cd ->
                 new ReadOnlyStringWrapper(cd.getValue().getGegenkontoName()));
         quelleColumn.setCellValueFactory(cd ->
                 new ReadOnlyStringWrapper(cd.getValue().getQuelle().name()));
+
+        belegColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue()));
+        belegColumn.setCellFactory(col -> new TableCell<Buchung, Buchung>() {
+            private final Button hochladenButton = new Button("Hochladen…");
+            private final Button oeffnenButton = new Button("Öffnen");
+            private final Button ersetzenButton = new Button("Ersetzen…");
+            private final HBox ohneBelegBox = new HBox(hochladenButton);
+            private final HBox mitBelegBox = new HBox(4, oeffnenButton, ersetzenButton);
+            {
+                hochladenButton.setOnAction(e -> hochladeDialog(getItem(), false));
+                ersetzenButton.setOnAction(e -> hochladeDialog(getItem(), true));
+                oeffnenButton.setOnAction(e -> oeffneVorhandenenBeleg(getItem()));
+            }
+
+            @Override
+            protected void updateItem(Buchung buchung, boolean empty) {
+                super.updateItem(buchung, empty);
+                if (empty || buchung == null) {
+                    setGraphic(null);
+                } else if (belegeByBuchungId.containsKey(buchung.getId())) {
+                    setGraphic(mitBelegBox);
+                } else {
+                    setGraphic(ohneBelegBox);
+                }
+            }
+        });
+
         kontoColumn.setCellValueFactory(cd -> {
             Konto k = kontenById.get(cd.getValue().getKontoId());
             return new ReadOnlyStringWrapper(k != null ? k.getBezeichnung() : "");
@@ -174,11 +232,11 @@ public class BuchungenViewController {
                         !empty && item != null && item.isStorniert());
             }
         });
-        buchungenTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
-            bearbeitenButton.setDisable(sel == null);
-            stornierenButton.setDisable(sel == null || sel.isStorniert());
-            verlaufButton.setDisable(sel == null);
-        });
+        // Bearbeiten/Stornieren bleiben absichtlich dauerhaft deaktiviert (siehe FXML) - Buchungen
+        // sollen nicht mehr manuell erstellt oder geaendert werden koennen, die Funktionalitaet
+        // selbst (onBearbeiten/onStornieren/BuchungService) bleibt aber unangetastet bestehen.
+        buchungenTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) ->
+                verlaufButton.setDisable(sel == null));
 
         new TabellenSuche<>(buchungenTable, suchFeld, suchWeiterButton, suchZurueckButton, suchTrefferLabel,
                 this::suchfelderFuer);
@@ -216,10 +274,15 @@ public class BuchungenViewController {
         for (Mitglied m : ctx.mitgliedService.findAll()) {
             mitgliederById.put(m.getId(), m);
         }
+        aktivitaetenById = new HashMap<>();
+        for (Aktivitaet a : ctx.aktivitaetService.findAll()) {
+            aktivitaetenById.put(a.getId(), a);
+        }
 
         // Haelt die Dropdown-Optionen der inline editierbaren Tabellenspalten aktuell.
         kategorienFuerAuswahl.setAll(kategorienAktiv());
         mitgliederFuerAuswahl.setAll(mitgliederAktiv());
+        aktivitaetenFuerAuswahl.setAll(aktivitaetenAktiv());
         buchungenTable.refresh();
     }
 
@@ -243,12 +306,14 @@ public class BuchungenViewController {
         Kategorie kategorie = kategorienById.get(b.getKategorieId());
         Mitglied mitglied = mitgliederById.get(b.getMitgliedId());
         Konto konto = kontenById.get(b.getKontoId());
+        Aktivitaet aktivitaet = aktivitaetenById.get(b.getAktivitaetId());
         return List.of(
                 b.getVerwendungszweck() != null ? b.getVerwendungszweck() : "",
                 b.getGegenkontoName() != null ? b.getGegenkontoName() : "",
                 kategorie != null ? kategorie.getName() : "",
                 mitglied != null ? mitglied.getVollerName() : "",
                 konto != null ? konto.getBezeichnung() : "",
+                aktivitaet != null ? aktivitaet.getName() : "",
                 BETRAG_FORMAT.format(b.getBetragEuro()),
                 b.getBuchungsdatum().format(DATUM_FORMAT));
     }
@@ -261,10 +326,66 @@ public class BuchungenViewController {
         return mitgliederById.values().stream().filter(m -> m.getStatus() == MitgliedStatus.AKTIV).toList();
     }
 
+    private List<Aktivitaet> aktivitaetenAktiv() {
+        return aktivitaetenById.values().stream().filter(Aktivitaet::isAktiv).toList();
+    }
+
     private void ladeBuchungen() {
         buchungen.setAll(ctx.buchungService.findAll());
+        belegeByBuchungId = ctx.belegService.findAllMetadaten();
         statusLabel.setText(buchungen.size() + " Buchungen");
         ladeGeschaeftsjahrDaten();
+    }
+
+    private void hochladeDialog(Buchung buchung, boolean ersetzen) {
+        if (buchung == null) {
+            return;
+        }
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(ersetzen ? "Beleg ersetzen" : "Beleg hochladen");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("PDF/JPG-Datei", "*.pdf", "*.jpg", "*.jpeg"));
+        File datei = fileChooser.showOpenDialog(buchungenTable.getScene().getWindow());
+        if (datei == null) {
+            return;
+        }
+        try {
+            Beleg beleg = ctx.belegService.hochladen(buchung.getId(), datei);
+            belegeByBuchungId.put(buchung.getId(), beleg);
+            buchungenTable.refresh();
+        } catch (IllegalArgumentException e) {
+            zeigeFehler("Beleg konnte nicht hochgeladen werden", e);
+        } catch (IOException e) {
+            zeigeFehler("Beleg konnte nicht gelesen werden", e);
+        }
+    }
+
+    private void oeffneVorhandenenBeleg(Buchung buchung) {
+        if (buchung == null) {
+            return;
+        }
+        ctx.belegService.findByBuchungId(buchung.getId()).ifPresentOrElse(
+                this::oeffneBeleg,
+                () -> zeigeFehler("Beleg konnte nicht geoeffnet werden",
+                        new IllegalStateException("Kein Beleg vorhanden")));
+    }
+
+    /** Schreibt die Beleg-Bytes (BLOB, kein Datei-Original vorhanden) in eine temporaere Datei
+     * und oeffnet sie im Standardprogramm. Desktop.open ist asynchron/nicht-blockierend, daher
+     * kann die temporaere Datei nicht direkt danach geloescht werden; deleteOnExit() genuegt hier -
+     * es handelt sich um kleine Belegdateien im OS-Temp-Verzeichnis in einer Single-User-
+     * Desktopanwendung, ein aufwendigerer Aufraeummechanismus lohnt sich nicht. */
+    private void oeffneBeleg(Beleg beleg) {
+        try {
+            File temp = File.createTempFile("beleg-" + beleg.getBuchungId() + "-", "." + beleg.getDateityp());
+            temp.deleteOnExit();
+            Files.write(temp.toPath(), beleg.getInhalt());
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(temp);
+            }
+        } catch (IOException e) {
+            zeigeFehler("Beleg konnte nicht geoeffnet werden", e);
+        }
     }
 
     @FXML
@@ -389,7 +510,8 @@ public class BuchungenViewController {
             FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/BuchungDialog.fxml");
             Parent root = loader.load();
             BuchungDialogController controller = loader.getController();
-            controller.setDaten(buchung, List.copyOf(kontenById.values()), kategorienAktiv(), mitgliederAktiv());
+            controller.setDaten(buchung, List.copyOf(kontenById.values()), kategorienAktiv(), mitgliederAktiv(),
+                    aktivitaetenAktiv());
 
             Stage stage = new Stage();
             stage.initModality(Modality.WINDOW_MODAL);

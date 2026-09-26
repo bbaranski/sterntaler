@@ -50,38 +50,70 @@ public final class SpaltenKonfiguration {
             }
         }
 
+        // Muss vor dem Anwenden einer gespeicherten (ggf. per Drag&Drop veraenderten) Reihenfolge
+        // erfolgen, damit hier wirklich die aus dem FXML geladene, pristine Reihenfolge einmalig
+        // gesichert wird - sie ist die Grundlage fuer die Standardansicht im Spalten-Dialog und
+        // fuer den Zuruecksetzen-Button dort.
+        sichereStandardReihenfolgeFallsFehlt(table, tabellenSchluessel);
+
         String gespeicherteReihenfolge = PREFS.get(reihenfolgeKey(tabellenSchluessel), null);
         if (gespeicherteReihenfolge != null && !gespeicherteReihenfolge.isBlank()) {
-            List<String> ids = List.of(gespeicherteReihenfolge.split(","));
-            List<TableColumn<?, ?>> aktuelle = new ArrayList<>(table.getColumns());
-            List<TableColumn<?, ?>> neu = new ArrayList<>();
-            for (String id : ids) {
-                for (TableColumn<?, ?> spalte : aktuelle) {
-                    if (id.equals(spalteId(spalte)) && !neu.contains(spalte)) {
-                        neu.add(spalte);
-                    }
-                }
-            }
-            // Spalten, die in der gespeicherten Reihenfolge fehlen (z. B. seither neu
-            // hinzugekommene Felder), an das Ende anhaengen statt sie zu verlieren.
-            for (TableColumn<?, ?> spalte : aktuelle) {
-                if (!neu.contains(spalte)) {
-                    neu.add(spalte);
-                }
-            }
-            wendeReihenfolgeAn(table, neu);
+            wendeReihenfolgeAn(table, geordneteSpalten(table, List.of(gespeicherteReihenfolge.split(","))));
         }
 
         table.getColumns().addListener((ListChangeListener<TableColumn<?, ?>>) change ->
                 speichereReihenfolge(table, tabellenSchluessel));
     }
 
-    /** Zeigt den Konfigurationsdialog. Bei "Übernehmen" wird die Sichtbarkeit sofort auf die
-     * Tabelle angewendet und dauerhaft gespeichert; bei "Abbrechen" bleibt alles unveraendert.
-     * Die Reihenfolge wird hier nicht angeboten - dafuer zieht man die Spaltenueberschrift
-     * direkt in der Tabelle an die gewuenschte Stelle. */
+    private static void sichereStandardReihenfolgeFallsFehlt(TableView<?> table, String tabellenSchluessel) {
+        if (PREFS.get(standardReihenfolgeKey(tabellenSchluessel), null) == null) {
+            String standard = table.getColumns().stream()
+                    .map(SpaltenKonfiguration::spalteId)
+                    .collect(Collectors.joining(","));
+            PREFS.put(standardReihenfolgeKey(tabellenSchluessel), standard);
+        }
+    }
+
+    /** Ordnet die aktuellen Spalten der Tabelle gemaess der uebergebenen Id-Liste an. Spalten, die
+     * in der Liste fehlen (z. B. seither neu hinzugekommene Felder), werden an das Ende angehaengt
+     * statt verloren zu gehen. */
+    private static List<TableColumn<?, ?>> geordneteSpalten(TableView<?> table, List<String> ids) {
+        List<TableColumn<?, ?>> aktuelle = new ArrayList<>(table.getColumns());
+        List<TableColumn<?, ?>> neu = new ArrayList<>();
+        for (String id : ids) {
+            for (TableColumn<?, ?> spalte : aktuelle) {
+                if (id.equals(spalteId(spalte)) && !neu.contains(spalte)) {
+                    neu.add(spalte);
+                }
+            }
+        }
+        for (TableColumn<?, ?> spalte : aktuelle) {
+            if (!neu.contains(spalte)) {
+                neu.add(spalte);
+            }
+        }
+        return neu;
+    }
+
+    /** Die urspruengliche, aus dem FXML geladene Spaltenreihenfolge - unabhaengig davon, ob der
+     * Nutzer sie inzwischen per Drag&Drop veraendert hat. */
+    private static List<TableColumn<?, ?>> standardReihenfolge(TableView<?> table, String tabellenSchluessel) {
+        String standard = PREFS.get(standardReihenfolgeKey(tabellenSchluessel), null);
+        if (standard == null || standard.isBlank()) {
+            return new ArrayList<>(table.getColumns());
+        }
+        return geordneteSpalten(table, List.of(standard.split(",")));
+    }
+
+    /** Zeigt den Konfigurationsdialog. Die Checkboxen werden in der Standardreihenfolge (aus dem
+     * FXML) angezeigt, unabhaengig von einer eventuell per Drag&Drop veraenderten aktuellen
+     * Reihenfolge der Tabelle. Bei "Übernehmen" wird die Sichtbarkeit sofort auf die Tabelle
+     * angewendet und dauerhaft gespeichert; bei "Abbrechen" bleibt die Sichtbarkeit unveraendert.
+     * Die Reihenfolge selbst wird hier nicht direkt angeboten - dafuer zieht man die
+     * Spaltenueberschrift in der Tabelle an die gewuenschte Stelle, oder setzt sie ueber den
+     * Zuruecksetzen-Button unten wieder auf die Standardreihenfolge zurueck. */
     public static void zeigeDialog(TableView<?> table, String tabellenSchluessel, Window owner) {
-        List<TableColumn<?, ?>> spalten = new ArrayList<>(table.getColumns());
+        List<TableColumn<?, ?>> spalten = standardReihenfolge(table, tabellenSchluessel);
         List<CheckBox> checkboxen = new ArrayList<>();
         VBox liste = new VBox(6);
         liste.setPadding(new Insets(4));
@@ -100,6 +132,12 @@ public final class SpaltenKonfiguration {
         Button alleButton = new Button("Alle anzeigen");
         alleButton.setOnAction(e -> checkboxen.forEach(cb -> cb.setSelected(true)));
 
+        // Wirkt sofort auf die Tabelle (wie ein manuelles Ziehen der Spaltenueberschrift) - der
+        // in wiederherstellen() registrierte Listener speichert die neue Reihenfolge automatisch,
+        // eine gesonderte Behandlung ist hier nicht noetig.
+        Button reihenfolgeZuruecksetzenButton = new Button("Reihenfolge zurücksetzen");
+        reihenfolgeZuruecksetzenButton.setOnAction(e -> wendeReihenfolgeAn(table, standardReihenfolge(table, tabellenSchluessel)));
+
         Button abbrechenButton = new Button("Abbrechen");
         abbrechenButton.setOnAction(e -> stage.close());
 
@@ -114,7 +152,7 @@ public final class SpaltenKonfiguration {
             stage.close();
         });
 
-        HBox buttonZeile = new HBox(8, alleButton, abbrechenButton, uebernehmenButton);
+        HBox buttonZeile = new HBox(8, alleButton, reihenfolgeZuruecksetzenButton, abbrechenButton, uebernehmenButton);
         buttonZeile.setAlignment(Pos.CENTER_RIGHT);
 
         ScrollPane scrollPane = new ScrollPane(liste);
@@ -158,5 +196,9 @@ public final class SpaltenKonfiguration {
 
     private static String reihenfolgeKey(String tabellenSchluessel) {
         return "spaltenreihenfolge." + tabellenSchluessel;
+    }
+
+    private static String standardReihenfolgeKey(String tabellenSchluessel) {
+        return "spaltenstandardreihenfolge." + tabellenSchluessel;
     }
 }

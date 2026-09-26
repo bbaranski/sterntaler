@@ -15,6 +15,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextInputDialog;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -24,6 +25,7 @@ import de.foerderverein.kasse.app.AppContext;
 import de.foerderverein.kasse.app.Views;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Konto;
+import de.foerderverein.kasse.service.MitgliederImportErgebnis;
 
 /** Shell des Hauptfensters: Menueleiste (Einstellungen/Berichte/Exporte) und die beiden
  * Hauptansichten (Tabs "Buchungen"/"Mitglieder") als eingebettete fx:include-Ansichten.
@@ -105,6 +107,23 @@ public class MainController {
     }
 
     @FXML
+    private void onAktivitaeten() {
+        try {
+            FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/AktivitaetDialog.fxml");
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle("Aktivitäten/Veranstaltungen verwalten");
+            stage.setScene(Views.scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            zeigeFehler("Aktivitätenverwaltung konnte nicht geoeffnet werden", e);
+        } finally {
+            buchungenViewController.ladeStammdaten();
+        }
+    }
+
+    @FXML
     private void onKassenbericht() {
         List<Konto> konten = ctx.kontoService.findAll();
         if (konten.isEmpty()) {
@@ -161,6 +180,67 @@ public class MainController {
     }
 
     @FXML
+    private void onSteuerreport() {
+        List<Konto> konten = ctx.kontoService.findAll();
+        if (konten.isEmpty()) {
+            Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
+                    "Es ist noch kein Konto angelegt. Bitte zuerst unter \"Einstellungen → Konto-Einstellungen\" ein Konto anlegen.");
+            hinweis.setHeaderText("Konto einrichten");
+            hinweis.showAndWait();
+            return;
+        }
+
+        Konto konto = konten.get(0);
+        if (konten.size() > 1) {
+            ChoiceDialog<Konto> kontoAuswahl = new ChoiceDialog<>(konto, konten);
+            kontoAuswahl.setHeaderText("Fuer welches Konto soll der Steuerreport erstellt werden?");
+            Optional<Konto> gewaehlt = kontoAuswahl.showAndWait();
+            if (gewaehlt.isEmpty()) {
+                return;
+            }
+            konto = gewaehlt.get();
+        }
+
+        TextInputDialog jahrDialog = new TextInputDialog(String.valueOf(java.time.LocalDate.now().getYear()));
+        jahrDialog.setTitle("Ergänzung zur Steuererklärung");
+        jahrDialog.setHeaderText("Für welches Jahr soll der Bericht erstellt werden?");
+        jahrDialog.setContentText("Jahr:");
+        Optional<String> eingabe = jahrDialog.showAndWait();
+        if (eingabe.isEmpty()) {
+            return;
+        }
+
+        int jahr;
+        try {
+            jahr = Integer.parseInt(eingabe.get().trim());
+            if (jahr < 2000 || jahr > 2100) {
+                throw new NumberFormatException();
+            }
+        } catch (NumberFormatException e) {
+            Alert hinweis = new Alert(Alert.AlertType.ERROR, "Bitte eine gültige vierstellige Jahreszahl eingeben.");
+            hinweis.setHeaderText("Ungültiges Jahr");
+            hinweis.showAndWait();
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Steuerreport speichern");
+        fileChooser.setInitialFileName("Steuerreport-" + jahr + ".pdf");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
+        File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
+        if (datei == null) {
+            return;
+        }
+
+        try {
+            ctx.berichtService.erstelleSteuerreport(datei.toPath(), konto, jahr);
+            oeffneDatei(datei);
+        } catch (IOException e) {
+            zeigeFehler("Steuerreport konnte nicht erstellt werden", e);
+        }
+    }
+
+    @FXML
     private void onMitgliederlisteExport() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Mitgliederliste speichern");
@@ -177,6 +257,35 @@ public class MainController {
             oeffneDatei(datei);
         } catch (IOException e) {
             zeigeFehler("Mitgliederliste konnte nicht exportiert werden", e);
+        }
+    }
+
+    @FXML
+    private void onMitgliederlisteImport() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Mitgliederliste importieren");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel-Datei", "*.xlsx"));
+        File datei = fileChooser.showOpenDialog(tabPane.getScene().getWindow());
+        if (datei == null) {
+            return;
+        }
+
+        try {
+            MitgliederImportErgebnis ergebnis = ctx.berichtService.importiereMitgliederliste(datei.toPath());
+            mitgliederViewController.lade();
+            buchungenViewController.ladeStammdaten();
+
+            StringBuilder text = new StringBuilder(ergebnis.importiert() + " Mitglieder importiert.");
+            if (!ergebnis.fehler().isEmpty()) {
+                text.append("\n\n").append(ergebnis.fehler().size()).append(" Zeile(n) übersprungen:\n")
+                        .append(String.join("\n", ergebnis.fehler()));
+            }
+            Alert hinweis = new Alert(
+                    ergebnis.fehler().isEmpty() ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING, text.toString());
+            hinweis.setHeaderText("Mitgliederliste importiert");
+            hinweis.showAndWait();
+        } catch (IOException e) {
+            zeigeFehler("Mitgliederliste konnte nicht importiert werden", e);
         }
     }
 

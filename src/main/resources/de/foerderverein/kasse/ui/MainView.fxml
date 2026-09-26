@@ -17,11 +17,18 @@
                         <MenuItem text="Kategorien…" onAction="#onKategorien" />
                         <MenuItem text="Konto-Einstellungen…" onAction="#onKontoEinstellungen" />
                         <MenuItem text="Geschäftsjahre…" onAction="#onGeschaeftsjahre" />
+                        <MenuItem text="Aktivitäten/Veranstaltungen…" onAction="#onAktivitaeten" />
                     </items>
                 </Menu>
                 <Menu text="Berichte">
                     <items>
                         <MenuItem text="Kassenbericht…" onAction="#onKassenbericht" />
+                        <MenuItem text="Ergänzung zur Steuererklärung…" onAction="#onSteuerreport" />
+                    </items>
+                </Menu>
+                <Menu text="Import">
+                    <items>
+                        <MenuItem text="Mitgliederliste importieren…" onAction="#onMitgliederlisteImport" />
                     </items>
                 </Menu>
                 <Menu text="Exporte">

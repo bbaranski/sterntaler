@@ -2,12 +2,12 @@ package de.foerderverein.kasse.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 
+import de.foerderverein.kasse.domain.Anrede;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
 
@@ -64,11 +64,36 @@ class MitgliedRepositoryTest {
         assertEquals("erika@example.org", neuGeladen.getEmail());
     }
 
+    @Test
+    void sepaUndAnredeFelderWerdenGespeichertUndGeladen() {
+        MitgliedRepository repository = new MitgliedRepository(TestDatabase.create());
+        Mitglied mitglied = neuesMitglied();
+        mitglied.setAnrede(Anrede.FRAU);
+        mitglied.setMandatsreferenz(1L);
+        mitglied.setSammellastschrift("Sammler-2026-03");
+
+        repository.save(mitglied);
+
+        var neuGeladen = repository.findById(mitglied.getId()).orElseThrow();
+        assertEquals(Anrede.FRAU, neuGeladen.getAnrede());
+        assertEquals(1L, neuGeladen.getMandatsreferenz());
+        assertEquals("Sammler-2026-03", neuGeladen.getSammellastschrift());
+    }
+
+    @Test
+    void anredeDarfLeerBleiben() {
+        MitgliedRepository repository = new MitgliedRepository(TestDatabase.create());
+        Mitglied mitglied = repository.save(neuesMitglied());
+
+        var neuGeladen = repository.findById(mitglied.getId()).orElseThrow();
+        assertNull(neuGeladen.getAnrede());
+    }
+
     private Mitglied neuesMitglied() {
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
         mitglied.setNachname("Musterfrau");
-        mitglied.setEintrittsdatum(LocalDate.of(2020, 1, 1));
+        mitglied.setEintrittsdatum("01.01.2020");
         return mitglied;
     }
 }

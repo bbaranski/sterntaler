@@ -17,7 +17,7 @@
             <padding>
                 <Insets top="8" right="8" bottom="8" left="8" />
             </padding>
-            <Button text="Neue Buchung" onAction="#onNeueBuchung" />
+            <Button text="Neue Buchung" onAction="#onNeueBuchung" disable="true" />
             <Button fx:id="bearbeitenButton" text="Bearbeiten" onAction="#onBearbeiten" disable="true" />
             <Button fx:id="stornierenButton" text="Stornieren" onAction="#onStornieren" disable="true" />
             <Button fx:id="verlaufButton" text="Verlauf…" onAction="#onVerlauf" disable="true" />
@@ -41,9 +41,11 @@
                 <TableColumn fx:id="saldoColumn" text="Saldo" prefWidth="100" />
                 <TableColumn fx:id="kategorieColumn" text="Kategorie" prefWidth="160" />
                 <TableColumn fx:id="mitgliedColumn" text="Mitglied" prefWidth="140" />
+                <TableColumn fx:id="aktivitaetColumn" text="Aktivität" prefWidth="140" />
                 <TableColumn fx:id="verwendungszweckColumn" text="Verwendungszweck" prefWidth="260" />
                 <TableColumn fx:id="gegenkontoColumn" text="Gegenkonto" prefWidth="160" />
                 <TableColumn fx:id="quelleColumn" text="Quelle" prefWidth="100" />
+                <TableColumn fx:id="belegColumn" text="Beleg" prefWidth="180" />
                 <TableColumn fx:id="kontoColumn" text="Konto" prefWidth="140" visible="false" />
                 <TableColumn fx:id="wertstellungColumn" text="Wertstellung" prefWidth="100" visible="false" />
                 <TableColumn fx:id="waehrungColumn" text="Währung" prefWidth="80" visible="false" />

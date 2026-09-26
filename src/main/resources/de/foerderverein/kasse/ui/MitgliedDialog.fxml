@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="de.foerderverein.kasse.ui.MitgliedDialogController">
+    <center>
+        <GridPane hgap="8" vgap="8">
+            <padding>
+                <Insets top="16" right="16" bottom="16" left="16" />
+            </padding>
+            <Label text="Anrede" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+            <ComboBox fx:id="anredeCombo" GridPane.rowIndex="0" GridPane.columnIndex="1" maxWidth="Infinity" />
+
+            <Label text="Vorname" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+            <TextField fx:id="vornameField" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+            <Label text="Nachname" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+            <TextField fx:id="nachnameField" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+            <Label text="Straße" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+            <TextField fx:id="strasseField" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+            <Label text="PLZ" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+            <TextField fx:id="plzField" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+            <Label text="Ort" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+            <TextField fx:id="ortField" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+            <Label text="E-Mail" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+            <TextField fx:id="emailField" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+            <Label text="Eintrittsdatum" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+            <TextField fx:id="eintrittsdatumField" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+
+            <Label text="Austrittsdatum" GridPane.rowIndex="8" GridPane.columnIndex="0" />
+            <TextField fx:id="austrittsdatumField" GridPane.rowIndex="8" GridPane.columnIndex="1" />
+
+            <Label text="Status" GridPane.rowIndex="9" GridPane.columnIndex="0" />
+            <ComboBox fx:id="statusCombo" GridPane.rowIndex="9" GridPane.columnIndex="1" maxWidth="Infinity" />
+
+            <Label text="Jahresbeitrag (Euro)" GridPane.rowIndex="10" GridPane.columnIndex="0" />
+            <TextField fx:id="jahresbeitragField" GridPane.rowIndex="10" GridPane.columnIndex="1" promptText="z. B. 24,00" />
+
+            <Label text="IBAN" GridPane.rowIndex="11" GridPane.columnIndex="0" />
+            <TextField fx:id="ibanField" GridPane.rowIndex="11" GridPane.columnIndex="1" />
+
+            <Label fx:id="ibanHinweisLabel" styleClass="warnung-label" wrapText="true"
+                   GridPane.rowIndex="12" GridPane.columnIndex="1" />
+
+            <Label text="BIC" GridPane.rowIndex="13" GridPane.columnIndex="0" />
+            <TextField fx:id="bicField" GridPane.rowIndex="13" GridPane.columnIndex="1" />
+
+            <Label text="Mandatsreferenz" GridPane.rowIndex="14" GridPane.columnIndex="0" />
+            <TextField fx:id="mandatsreferenzField" GridPane.rowIndex="14" GridPane.columnIndex="1" promptText="z. B. 1001" />
+
+            <Label text="Sammellastschrift" GridPane.rowIndex="15" GridPane.columnIndex="0" />
+            <TextField fx:id="sammellastschriftField" GridPane.rowIndex="15" GridPane.columnIndex="1" />
+
+            <Label text="Notiz" GridPane.rowIndex="16" GridPane.columnIndex="0" />
+            <TextArea fx:id="notizField" GridPane.rowIndex="16" GridPane.columnIndex="1" prefRowCount="2" wrapText="true" />
+
+            <columnConstraints>
+                <javafx.scene.layout.ColumnConstraints minWidth="140" />
+                <javafx.scene.layout.ColumnConstraints minWidth="280" hgrow="ALWAYS" />
+            </columnConstraints>
+        </GridPane>
+    </center>
+    <bottom>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+            <padding>
+                <Insets top="8" right="16" bottom="16" left="16" />
+            </padding>
+            <Label fx:id="fehlerLabel" styleClass="fehler-label" wrapText="true" />
+            <Button text="Abbrechen" onAction="#onAbbrechen" />
+            <Button text="Speichern" onAction="#onSpeichern" defaultButton="true" />
+        </HBox>
+    </bottom>
+</BorderPane>

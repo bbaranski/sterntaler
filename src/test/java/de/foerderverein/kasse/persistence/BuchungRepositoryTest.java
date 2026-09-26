@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Konto;
@@ -63,6 +64,23 @@ class BuchungRepositoryTest {
 
         var geladen = buchungRepository.findAll().get(0);
         assertEquals(mitglied.getId(), geladen.getMitgliedId());
+    }
+
+    @Test
+    void aktivitaetZuordnungWirdPersistiert() {
+        Database database = TestDatabase.create();
+        buchungRepository = new BuchungRepository(database);
+        konto = new KontoRepository(database).save(neuesKonto());
+        Aktivitaet aktivitaet = new Aktivitaet();
+        aktivitaet.setName("Sankt Martin");
+        new AktivitaetRepository(database).save(aktivitaet);
+
+        Buchung buchung = neueBuchung(BuchungsQuelle.MANUELL, null);
+        buchung.setAktivitaetId(aktivitaet.getId());
+        buchungRepository.insert(buchung);
+
+        var geladen = buchungRepository.findAll().get(0);
+        assertEquals(aktivitaet.getId(), geladen.getAktivitaetId());
     }
 
     @Test
