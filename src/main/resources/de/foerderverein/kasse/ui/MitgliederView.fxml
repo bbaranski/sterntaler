@@ -7,45 +7,67 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
 
-<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="de.foerderverein.kasse.ui.MitgliederViewController">
-    <HBox spacing="8" styleClass="toolbar">
-        <padding>
-            <Insets top="8" right="8" bottom="8" left="8" />
-        </padding>
-        <Button text="Neu" onAction="#onNeu" />
-        <Button fx:id="bearbeitenButton" text="Bearbeiten" onAction="#onBearbeiten" disable="true" />
-        <Button fx:id="loeschenButton" text="Löschen" onAction="#onLoeschen" disable="true" />
-        <Separator orientation="VERTICAL" />
-        <Button text="Spalten…" onAction="#onSpalten" />
-        <Separator orientation="VERTICAL" />
-        <TextField fx:id="suchFeld" promptText="Suchen…" prefWidth="220" />
-        <Button fx:id="suchZurueckButton" text="◀" />
-        <Button fx:id="suchWeiterButton" text="▶" />
-        <Label fx:id="suchTrefferLabel" />
-    </HBox>
-    <TableView fx:id="mitgliederTable" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="idColumn" text="ID" prefWidth="60" />
-            <TableColumn fx:id="anredeColumn" text="Anrede" prefWidth="70" />
-            <TableColumn fx:id="vornameColumn" text="Vorname" prefWidth="120" />
-            <TableColumn fx:id="nachnameColumn" text="Nachname" prefWidth="120" />
-            <TableColumn fx:id="strasseColumn" text="Straße" prefWidth="160" />
-            <TableColumn fx:id="plzColumn" text="PLZ" prefWidth="70" />
-            <TableColumn fx:id="ortColumn" text="Ort" prefWidth="120" />
-            <TableColumn fx:id="emailColumn" text="E-Mail" prefWidth="160" />
-            <TableColumn fx:id="eintrittsdatumColumn" text="Eintrittsdatum" prefWidth="100" />
-            <TableColumn fx:id="austrittsdatumColumn" text="Austrittsdatum" prefWidth="100" />
-            <TableColumn fx:id="statusColumn" text="Status" prefWidth="80" />
-            <TableColumn fx:id="jahresbeitragColumn" text="Jahresbeitrag" prefWidth="100" />
-            <TableColumn fx:id="ibanColumn" text="IBAN" prefWidth="180" />
-            <TableColumn fx:id="bicColumn" text="BIC" prefWidth="100" />
-            <TableColumn fx:id="mandatsreferenzColumn" text="Mandatsreferenz" prefWidth="140" />
-            <TableColumn fx:id="sammellastschriftColumn" text="Sammellastschrift" prefWidth="140" />
-            <TableColumn fx:id="notizColumn" text="Notiz" prefWidth="200" />
-        </columns>
-    </TableView>
-</VBox>
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="de.foerderverein.kasse.ui.MitgliederViewController">
+    <top>
+        <HBox spacing="8" styleClass="toolbar">
+            <padding>
+                <Insets top="8" right="8" bottom="8" left="8" />
+            </padding>
+            <Button text="Neu" onAction="#onNeu" />
+            <Button fx:id="bearbeitenButton" text="Bearbeiten" onAction="#onBearbeiten" disable="true" />
+            <Button fx:id="loeschenButton" text="Löschen" onAction="#onLoeschen" disable="true" />
+            <Separator orientation="VERTICAL" />
+            <ToggleButton fx:id="filterAlleButton" text="Alle" selected="true">
+                <toggleGroup>
+                    <ToggleGroup fx:id="filterGruppe" />
+                </toggleGroup>
+            </ToggleButton>
+            <ToggleButton fx:id="filterAktivButton" text="Aktive" toggleGroup="$filterGruppe" />
+            <ToggleButton fx:id="filterInaktivButton" text="Inaktive" toggleGroup="$filterGruppe" />
+            <Separator orientation="VERTICAL" />
+            <Button text="Spalten…" onAction="#onSpalten" />
+            <Separator orientation="VERTICAL" />
+            <TextField fx:id="suchFeld" promptText="Suchen…" prefWidth="220" />
+            <Button fx:id="suchZurueckButton" text="◀" />
+            <Button fx:id="suchWeiterButton" text="▶" />
+            <Label fx:id="suchTrefferLabel" />
+        </HBox>
+    </top>
+    <center>
+        <TableView fx:id="mitgliederTable">
+            <columns>
+                <TableColumn fx:id="idColumn" text="ID" prefWidth="60" />
+                <TableColumn fx:id="anredeColumn" text="Anrede" prefWidth="70" />
+                <TableColumn fx:id="vornameColumn" text="Vorname" prefWidth="120" />
+                <TableColumn fx:id="nachnameColumn" text="Nachname" prefWidth="120" />
+                <TableColumn fx:id="strasseColumn" text="Straße" prefWidth="160" />
+                <TableColumn fx:id="plzColumn" text="PLZ" prefWidth="70" />
+                <TableColumn fx:id="ortColumn" text="Ort" prefWidth="120" />
+                <TableColumn fx:id="emailColumn" text="E-Mail" prefWidth="160" />
+                <TableColumn fx:id="eintrittsdatumColumn" text="Eintrittsdatum" prefWidth="100" />
+                <TableColumn fx:id="austrittsdatumColumn" text="Austrittsdatum" prefWidth="100" />
+                <TableColumn fx:id="statusColumn" text="Status" prefWidth="80" />
+                <TableColumn fx:id="jahresbeitragColumn" text="Jahresbeitrag" prefWidth="100" />
+                <TableColumn fx:id="ibanColumn" text="IBAN" prefWidth="180" />
+                <TableColumn fx:id="bicColumn" text="BIC" prefWidth="100" />
+                <TableColumn fx:id="mandatsreferenzColumn" text="Mandatsreferenz" prefWidth="140" />
+                <TableColumn fx:id="sammellastschriftColumn" text="Sammellastschrift" prefWidth="140" />
+                <TableColumn fx:id="notizColumn" text="Notiz" prefWidth="200" />
+            </columns>
+        </TableView>
+    </center>
+    <bottom>
+        <HBox styleClass="statusbar">
+            <padding>
+                <Insets top="4" right="8" bottom="4" left="8" />
+            </padding>
+            <Label fx:id="statusLabel" text=" " />
+        </HBox>
+    </bottom>
+</BorderPane>

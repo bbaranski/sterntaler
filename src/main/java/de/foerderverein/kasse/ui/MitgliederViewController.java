@@ -1,9 +1,13 @@
 package de.foerderverein.kasse.ui;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -21,6 +25,8 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -29,6 +35,7 @@ import de.foerderverein.kasse.app.AppContext;
 import de.foerderverein.kasse.app.Views;
 import de.foerderverein.kasse.domain.Anrede;
 import de.foerderverein.kasse.domain.Mitglied;
+import de.foerderverein.kasse.domain.MitgliedStatus;
 
 /** Ansicht "Mitglieder" - zweite Hauptansicht der Anwendung, als Tab in MainView.fxml
  * eingebettet. Anlegen/Bearbeiten/Loeschen erfolgt ueber Toolbar-Buttons; Anlegen/Bearbeiten
@@ -38,6 +45,7 @@ public class MitgliederViewController {
 
     private final AppContext ctx;
     private final ObservableList<Mitglied> mitglieder = FXCollections.observableArrayList();
+    private List<Mitglied> alleMitglieder = List.of();
 
     private static final NumberFormat BETRAG_FORMAT = NumberFormat.getCurrencyInstance(Locale.GERMANY);
 
@@ -61,10 +69,15 @@ public class MitgliederViewController {
     @FXML private TableColumn<Mitglied, String> notizColumn;
     @FXML private Button bearbeitenButton;
     @FXML private Button loeschenButton;
+    @FXML private ToggleGroup filterGruppe;
+    @FXML private ToggleButton filterAlleButton;
+    @FXML private ToggleButton filterAktivButton;
+    @FXML private ToggleButton filterInaktivButton;
     @FXML private TextField suchFeld;
     @FXML private Button suchZurueckButton;
     @FXML private Button suchWeiterButton;
     @FXML private Label suchTrefferLabel;
+    @FXML private Label statusLabel;
 
     public MitgliederViewController(AppContext ctx) {
         this.ctx = ctx;
@@ -99,12 +112,59 @@ public class MitgliederViewController {
             int anzahl = mitgliederTable.getSelectionModel().getSelectedItems().size();
             bearbeitenButton.setDisable(anzahl != 1);
             loeschenButton.setDisable(anzahl == 0);
+            aktualisiereStatuszeile();
         });
+        mitglieder.addListener((ListChangeListener<Mitglied>) change -> aktualisiereStatuszeile());
+
+        filterGruppe.selectedToggleProperty().addListener((obs, alt, neu) -> aktualisiereGefilterteListe());
 
         new TabellenSuche<>(mitgliederTable, suchFeld, suchWeiterButton, suchZurueckButton, suchTrefferLabel,
                 this::suchfelderFuer);
 
         lade();
+    }
+
+    /** Aktuell gewaehlter Statusfilter, oder null fuer "Alle" - siehe Toggle-Buttons in der
+     * Toolbar (Alle/Aktive/Inaktive, siehe MitgliederView.fxml). */
+    private MitgliedStatus aktuellerFilter() {
+        if (filterAktivButton.isSelected()) {
+            return MitgliedStatus.AKTIV;
+        }
+        if (filterInaktivButton.isSelected()) {
+            return MitgliedStatus.INAKTIV;
+        }
+        return null;
+    }
+
+    private void aktualisiereGefilterteListe() {
+        MitgliedStatus filter = aktuellerFilter();
+        mitglieder.setAll(filter == null
+                ? alleMitglieder
+                : alleMitglieder.stream().filter(m -> m.getStatus() == filter).toList());
+    }
+
+    /** Zeigt Anzahl der aktuell ausgewaehlten Mitglieder sowie Summe/Min/Max/Durchschnitt des
+     * Jahresbeitrags ueber die gesamte aktuell gefilterte (nicht nur ausgewaehlte) Liste an -
+     * Mitglieder ohne hinterlegten Jahresbeitrag werden dabei nicht mitgezaehlt. */
+    private void aktualisiereStatuszeile() {
+        int ausgewaehlt = mitgliederTable.getSelectionModel().getSelectedItems().size();
+        List<BigDecimal> betraege = mitglieder.stream()
+                .map(Mitglied::getJahresbeitragEuro)
+                .filter(Objects::nonNull)
+                .toList();
+
+        StringBuilder text = new StringBuilder(ausgewaehlt + " ausgewählt · " + mitglieder.size() + " angezeigt");
+        if (!betraege.isEmpty()) {
+            BigDecimal summe = betraege.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal min = betraege.stream().min(Comparator.naturalOrder()).orElseThrow();
+            BigDecimal max = betraege.stream().max(Comparator.naturalOrder()).orElseThrow();
+            BigDecimal durchschnitt = summe.divide(BigDecimal.valueOf(betraege.size()), 2, RoundingMode.HALF_UP);
+            text.append(" · Jahresbeitrag Summe ").append(BETRAG_FORMAT.format(summe))
+                    .append(" · Min ").append(BETRAG_FORMAT.format(min))
+                    .append(" · Max ").append(BETRAG_FORMAT.format(max))
+                    .append(" · Ø ").append(BETRAG_FORMAT.format(durchschnitt));
+        }
+        statusLabel.setText(text.toString());
     }
 
     /** Fester Satz durchsuchter Felder fuer die Mitglieder-Suche - siehe TabellenSuche. */
@@ -135,7 +195,8 @@ public class MitgliederViewController {
     /** Wird von der Shell (MainController) nach dem Mitgliederlisten-Import aufgerufen, damit neu
      * angelegte Mitglieder ohne Neustart sichtbar werden. */
     public void lade() {
-        mitglieder.setAll(ctx.mitgliedService.findAll());
+        alleMitglieder = ctx.mitgliedService.findAll();
+        aktualisiereGefilterteListe();
     }
 
     @FXML

@@ -7,14 +7,12 @@ import java.util.stream.Collectors;
 
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -152,8 +150,10 @@ public final class SpaltenKonfiguration {
             stage.close();
         });
 
-        HBox buttonZeile = new HBox(8, alleButton, reihenfolgeZuruecksetzenButton, abbrechenButton, uebernehmenButton);
-        buttonZeile.setAlignment(Pos.CENTER_RIGHT);
+        for (Button button : List.of(alleButton, reihenfolgeZuruecksetzenButton, abbrechenButton, uebernehmenButton)) {
+            button.setMaxWidth(Double.MAX_VALUE);
+        }
+        VBox buttonZeile = new VBox(8, alleButton, reihenfolgeZuruecksetzenButton, abbrechenButton, uebernehmenButton);
 
         ScrollPane scrollPane = new ScrollPane(liste);
         scrollPane.setFitToWidth(true);
