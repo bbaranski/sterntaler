@@ -23,25 +23,29 @@ import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
+import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
 import de.foerderverein.kasse.persistence.TestDatabase;
 
 class BelegServiceTest {
 
     private BelegService service;
+    private BuchungRepository buchungRepository;
     private Path belegeVerzeichnis;
-    private long buchungId;
+    private Buchung buchung;
 
     @BeforeEach
     void setUp() throws IOException {
         Database database = TestDatabase.create();
         belegeVerzeichnis = Files.createTempDirectory("kasse-test-belege");
         BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
-        service = new BelegService(new BelegRepository(database), belegeVerzeichnis);
+        GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(new GeschaeftsjahrRepository(database));
+        service = new BelegService(new BelegRepository(database), geschaeftsjahrService, belegeVerzeichnis);
         Konto konto = new KontoRepository(database).save(neuesKonto());
-        Buchung buchung = neueBuchung(konto.getId());
-        new BuchungRepository(database).insert(buchung);
-        buchungId = buchung.getId();
+        buchungRepository = new BuchungRepository(database);
+        buchung = neueBuchung(konto.getId());
+        buchung.setRechnungsnummer("RE-2026-042");
+        buchungRepository.insert(buchung);
     }
 
     @Test
@@ -49,20 +53,29 @@ class BelegServiceTest {
         Path datei = Files.createTempFile("beleg-test", ".txt");
         Files.writeString(datei, "kein Beleg");
 
-        assertThrows(IllegalArgumentException.class, () -> service.hochladen(buchungId, datei.toFile()));
+        assertThrows(IllegalArgumentException.class, () -> service.hochladen(buchung, datei.toFile()));
     }
 
     @Test
-    void pdfWirdAlsDateiImBelegeVerzeichnisGespeichert() throws IOException {
+    void uploadOhneRechnungsnummerWirdAbgelehnt() throws IOException {
+        buchung.setRechnungsnummer(null);
+        Path datei = Files.createTempFile("beleg-test", ".pdf");
+        Files.write(datei, new byte[] {1});
+
+        assertThrows(IllegalStateException.class, () -> service.hochladen(buchung, datei.toFile()));
+    }
+
+    @Test
+    void dateinameSetztSichAusGeschaeftsjahrRechnungsnummerUndOriginalnameZusammen() throws IOException {
         Path datei = Files.createTempFile("beleg-test", ".pdf");
         byte[] inhalt = {1, 2, 3};
         Files.write(datei, inhalt);
 
-        Beleg beleg = service.hochladen(buchungId, datei.toFile());
+        Beleg beleg = service.hochladen(buchung, datei.toFile());
 
-        Beleg geladen = service.findByBuchungId(buchungId).orElseThrow();
+        Beleg geladen = service.findByBuchungId(buchung.getId()).orElseThrow();
         assertEquals("pdf", geladen.getDateityp());
-        assertEquals(buchungId + "_" + datei.getFileName().toString(), geladen.getSpeicherpfad());
+        assertEquals("ohne-Geschaeftsjahr_RE-2026-042_" + datei.getFileName(), geladen.getSpeicherpfad());
 
         Path gespeicherteDatei = service.pfadZuDatei(beleg);
         assertTrue(Files.exists(gespeicherteDatei));
@@ -74,9 +87,9 @@ class BelegServiceTest {
         Path datei = Files.createTempFile("beleg-test", ".PDF");
         Files.write(datei, new byte[] {1});
 
-        service.hochladen(buchungId, datei.toFile());
+        service.hochladen(buchung, datei.toFile());
 
-        Beleg geladen = service.findByBuchungId(buchungId).orElseThrow();
+        Beleg geladen = service.findByBuchungId(buchung.getId()).orElseThrow();
         assertEquals("pdf", geladen.getDateityp());
     }
 
@@ -87,26 +100,62 @@ class BelegServiceTest {
         Path jpeg = Files.createTempFile("beleg-test", ".jpeg");
         Files.write(jpeg, new byte[] {1});
 
-        service.hochladen(buchungId, jpg.toFile());
-        assertEquals("jpg", service.findByBuchungId(buchungId).orElseThrow().getDateityp());
+        service.hochladen(buchung, jpg.toFile());
+        assertEquals("jpg", service.findByBuchungId(buchung.getId()).orElseThrow().getDateityp());
 
-        service.hochladen(buchungId, jpeg.toFile());
-        assertEquals("jpeg", service.findByBuchungId(buchungId).orElseThrow().getDateityp());
+        service.hochladen(buchung, jpeg.toFile());
+        assertEquals("jpeg", service.findByBuchungId(buchung.getId()).orElseThrow().getDateityp());
     }
 
     @Test
     void ersetzenMitAndererEndungEntferntDieAlteDatei() throws IOException {
         Path altesPdf = Files.createTempFile("beleg-test", ".pdf");
         Files.write(altesPdf, new byte[] {1});
-        Beleg alterBeleg = service.hochladen(buchungId, altesPdf.toFile());
+        Beleg alterBeleg = service.hochladen(buchung, altesPdf.toFile());
         Path alteDatei = service.pfadZuDatei(alterBeleg);
         assertTrue(Files.exists(alteDatei));
 
         Path neuesJpg = Files.createTempFile("beleg-test", ".jpg");
         Files.write(neuesJpg, new byte[] {2});
-        service.hochladen(buchungId, neuesJpg.toFile());
+        service.hochladen(buchung, neuesJpg.toFile());
 
         assertFalse(Files.exists(alteDatei));
+    }
+
+    @Test
+    void uploadMitDoppelterRechnungsnummerFuerAndereBuchungWirdAbgelehnt() throws IOException {
+        Buchung zweiteBuchung = neueBuchung(buchung.getKontoId());
+        zweiteBuchung.setRechnungsnummer(buchung.getRechnungsnummer());
+        buchungRepository.insert(zweiteBuchung);
+
+        Path datei = Files.createTempFile("beleg-test", ".pdf");
+        Files.write(datei, new byte[] {1});
+        service.hochladen(buchung, datei.toFile());
+
+        // Gleiches Geschaeftsjahr, gleiche (versehentlich doppelt vergebene) Rechnungsnummer,
+        // gleicher Originaldateiname -> derselbe Zieldateiname wie bei der ersten Buchung.
+        assertThrows(IllegalStateException.class, () -> service.hochladen(zweiteBuchung, datei.toFile()));
+    }
+
+    @Test
+    void entfernenLoeschtDateiUndDatenbankzeile() throws IOException {
+        Path datei = Files.createTempFile("beleg-test", ".pdf");
+        Files.write(datei, new byte[] {1});
+        Beleg beleg = service.hochladen(buchung, datei.toFile());
+        Path gespeicherteDatei = service.pfadZuDatei(beleg);
+        assertTrue(Files.exists(gespeicherteDatei));
+
+        service.entfernen(buchung.getId());
+
+        assertFalse(Files.exists(gespeicherteDatei));
+        assertTrue(service.findByBuchungId(buchung.getId()).isEmpty());
+    }
+
+    @Test
+    void entfernenOhneVorhandenenBelegIstEinSicheresNoop() {
+        service.entfernen(buchung.getId());
+
+        assertTrue(service.findByBuchungId(buchung.getId()).isEmpty());
     }
 
     private Buchung neueBuchung(Long kontoId) {

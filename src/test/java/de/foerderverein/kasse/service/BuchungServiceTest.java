@@ -39,7 +39,8 @@ class BuchungServiceTest {
         geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         kategorieRepository = new KategorieRepository(database);
         buchungService = new BuchungService(new BuchungRepository(database), geschaeftsjahrRepository,
-                new AuditLogRepository(database), kategorieRepository, new AktivitaetRepository(database));
+                new GeschaeftsjahrService(geschaeftsjahrRepository), new AuditLogRepository(database),
+                kategorieRepository, new AktivitaetRepository(database));
         Konto neu = new Konto();
         neu.setBezeichnung("Vereinskonto");
         neu.setIban("DE02120300000000202051");
@@ -142,6 +143,63 @@ class BuchungServiceTest {
                 && "".equals(e.getWertAlt()) && "Geaendert".equals(e.getWertNeu())));
         assertTrue(geaendert.stream().anyMatch(e -> "Kategorie".equals(e.getFeld())
                 && "".equals(e.getWertAlt()) && kategorie.getName().equals(e.getWertNeu())));
+    }
+
+    @Test
+    void doppelteRechnungsnummerImSelbenGeschaeftsjahrWirdAbgelehnt() {
+        Geschaeftsjahr jahr = new Geschaeftsjahr();
+        jahr.setBezeichnung("2026");
+        jahr.setStartDatum(LocalDate.of(2026, 1, 1));
+        jahr.setEndDatum(LocalDate.of(2026, 12, 31));
+        geschaeftsjahrRepository.save(jahr);
+
+        Buchung erste = buchung(new BigDecimal("10.00"));
+        erste.setRechnungsnummer("RE-042");
+        buchungService.erfasseManuell(erste, "tester");
+
+        Buchung zweite = buchung(new BigDecimal("20.00"));
+        zweite.setRechnungsnummer("RE-042");
+
+        assertThrows(IllegalStateException.class, () -> buchungService.erfasseManuell(zweite, "tester"));
+    }
+
+    @Test
+    void gleicheRechnungsnummerInUnterschiedlichenGeschaeftsjahrenIstErlaubt() {
+        Geschaeftsjahr jahr2025 = new Geschaeftsjahr();
+        jahr2025.setBezeichnung("2025");
+        jahr2025.setStartDatum(LocalDate.of(2025, 1, 1));
+        jahr2025.setEndDatum(LocalDate.of(2025, 12, 31));
+        geschaeftsjahrRepository.save(jahr2025);
+        Geschaeftsjahr jahr2026 = new Geschaeftsjahr();
+        jahr2026.setBezeichnung("2026");
+        jahr2026.setStartDatum(LocalDate.of(2026, 1, 1));
+        jahr2026.setEndDatum(LocalDate.of(2026, 12, 31));
+        geschaeftsjahrRepository.save(jahr2026);
+
+        Buchung erste = buchung(new BigDecimal("10.00"));
+        erste.setBuchungsdatum(LocalDate.of(2025, 6, 1));
+        erste.setRechnungsnummer("RE-001");
+        buchungService.erfasseManuell(erste, "tester");
+
+        Buchung zweite = buchung(new BigDecimal("20.00"));
+        zweite.setBuchungsdatum(LocalDate.of(2026, 6, 1));
+        zweite.setRechnungsnummer("RE-001");
+
+        buchungService.erfasseManuell(zweite, "tester");
+
+        assertEquals(2, buchungService.findAll().size());
+    }
+
+    @Test
+    void aktualisiereOhneAenderungDerEigenenRechnungsnummerIstErlaubt() {
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchung.setRechnungsnummer("RE-042");
+        buchungService.erfasseManuell(buchung, "tester");
+
+        buchung.setVerwendungszweck("Geaendert");
+        buchungService.aktualisiere(buchung);
+
+        assertEquals("RE-042", buchungService.findAll().get(0).getRechnungsnummer());
     }
 
     private Buchung buchung(BigDecimal betrag) {

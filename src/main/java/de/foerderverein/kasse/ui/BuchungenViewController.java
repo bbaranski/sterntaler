@@ -33,6 +33,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.HBox;
@@ -194,12 +195,14 @@ public class BuchungenViewController {
             private final Button hochladenButton = new Button("Hochladen…");
             private final Button oeffnenButton = new Button("Öffnen");
             private final Button ersetzenButton = new Button("Ersetzen…");
+            private final Button entfernenButton = new Button("Entfernen");
             private final HBox ohneBelegBox = new HBox(hochladenButton);
-            private final HBox mitBelegBox = new HBox(4, oeffnenButton, ersetzenButton);
+            private final HBox mitBelegBox = new HBox(4, oeffnenButton, ersetzenButton, entfernenButton);
             {
                 hochladenButton.setOnAction(e -> hochladeDialog(getItem(), false));
                 ersetzenButton.setOnAction(e -> hochladeDialog(getItem(), true));
                 oeffnenButton.setOnAction(e -> oeffneVorhandenenBeleg(getItem()));
+                entfernenButton.setOnAction(e -> entferneBeleg(getItem()));
             }
 
             @Override
@@ -207,7 +210,17 @@ public class BuchungenViewController {
                 super.updateItem(buchung, empty);
                 if (empty || buchung == null) {
                     setGraphic(null);
-                } else if (belegeByBuchungId.containsKey(buchung.getId())) {
+                    return;
+                }
+                boolean rechnungsnummerFehlt = buchung.getRechnungsnummer() == null
+                        || buchung.getRechnungsnummer().isBlank();
+                hochladenButton.setDisable(rechnungsnummerFehlt);
+                ersetzenButton.setDisable(rechnungsnummerFehlt);
+                Tooltip tooltip = rechnungsnummerFehlt
+                        ? new Tooltip("Bitte zuerst eine Rechnungsnummer erfassen.") : null;
+                hochladenButton.setTooltip(tooltip);
+                ersetzenButton.setTooltip(tooltip);
+                if (belegeByBuchungId.containsKey(buchung.getId())) {
                     setGraphic(mitBelegBox);
                 } else {
                     setGraphic(ohneBelegBox);
@@ -416,10 +429,10 @@ public class BuchungenViewController {
             return;
         }
         try {
-            Beleg beleg = ctx.belegService.hochladen(buchung.getId(), datei);
+            Beleg beleg = ctx.belegService.hochladen(buchung, datei);
             belegeByBuchungId.put(buchung.getId(), beleg);
             buchungenTable.refresh();
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             zeigeFehler("Beleg konnte nicht hochgeladen werden", e);
         } catch (IOException e) {
             zeigeFehler("Beleg konnte nicht gelesen werden", e);
@@ -434,6 +447,21 @@ public class BuchungenViewController {
                 this::oeffneBeleg,
                 () -> zeigeFehler("Beleg konnte nicht geoeffnet werden",
                         new IllegalStateException("Kein Beleg vorhanden")));
+    }
+
+    private void entferneBeleg(Buchung buchung) {
+        if (buchung == null) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                "Beleg zu dieser Buchung entfernen? Die Datei wird dabei unwiderruflich geloescht.",
+                ButtonType.YES, ButtonType.NO);
+        confirm.setHeaderText("Beleg entfernen");
+        if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
+            ctx.belegService.entfernen(buchung.getId());
+            belegeByBuchungId.remove(buchung.getId());
+            buchungenTable.refresh();
+        }
     }
 
     private void oeffneBeleg(Beleg beleg) {

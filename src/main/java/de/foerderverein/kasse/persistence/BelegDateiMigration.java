@@ -55,7 +55,7 @@ public final class BelegDateiMigration {
                 String dateiname = rs.getString("dateiname");
                 byte[] inhalt = rs.getBytes("inhalt");
 
-                String speicherpfad = BelegDateiName.zielname(buchungId, dateiname);
+                String speicherpfad = legacyZielname(buchungId, dateiname);
                 Files.write(belegeVerzeichnis.resolve(speicherpfad), inhalt);
 
                 try (PreparedStatement update = c.prepareStatement("UPDATE beleg SET speicherpfad = ? WHERE id = ?")) {
@@ -65,6 +65,15 @@ public final class BelegDateiMigration {
                 }
             }
         }
+    }
+
+    /** Benennung ausschliesslich fuer diese einmalige Altdaten-Migration - unabhaengig von der
+     * neueren, Geschaeftsjahr/Rechnungsnummer-basierten Benennung regulaerer Uploads
+     * (BelegDateiName), da zu BLOB-Zeiten weder eine Rechnungsnummer verpflichtend war noch das
+     * Feld zwangslaeufig gefuellt ist. */
+    private static String legacyZielname(long buchungId, String originalDateiname) {
+        String bereinigt = originalDateiname.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        return buchungId + "_" + bereinigt;
     }
 
     private static boolean keineUnmigriertenBelegeMehr(Connection c) throws SQLException {

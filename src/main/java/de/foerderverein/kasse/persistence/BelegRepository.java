@@ -67,6 +67,17 @@ public class BelegRepository {
         return insert(beleg);
     }
 
+    public void loescheByBuchungId(long buchungId) {
+        String sql = "DELETE FROM beleg WHERE buchung_id = ?";
+        try (Connection c = database.connection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, buchungId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new PersistenceException("Beleg konnte nicht geloescht werden", e);
+        }
+    }
+
     private Beleg insert(Beleg beleg) {
         String sql = """
                 INSERT INTO beleg (buchung_id, dateiname, dateityp, speicherpfad, hochgeladen_am)

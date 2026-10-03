@@ -7,12 +7,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.AuditAktion;
 import de.foerderverein.kasse.domain.AuditEintrag;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
+import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
@@ -28,15 +30,17 @@ public class BuchungService {
 
     private final BuchungRepository repository;
     private final GeschaeftsjahrRepository geschaeftsjahrRepository;
+    private final GeschaeftsjahrService geschaeftsjahrService;
     private final AuditLogRepository auditLogRepository;
     private final KategorieRepository kategorieRepository;
     private final AktivitaetRepository aktivitaetRepository;
 
     public BuchungService(BuchungRepository repository, GeschaeftsjahrRepository geschaeftsjahrRepository,
-                           AuditLogRepository auditLogRepository, KategorieRepository kategorieRepository,
-                           AktivitaetRepository aktivitaetRepository) {
+                           GeschaeftsjahrService geschaeftsjahrService, AuditLogRepository auditLogRepository,
+                           KategorieRepository kategorieRepository, AktivitaetRepository aktivitaetRepository) {
         this.repository = repository;
         this.geschaeftsjahrRepository = geschaeftsjahrRepository;
+        this.geschaeftsjahrService = geschaeftsjahrService;
         this.auditLogRepository = auditLogRepository;
         this.kategorieRepository = kategorieRepository;
         this.aktivitaetRepository = aktivitaetRepository;
@@ -119,6 +123,39 @@ public class BuchungService {
         if (buchung.getBetragCent() == 0) {
             throw new IllegalArgumentException("Betrag darf nicht 0 sein");
         }
+        pruefeRechnungsnummerEindeutigkeitImGeschaeftsjahr(buchung);
+    }
+
+    /** Rechnungsnummern muessen nur innerhalb desselben Geschaeftsjahres eindeutig sein - bei
+     * unterschiedlichem Geschaeftsjahr darf dieselbe Nummer erneut vergeben werden (z. B. ein
+     * Lieferant, der seine Rechnungsnummerierung jedes Jahr neu beginnt). Buchungen ohne
+     * zugehoeriges Geschaeftsjahr (z. B. ausserhalb jedes definierten Zeitraums) werden dabei als
+     * eigene, gemeinsame Gruppe behandelt, statt die Pruefung stillschweigend zu uebergehen. */
+    private void pruefeRechnungsnummerEindeutigkeitImGeschaeftsjahr(Buchung buchung) {
+        String rechnungsnummer = buchung.getRechnungsnummer();
+        if (rechnungsnummer == null || rechnungsnummer.isBlank()) {
+            return;
+        }
+        List<Geschaeftsjahr> geschaeftsjahre = geschaeftsjahrService.findAll();
+        Long geschaeftsjahrId = geschaeftsjahrIdFuer(buchung.getBuchungsdatum(), geschaeftsjahre);
+
+        for (Buchung andere : repository.findAll()) {
+            if (Objects.equals(andere.getId(), buchung.getId())) {
+                continue;
+            }
+            if (!rechnungsnummer.equals(andere.getRechnungsnummer())) {
+                continue;
+            }
+            Long andereGeschaeftsjahrId = geschaeftsjahrIdFuer(andere.getBuchungsdatum(), geschaeftsjahre);
+            if (Objects.equals(geschaeftsjahrId, andereGeschaeftsjahrId)) {
+                throw new IllegalStateException(
+                        "Die Rechnungsnummer \"" + rechnungsnummer + "\" ist in diesem Geschaeftsjahr bereits vergeben.");
+            }
+        }
+    }
+
+    private Long geschaeftsjahrIdFuer(LocalDate datum, List<Geschaeftsjahr> geschaeftsjahre) {
+        return geschaeftsjahrService.findeFuer(datum, geschaeftsjahre).map(Geschaeftsjahr::getId).orElse(null);
     }
 
     private void protokolliere(Buchung buchung, AuditAktion aktion, String benutzer) {

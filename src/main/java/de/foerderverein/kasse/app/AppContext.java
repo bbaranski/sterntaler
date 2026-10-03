@@ -81,16 +81,17 @@ public final class AppContext {
         VereinRepository vereinRepository = new VereinRepository(database);
         CredentialStore credentialStore = new CredentialStore();
         MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, auditLogRepository);
+        GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
 
         return new AppContext(
                 new KontoService(kontoRepository),
                 new KategorieService(kategorieRepository),
-                new BuchungService(buchungRepository, geschaeftsjahrRepository, auditLogRepository,
-                        kategorieRepository, aktivitaetRepository),
+                new BuchungService(buchungRepository, geschaeftsjahrRepository, geschaeftsjahrService,
+                        auditLogRepository, kategorieRepository, aktivitaetRepository),
                 mitgliedService,
                 new AktivitaetService(aktivitaetRepository),
-                new BelegService(belegRepository, belegeVerzeichnis),
-                new GeschaeftsjahrService(geschaeftsjahrRepository),
+                new BelegService(belegRepository, geschaeftsjahrService, belegeVerzeichnis),
+                geschaeftsjahrService,
                 new BerichtService(buchungRepository, kategorieRepository, mitgliedService, vereinRepository),
                 new BackupService(database, buchungRepository, kontoRepository, kategorieRepository, belegeVerzeichnis),
                 new HbciImportService(buchungRepository, credentialStore),

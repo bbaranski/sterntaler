@@ -1,18 +1,20 @@
 package de.foerderverein.kasse.persistence;
 
-/** Erzeugt aus Buchungs-ID und urspruenglichem Dateinamen einen stabilen, dateisystemsicheren
- * Zielnamen fuer eine Beleg-Datei im Belege-Verzeichnis (siehe AppConfig.belegeVerzeichnis) - die
- * Buchungs-ID macht den Namen eindeutig (ein Beleg pro Buchung), der Originalname bleibt beim
- * Durchsuchen des Ordners erkennbar. Wird sowohl beim regulaeren Hochladen
- * (BelegService.hochladen) als auch bei der einmaligen Migration bestehender BLOBs
- * (BelegDateiMigration) verwendet, damit beide Pfade exakt denselben Namen erzeugen. */
+/** Erzeugt aus Geschaeftsjahr, Rechnungsnummer und urspruenglichem Dateinamen einen
+ * dateisystemsicheren Zielnamen fuer eine Beleg-Datei im Belege-Verzeichnis (siehe
+ * AppConfig.belegeVerzeichnis) - entspricht der ueblichen Ablage von Belegen nach Geschaeftsjahr
+ * und Rechnungsnummer, der Originalname bleibt beim Durchsuchen des Ordners zusaetzlich
+ * erkennbar. */
 public final class BelegDateiName {
 
     private BelegDateiName() {
     }
 
-    public static String zielname(long buchungId, String originalDateiname) {
-        String bereinigt = originalDateiname.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
-        return buchungId + "_" + bereinigt;
+    public static String zielname(String geschaeftsjahr, String rechnungsnummer, String originalDateiname) {
+        return bereinige(geschaeftsjahr) + "_" + bereinige(rechnungsnummer) + "_" + bereinige(originalDateiname);
+    }
+
+    private static String bereinige(String wert) {
+        return wert.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
 }
