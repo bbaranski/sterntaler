@@ -17,14 +17,15 @@ import de.foerderverein.kasse.persistence.KontoRepository;
 import de.foerderverein.kasse.persistence.MitgliedRepository;
 import de.foerderverein.kasse.persistence.VereinRepository;
 import de.foerderverein.kasse.service.AktivitaetService;
-import de.foerderverein.kasse.service.BackupService;
 import de.foerderverein.kasse.service.BelegService;
 import de.foerderverein.kasse.service.BerichtService;
 import de.foerderverein.kasse.service.BuchungService;
 import de.foerderverein.kasse.service.GeschaeftsjahrService;
 import de.foerderverein.kasse.service.KategorieService;
+import de.foerderverein.kasse.service.KontobewegungenExportService;
 import de.foerderverein.kasse.service.KontoService;
 import de.foerderverein.kasse.service.MitgliedService;
+import de.foerderverein.kasse.service.SicherheitskopieService;
 import de.foerderverein.kasse.service.VereinService;
 
 /** Bewusst kein DI-Framework (Guice/Spring) - bei dieser Groesse reicht eine simple, manuell
@@ -39,7 +40,8 @@ public final class AppContext {
     public final BelegService belegService;
     public final GeschaeftsjahrService geschaeftsjahrService;
     public final BerichtService berichtService;
-    public final BackupService backupService;
+    public final KontobewegungenExportService kontobewegungenExportService;
+    public final SicherheitskopieService sicherheitskopieService;
     public final HbciImportService hbciImportService;
     public final CredentialStore credentialStore;
     public final VereinService vereinService;
@@ -47,7 +49,8 @@ public final class AppContext {
     private AppContext(KontoService kontoService, KategorieService kategorieService, BuchungService buchungService,
                         MitgliedService mitgliedService, AktivitaetService aktivitaetService, BelegService belegService,
                         GeschaeftsjahrService geschaeftsjahrService, BerichtService berichtService,
-                        BackupService backupService, HbciImportService hbciImportService,
+                        KontobewegungenExportService kontobewegungenExportService,
+                        SicherheitskopieService sicherheitskopieService, HbciImportService hbciImportService,
                         CredentialStore credentialStore, VereinService vereinService) {
         this.kontoService = kontoService;
         this.kategorieService = kategorieService;
@@ -57,7 +60,8 @@ public final class AppContext {
         this.belegService = belegService;
         this.geschaeftsjahrService = geschaeftsjahrService;
         this.berichtService = berichtService;
-        this.backupService = backupService;
+        this.kontobewegungenExportService = kontobewegungenExportService;
+        this.sicherheitskopieService = sicherheitskopieService;
         this.hbciImportService = hbciImportService;
         this.credentialStore = credentialStore;
         this.vereinService = vereinService;
@@ -82,6 +86,10 @@ public final class AppContext {
         CredentialStore credentialStore = new CredentialStore();
         MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, auditLogRepository);
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository, mitgliedService,
+                vereinRepository);
+        KontobewegungenExportService kontobewegungenExportService = new KontobewegungenExportService(
+                buchungRepository, kontoRepository, kategorieRepository, aktivitaetRepository);
 
         return new AppContext(
                 new KontoService(kontoRepository),
@@ -92,8 +100,10 @@ public final class AppContext {
                 new AktivitaetService(aktivitaetRepository),
                 new BelegService(belegRepository, geschaeftsjahrService, belegeVerzeichnis),
                 geschaeftsjahrService,
-                new BerichtService(buchungRepository, kategorieRepository, mitgliedService, vereinRepository),
-                new BackupService(database, buchungRepository, kontoRepository, kategorieRepository, belegeVerzeichnis),
+                berichtService,
+                kontobewegungenExportService,
+                new SicherheitskopieService(kontobewegungenExportService, berichtService, belegeVerzeichnis,
+                        databaseFile),
                 new HbciImportService(buchungRepository, credentialStore),
                 credentialStore,
                 new VereinService(vereinRepository));

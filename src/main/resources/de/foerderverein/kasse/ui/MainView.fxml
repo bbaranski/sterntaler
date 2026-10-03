@@ -36,7 +36,7 @@
                     <items>
                         <MenuItem text="Mitgliederliste exportieren…" onAction="#onMitgliederlisteExport" />
                         <MenuItem text="Kontobewegungen exportieren…" onAction="#onKontobewegungenExport" />
-                        <MenuItem text="Datensicherung erstellen…" onAction="#onDatensicherung" />
+                        <MenuItem text="Sicherheitskopie…" onAction="#onSicherheitskopie" />
                     </items>
                 </Menu>
             </menus>

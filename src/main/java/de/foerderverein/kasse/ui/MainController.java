@@ -4,8 +4,6 @@ import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -288,10 +286,27 @@ public class MainController {
 
         try {
             Path ziel = datei.toPath();
-            ctx.backupService.exportiereAlleBuchungenAlsExcel(ziel);
+            ctx.kontobewegungenExportService.exportiereAlleBuchungenAlsExcel(ziel);
             oeffneDatei(datei);
         } catch (IOException e) {
             zeigeFehler("Kontobewegungen konnten nicht exportiert werden", e);
+        }
+    }
+
+    @FXML
+    private void onSicherheitskopie() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Ordner für die Sicherheitskopie wählen");
+        File ordner = directoryChooser.showDialog(tabPane.getScene().getWindow());
+        if (ordner == null) {
+            return;
+        }
+
+        try {
+            Path erstellt = ctx.sicherheitskopieService.erstelleSicherheitskopie(ordner.toPath());
+            oeffneDatei(erstellt.toFile());
+        } catch (IOException e) {
+            zeigeFehler("Sicherheitskopie konnte nicht erstellt werden", e);
         }
     }
 
@@ -321,28 +336,6 @@ public class MainController {
             hinweis.showAndWait();
         } catch (IOException e) {
             zeigeFehler("Mitgliederliste konnte nicht importiert werden", e);
-        }
-    }
-
-    @FXML
-    private void onDatensicherung() {
-        DirectoryChooser directoryChooser = new DirectoryChooser();
-        directoryChooser.setTitle("Ordner fuer die Datensicherung waehlen");
-        File ordner = directoryChooser.showDialog(tabPane.getScene().getWindow());
-        if (ordner == null) {
-            return;
-        }
-
-        String zeitstempel = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm"));
-        Path dbZiel = ordner.toPath().resolve("kasse-sicherung-" + zeitstempel + ".db");
-        Path csvZiel = ordner.toPath().resolve("buchungen-" + zeitstempel + ".csv");
-
-        try {
-            ctx.backupService.sichereDatenbank(dbZiel);
-            ctx.backupService.exportiereAlleBuchungen(csvZiel);
-            oeffneDatei(ordner);
-        } catch (IOException e) {
-            zeigeFehler("Datensicherung konnte nicht erstellt werden", e);
         }
     }
 
