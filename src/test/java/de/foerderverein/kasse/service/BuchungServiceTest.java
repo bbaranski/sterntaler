@@ -15,26 +15,33 @@ import de.foerderverein.kasse.domain.AuditAktion;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
+import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
+import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
+import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
+import de.foerderverein.kasse.persistence.MitgliedRepository;
 import de.foerderverein.kasse.persistence.TestDatabase;
 
 class BuchungServiceTest {
 
     private BuchungService buchungService;
     private GeschaeftsjahrRepository geschaeftsjahrRepository;
+    private KategorieRepository kategorieRepository;
     private Konto konto;
 
     @BeforeEach
     void setUp() {
         Database database = TestDatabase.create();
         geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
+        kategorieRepository = new KategorieRepository(database);
         buchungService = new BuchungService(new BuchungRepository(database), geschaeftsjahrRepository,
-                new AuditLogRepository(database));
+                new AuditLogRepository(database), kategorieRepository, new MitgliedRepository(database),
+                new AktivitaetRepository(database));
         Konto neu = new Konto();
         neu.setBezeichnung("Vereinskonto");
         neu.setIban("DE02120300000000202051");
@@ -117,6 +124,26 @@ class BuchungServiceTest {
         assertEquals(3, verlauf.size());
         assertTrue(verlauf.stream().anyMatch(e -> e.getAktion() == AuditAktion.GEAENDERT));
         assertTrue(verlauf.stream().anyMatch(e -> e.getAktion() == AuditAktion.STORNIERT));
+    }
+
+    @Test
+    void aktualisiereProtokolliertFeldDifferenzenMitAufgeloestenNamen() {
+        Kategorie kategorie = kategorieRepository.findAll().get(0);
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchungService.erfasseManuell(buchung, "tester");
+
+        buchung.setVerwendungszweck("Geaendert");
+        buchung.setKategorieId(kategorie.getId());
+        buchungService.aktualisiere(buchung);
+
+        var geaendert = buchungService.findVerlauf(buchung.getId()).stream()
+                .filter(e -> e.getAktion() == AuditAktion.GEAENDERT)
+                .toList();
+        assertEquals(2, geaendert.size());
+        assertTrue(geaendert.stream().anyMatch(e -> "Verwendungszweck".equals(e.getFeld())
+                && "".equals(e.getWertAlt()) && "Geaendert".equals(e.getWertNeu())));
+        assertTrue(geaendert.stream().anyMatch(e -> "Kategorie".equals(e.getFeld())
+                && "".equals(e.getWertAlt()) && kategorie.getName().equals(e.getWertNeu())));
     }
 
     private Buchung buchung(BigDecimal betrag) {

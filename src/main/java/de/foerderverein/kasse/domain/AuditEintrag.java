@@ -9,6 +9,9 @@ public class AuditEintrag {
     private long entityId;
     private AuditAktion aktion;
     private String details;
+    private String feld;
+    private String wertAlt;
+    private String wertNeu;
     private String benutzer;
     private LocalDateTime zeitstempel;
 
@@ -50,6 +53,30 @@ public class AuditEintrag {
 
     public void setDetails(String details) {
         this.details = details;
+    }
+
+    public String getFeld() {
+        return feld;
+    }
+
+    public void setFeld(String feld) {
+        this.feld = feld;
+    }
+
+    public String getWertAlt() {
+        return wertAlt;
+    }
+
+    public void setWertAlt(String wertAlt) {
+        this.wertAlt = wertAlt;
+    }
+
+    public String getWertNeu() {
+        return wertNeu;
+    }
+
+    public void setWertNeu(String wertNeu) {
+        this.wertNeu = wertNeu;
     }
 
     public String getBenutzer() {

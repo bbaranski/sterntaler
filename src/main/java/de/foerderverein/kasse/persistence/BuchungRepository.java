@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
@@ -33,6 +34,19 @@ public class BuchungRepository {
             return result;
         } catch (SQLException e) {
             throw new PersistenceException("Buchungen konnten nicht geladen werden", e);
+        }
+    }
+
+    public Optional<Buchung> findById(long id) {
+        String sql = "SELECT * FROM buchung WHERE id = ?";
+        try (Connection c = database.connection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException("Buchung konnte nicht geladen werden", e);
         }
     }
 

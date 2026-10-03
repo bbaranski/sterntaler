@@ -69,6 +69,7 @@ public class MitgliederViewController {
     @FXML private TableColumn<Mitglied, String> notizColumn;
     @FXML private Button bearbeitenButton;
     @FXML private Button loeschenButton;
+    @FXML private Button verlaufButton;
     @FXML private ToggleGroup filterGruppe;
     @FXML private ToggleButton filterAlleButton;
     @FXML private ToggleButton filterAktivButton;
@@ -112,6 +113,7 @@ public class MitgliederViewController {
             int anzahl = mitgliederTable.getSelectionModel().getSelectedItems().size();
             bearbeitenButton.setDisable(anzahl != 1);
             loeschenButton.setDisable(anzahl == 0);
+            verlaufButton.setDisable(anzahl != 1);
             aktualisiereStatuszeile();
         });
         mitglieder.addListener((ListChangeListener<Mitglied>) change -> aktualisiereStatuszeile());
@@ -256,6 +258,28 @@ public class MitgliederViewController {
                             + "Nicht gelöscht:\n" + String.join("\n", fehler));
             hinweis.setHeaderText("Einige Mitglieder konnten nicht gelöscht werden");
             hinweis.showAndWait();
+        }
+    }
+
+    @FXML
+    private void onVerlauf() {
+        Mitglied ausgewaehlt = mitgliederTable.getSelectionModel().getSelectedItem();
+        if (ausgewaehlt == null) {
+            return;
+        }
+        try {
+            FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/MitgliedVerlaufDialog.fxml");
+            Parent root = loader.load();
+            MitgliedVerlaufDialogController controller = loader.getController();
+            controller.setMitglied(ausgewaehlt);
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle("Verlauf");
+            stage.setScene(Views.scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            zeigeFehler("Verlauf konnte nicht geoeffnet werden", e);
         }
     }
 

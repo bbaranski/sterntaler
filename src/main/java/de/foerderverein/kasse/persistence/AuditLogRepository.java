@@ -22,8 +22,8 @@ public class AuditLogRepository {
 
     public AuditEintrag insert(AuditEintrag eintrag) {
         String sql = """
-                INSERT INTO audit_log (entity, entity_id, aktion, details, benutzer, zeitstempel)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO audit_log (entity, entity_id, aktion, details, feld, wert_alt, wert_neu, benutzer, zeitstempel)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -31,8 +31,11 @@ public class AuditLogRepository {
             ps.setLong(2, eintrag.getEntityId());
             ps.setString(3, eintrag.getAktion().name());
             ps.setString(4, eintrag.getDetails());
-            ps.setString(5, eintrag.getBenutzer());
-            ps.setString(6, LocalDateTime.now().toString());
+            ps.setString(5, eintrag.getFeld());
+            ps.setString(6, eintrag.getWertAlt());
+            ps.setString(7, eintrag.getWertNeu());
+            ps.setString(8, eintrag.getBenutzer());
+            ps.setString(9, LocalDateTime.now().toString());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 keys.next();
@@ -69,6 +72,9 @@ public class AuditLogRepository {
         eintrag.setEntityId(rs.getLong("entity_id"));
         eintrag.setAktion(AuditAktion.valueOf(rs.getString("aktion")));
         eintrag.setDetails(rs.getString("details"));
+        eintrag.setFeld(rs.getString("feld"));
+        eintrag.setWertAlt(rs.getString("wert_alt"));
+        eintrag.setWertNeu(rs.getString("wert_neu"));
         eintrag.setBenutzer(rs.getString("benutzer"));
         eintrag.setZeitstempel(LocalDateTime.parse(rs.getString("zeitstempel")));
         return eintrag;

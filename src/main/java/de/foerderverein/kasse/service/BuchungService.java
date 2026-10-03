@@ -3,16 +3,24 @@ package de.foerderverein.kasse.service;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.AuditAktion;
 import de.foerderverein.kasse.domain.AuditEintrag;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
+import de.foerderverein.kasse.domain.Kategorie;
+import de.foerderverein.kasse.domain.Mitglied;
+import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
+import de.foerderverein.kasse.persistence.KategorieRepository;
+import de.foerderverein.kasse.persistence.MitgliedRepository;
 
 public class BuchungService {
 
@@ -23,12 +31,19 @@ public class BuchungService {
     private final BuchungRepository repository;
     private final GeschaeftsjahrRepository geschaeftsjahrRepository;
     private final AuditLogRepository auditLogRepository;
+    private final KategorieRepository kategorieRepository;
+    private final MitgliedRepository mitgliedRepository;
+    private final AktivitaetRepository aktivitaetRepository;
 
     public BuchungService(BuchungRepository repository, GeschaeftsjahrRepository geschaeftsjahrRepository,
-                           AuditLogRepository auditLogRepository) {
+                           AuditLogRepository auditLogRepository, KategorieRepository kategorieRepository,
+                           MitgliedRepository mitgliedRepository, AktivitaetRepository aktivitaetRepository) {
         this.repository = repository;
         this.geschaeftsjahrRepository = geschaeftsjahrRepository;
         this.auditLogRepository = auditLogRepository;
+        this.kategorieRepository = kategorieRepository;
+        this.mitgliedRepository = mitgliedRepository;
+        this.aktivitaetRepository = aktivitaetRepository;
     }
 
     public List<Buchung> findAll() {
@@ -52,8 +67,11 @@ public class BuchungService {
     public void aktualisiere(Buchung buchung) {
         validiere(buchung);
         pruefeNichtGesperrt(buchung.getBuchungsdatum());
+        Map<String, String> altWerte = repository.findById(buchung.getId())
+                .map(this::feldwerte)
+                .orElseThrow(() -> new IllegalStateException("Buchung nicht gefunden"));
         repository.update(buchung);
-        protokolliere(buchung, AuditAktion.GEAENDERT, aktuellerBenutzer());
+        protokolliereAenderung(buchung, altWerte, aktuellerBenutzer());
     }
 
     public void storniere(Buchung buchung) {
@@ -118,6 +136,60 @@ public class BuchungService {
                 + (buchung.getVerwendungszweck() != null && !buchung.getVerwendungszweck().isBlank()
                         ? ", Verwendungszweck: " + buchung.getVerwendungszweck() : ""));
         auditLogRepository.insert(eintrag);
+    }
+
+    /** Erzeugt je tatsaechlich geaendertem Feld einen eigenen Audit-Eintrag (Feld/Wert (alt)/
+     * Wert (neu)) statt einer einzelnen zusammenfassenden Textbeschreibung - anders als
+     * protokolliere(...), das fuer ANGELEGT/STORNIERT weiterhin verwendet wird, wo eine
+     * Feld-fuer-Feld-Aufschluesselung wenig Mehrwert hat (bei der Neuanlage ist ohnehin "alles
+     * neu", bei der Stornierung aendert sich technisch nur ein Flag). */
+    private void protokolliereAenderung(Buchung buchung, Map<String, String> altWerte, String benutzer) {
+        for (Feldvergleich.Aenderung aenderung : Feldvergleich.vergleiche(altWerte, feldwerte(buchung))) {
+            AuditEintrag eintrag = new AuditEintrag();
+            eintrag.setEntity(ENTITY);
+            eintrag.setEntityId(buchung.getId());
+            eintrag.setAktion(AuditAktion.GEAENDERT);
+            eintrag.setBenutzer(benutzer);
+            eintrag.setFeld(aenderung.feld());
+            eintrag.setWertAlt(aenderung.wertAlt());
+            eintrag.setWertNeu(aenderung.wertNeu());
+            auditLogRepository.insert(eintrag);
+        }
+    }
+
+    /** Menschenlesbarer Schnappschuss der fachlich relevanten, ueber den BuchungDialog
+     * editierbaren Felder - Konto ist bewusst ausgenommen, da es bei einer bestehenden Buchung
+     * nicht mehr geaendert werden kann (siehe BuchungDialogController). Referenzen auf
+     * Kategorie/Mitglied/Aktivitaet werden auf ihren Namen aufgeloest, damit der Verlauf nicht nur
+     * IDs zeigt. */
+    private LinkedHashMap<String, String> feldwerte(Buchung buchung) {
+        LinkedHashMap<String, String> werte = new LinkedHashMap<>();
+        werte.put("Datum", buchung.getBuchungsdatum() != null ? buchung.getBuchungsdatum().format(DATUM_FORMAT) : "");
+        werte.put("Betrag", buchung.getBetragEuro() != null ? BETRAG_FORMAT.format(buchung.getBetragEuro()) : "");
+        werte.put("Kategorie", kategorieName(buchung.getKategorieId()));
+        werte.put("Mitglied", mitgliedName(buchung.getMitgliedId()));
+        werte.put("Aktivität", aktivitaetName(buchung.getAktivitaetId()));
+        werte.put("Verwendungszweck", wert(buchung.getVerwendungszweck()));
+        werte.put("Gegenkonto", wert(buchung.getGegenkontoName()));
+        werte.put("Gegenkonto IBAN", wert(buchung.getGegenkontoIban()));
+        werte.put("Storniert", buchung.isStorniert() ? "Ja" : "Nein");
+        return werte;
+    }
+
+    private String kategorieName(Long id) {
+        return id == null ? "" : kategorieRepository.findById(id).map(Kategorie::getName).orElse("(gelöscht)");
+    }
+
+    private String mitgliedName(Long id) {
+        return id == null ? "" : mitgliedRepository.findById(id).map(Mitglied::getVollerName).orElse("(gelöscht)");
+    }
+
+    private String aktivitaetName(Long id) {
+        return id == null ? "" : aktivitaetRepository.findById(id).map(Aktivitaet::getName).orElse("(gelöscht)");
+    }
+
+    private static String wert(String text) {
+        return text != null ? text : "";
     }
 
     private String aktuellerBenutzer() {

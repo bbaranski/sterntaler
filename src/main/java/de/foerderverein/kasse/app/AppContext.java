@@ -70,12 +70,13 @@ public final class AppContext {
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         AuditLogRepository auditLogRepository = new AuditLogRepository(database);
         CredentialStore credentialStore = new CredentialStore();
-        MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, buchungRepository);
+        MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, buchungRepository, auditLogRepository);
 
         return new AppContext(
                 new KontoService(kontoRepository),
                 new KategorieService(kategorieRepository),
-                new BuchungService(buchungRepository, geschaeftsjahrRepository, auditLogRepository),
+                new BuchungService(buchungRepository, geschaeftsjahrRepository, auditLogRepository,
+                        kategorieRepository, mitgliedRepository, aktivitaetRepository),
                 mitgliedService,
                 new AktivitaetService(aktivitaetRepository),
                 new BelegService(belegRepository),

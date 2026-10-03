@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" prefWidth="640" prefHeight="360"
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" prefWidth="960" prefHeight="400"
             fx:controller="de.foerderverein.kasse.ui.BuchungVerlaufDialogController">
     <top>
         <VBox spacing="4">
@@ -25,10 +25,13 @@
                 <Insets top="0" right="12" bottom="12" left="12" />
             </padding>
             <columns>
-                <TableColumn fx:id="zeitpunktColumn" text="Zeitpunkt" prefWidth="150" />
-                <TableColumn fx:id="aktionColumn" text="Aktion" prefWidth="100" />
-                <TableColumn fx:id="benutzerColumn" text="Benutzer" prefWidth="120" />
-                <TableColumn fx:id="detailsColumn" text="Details" prefWidth="260" />
+                <TableColumn fx:id="zeitpunktColumn" text="Zeitpunkt" prefWidth="130" />
+                <TableColumn fx:id="aktionColumn" text="Aktion" prefWidth="90" />
+                <TableColumn fx:id="benutzerColumn" text="Benutzer" prefWidth="100" />
+                <TableColumn fx:id="feldColumn" text="Feld" prefWidth="130" />
+                <TableColumn fx:id="wertAltColumn" text="Wert (alt)" prefWidth="150" />
+                <TableColumn fx:id="wertNeuColumn" text="Wert (neu)" prefWidth="150" />
+                <TableColumn fx:id="detailsColumn" text="Details" prefWidth="180" />
             </columns>
         </TableView>
     </center>

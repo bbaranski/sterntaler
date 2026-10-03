@@ -22,6 +22,7 @@
             <Button text="Neu" onAction="#onNeu" />
             <Button fx:id="bearbeitenButton" text="Bearbeiten" onAction="#onBearbeiten" disable="true" />
             <Button fx:id="loeschenButton" text="Löschen" onAction="#onLoeschen" disable="true" />
+            <Button fx:id="verlaufButton" text="Verlauf…" onAction="#onVerlauf" disable="true" />
             <Separator orientation="VERTICAL" />
             <ToggleButton fx:id="filterAlleButton" text="Alle" selected="true">
                 <toggleGroup>

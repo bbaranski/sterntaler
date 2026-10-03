@@ -25,6 +25,9 @@ public class BuchungVerlaufDialogController {
     @FXML private TableColumn<AuditEintrag, String> zeitpunktColumn;
     @FXML private TableColumn<AuditEintrag, String> aktionColumn;
     @FXML private TableColumn<AuditEintrag, String> benutzerColumn;
+    @FXML private TableColumn<AuditEintrag, String> feldColumn;
+    @FXML private TableColumn<AuditEintrag, String> wertAltColumn;
+    @FXML private TableColumn<AuditEintrag, String> wertNeuColumn;
     @FXML private TableColumn<AuditEintrag, String> detailsColumn;
 
     public BuchungVerlaufDialogController(AppContext ctx) {
@@ -37,6 +40,9 @@ public class BuchungVerlaufDialogController {
                 new ReadOnlyStringWrapper(cd.getValue().getZeitstempel().format(ZEITPUNKT_FORMAT)));
         aktionColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getAktion().name()));
         benutzerColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getBenutzer()));
+        feldColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getFeld()));
+        wertAltColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getWertAlt()));
+        wertNeuColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getWertNeu()));
         detailsColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getDetails()));
     }
 

@@ -25,6 +25,22 @@ class AuditLogRepositoryTest {
     }
 
     @Test
+    void feldWertAltUndWertNeuWerdenGespeichertUndGeladen() {
+        AuditLogRepository repository = new AuditLogRepository(TestDatabase.create());
+        AuditEintrag eintrag = eintrag(1, AuditAktion.GEAENDERT, "tester");
+        eintrag.setFeld("Betrag");
+        eintrag.setWertAlt("10,00 €");
+        eintrag.setWertNeu("20,00 €");
+        repository.insert(eintrag);
+
+        var geladen = repository.findByEntity("Buchung", 1).get(0);
+
+        assertEquals("Betrag", geladen.getFeld());
+        assertEquals("10,00 €", geladen.getWertAlt());
+        assertEquals("20,00 €", geladen.getWertNeu());
+    }
+
+    @Test
     void findByEntityLiefertNichtsFuerUnbekannteEntity() {
         AuditLogRepository repository = new AuditLogRepository(TestDatabase.create());
         repository.insert(eintrag(1, AuditAktion.ANGELEGT, "tester"));
