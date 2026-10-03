@@ -24,6 +24,7 @@ import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
+import de.foerderverein.kasse.domain.Verein;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
@@ -32,6 +33,7 @@ import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
 import de.foerderverein.kasse.persistence.MitgliedRepository;
 import de.foerderverein.kasse.persistence.TestDatabase;
+import de.foerderverein.kasse.persistence.VereinRepository;
 
 class BerichtServiceTest {
 
@@ -41,9 +43,19 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        VereinRepository vereinRepository = new VereinRepository(database);
         BerichtService berichtService = new BerichtService(
                 buchungRepository, kategorieRepository,
-                new MitgliedService(mitgliedRepository, buchungRepository, new AuditLogRepository(database)));
+                new MitgliedService(mitgliedRepository, buchungRepository, new AuditLogRepository(database)),
+                vereinRepository);
+
+        Verein verein = new Verein();
+        verein.setName("Förderverein Musterschule e. V.");
+        verein.setStrasse("Musterstraße 1");
+        verein.setPlz("12345");
+        verein.setOrt("Musterstadt");
+        verein.setIban("DE02120300000000202051");
+        vereinRepository.save(verein);
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Kategorie spenden = kategorieRepository.findAll().stream()
@@ -83,7 +95,8 @@ class BerichtServiceTest {
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         BerichtService berichtService = new BerichtService(
                 buchungRepository, kategorieRepository,
-                new MitgliedService(mitgliedRepository, buchungRepository, new AuditLogRepository(database)));
+                new MitgliedService(mitgliedRepository, buchungRepository, new AuditLogRepository(database)),
+                new VereinRepository(database));
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
@@ -122,7 +135,8 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
-                new MitgliedService(mitgliedRepository, new BuchungRepository(database), new AuditLogRepository(database)));
+                new MitgliedService(mitgliedRepository, new BuchungRepository(database), new AuditLogRepository(database)),
+                new VereinRepository(database));
 
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
@@ -178,7 +192,8 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository, new MitgliedService(new MitgliedRepository(database), buchungRepository, new AuditLogRepository(database)));
+                buchungRepository, kategorieRepository, new MitgliedService(new MitgliedRepository(database), buchungRepository, new AuditLogRepository(database)),
+                new VereinRepository(database));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
 
@@ -232,7 +247,8 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                new MitgliedService(new MitgliedRepository(database), buchungRepository, new AuditLogRepository(database)));
+                new MitgliedService(new MitgliedRepository(database), buchungRepository, new AuditLogRepository(database)),
+                new VereinRepository(database));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Kategorie spenden = kategorieRepository.findAll().stream()
@@ -254,7 +270,8 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
-                new MitgliedService(mitgliedRepository, new BuchungRepository(database), new AuditLogRepository(database)));
+                new MitgliedService(mitgliedRepository, new BuchungRepository(database), new AuditLogRepository(database)),
+                new VereinRepository(database));
 
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
@@ -278,7 +295,8 @@ class BerichtServiceTest {
         MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
                 new KategorieRepository(zielDatenbank),
-                new MitgliedService(zielRepository, new BuchungRepository(zielDatenbank), new AuditLogRepository(zielDatenbank)));
+                new MitgliedService(zielRepository, new BuchungRepository(zielDatenbank), new AuditLogRepository(zielDatenbank)),
+                new VereinRepository(zielDatenbank));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
 
@@ -304,7 +322,8 @@ class BerichtServiceTest {
         MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
         BerichtService quellService = new BerichtService(new BuchungRepository(quellDatenbank),
                 new KategorieRepository(quellDatenbank),
-                new MitgliedService(quellRepository, new BuchungRepository(quellDatenbank), new AuditLogRepository(quellDatenbank)));
+                new MitgliedService(quellRepository, new BuchungRepository(quellDatenbank), new AuditLogRepository(quellDatenbank)),
+                new VereinRepository(quellDatenbank));
 
         Mitglied gueltig = new Mitglied();
         gueltig.setVorname("Erika");
@@ -323,7 +342,8 @@ class BerichtServiceTest {
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
                 new KategorieRepository(zielDatenbank),
                 new MitgliedService(new MitgliedRepository(zielDatenbank), new BuchungRepository(zielDatenbank),
-                        new AuditLogRepository(zielDatenbank)));
+                        new AuditLogRepository(zielDatenbank)),
+                new VereinRepository(zielDatenbank));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
 
@@ -337,7 +357,8 @@ class BerichtServiceTest {
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
                 new MitgliedService(new MitgliedRepository(database), new BuchungRepository(database),
-                        new AuditLogRepository(database)));
+                        new AuditLogRepository(database)),
+                new VereinRepository(database));
 
         Path falscheDatei = Files.createTempDirectory("kasse-mitgliederliste-falsch").resolve("falsch.xlsx");
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {

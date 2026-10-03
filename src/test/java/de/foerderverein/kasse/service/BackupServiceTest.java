@@ -14,6 +14,9 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
 import de.foerderverein.kasse.domain.Buchung;
@@ -69,6 +72,34 @@ class BackupServiceTest {
         List<String> zeilen = Files.readAllLines(ziel);
         assertTrue(zeilen.get(0).startsWith("Datum;Konto;Betrag"));
         assertTrue(zeilen.stream().anyMatch(z -> z.contains("Vereinskonto") && z.contains("Testverwendungszweck")));
+    }
+
+    @Test
+    void exportiereAlleBuchungenAlsExcelSchreibtArbeitsblatt() throws Exception {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        buchungRepository.insert(neueBuchung(konto.getId()));
+
+        BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
+                new KategorieRepository(database), new MitgliedRepository(database));
+
+        Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("buchungen.xlsx");
+        backupService.exportiereAlleBuchungenAlsExcel(ziel);
+
+        assertTrue(Files.exists(ziel));
+        try (XSSFWorkbook workbook = new XSSFWorkbook(ziel.toFile())) {
+            Sheet sheet = workbook.getSheet("Kontobewegungen");
+            Row kopfzeile = sheet.getRow(0);
+            assertEquals("Datum", kopfzeile.getCell(0).getStringCellValue());
+            assertEquals("Konto", kopfzeile.getCell(1).getStringCellValue());
+            assertEquals("Betrag", kopfzeile.getCell(2).getStringCellValue());
+
+            Row datenzeile = sheet.getRow(1);
+            assertEquals("Vereinskonto", datenzeile.getCell(1).getStringCellValue());
+            assertEquals(42.50, datenzeile.getCell(2).getNumericCellValue());
+            assertEquals("Testverwendungszweck", datenzeile.getCell(5).getStringCellValue());
+        }
     }
 
     private Konto neuesKonto() {

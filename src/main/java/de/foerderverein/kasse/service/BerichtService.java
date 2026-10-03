@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -39,8 +40,10 @@ import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
+import de.foerderverein.kasse.domain.Verein;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.KategorieRepository;
+import de.foerderverein.kasse.persistence.VereinRepository;
 
 /** Erzeugt die Basis-Berichte fuer die jaehrliche Kassenpruefung: Kassenbericht als PDF und
  * Mitgliederliste als Excel-Datei. Bewusst schlicht gehalten (Tabellen, keine grafische
@@ -54,12 +57,14 @@ public class BerichtService {
     private final BuchungRepository buchungRepository;
     private final KategorieRepository kategorieRepository;
     private final MitgliedService mitgliedService;
+    private final VereinRepository vereinRepository;
 
     public BerichtService(BuchungRepository buchungRepository, KategorieRepository kategorieRepository,
-                           MitgliedService mitgliedService) {
+                           MitgliedService mitgliedService, VereinRepository vereinRepository) {
         this.buchungRepository = buchungRepository;
         this.kategorieRepository = kategorieRepository;
         this.mitgliedService = mitgliedService;
+        this.vereinRepository = vereinRepository;
     }
 
     public void erstelleKassenbericht(Path ziel, Konto konto, Geschaeftsjahr jahr) throws IOException {
@@ -102,6 +107,9 @@ public class BerichtService {
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
 
             document.add(new Paragraph("Kassenbericht " + jahr.getBezeichnung(), titel));
+            for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
+                document.add(zeile);
+            }
             document.add(new Paragraph(konto.getBezeichnung() + " (" + konto.getIban() + ")", untertitel));
             document.add(new Paragraph("Zeitraum: " + jahr.getStartDatum().format(DATUM_FORMAT)
                     + " - " + jahr.getEndDatum().format(DATUM_FORMAT), untertitel));
@@ -166,6 +174,9 @@ public class BerichtService {
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
 
             document.add(new Paragraph("Ergänzung zur Steuererklärung " + jahr, titel));
+            for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
+                document.add(zeile);
+            }
             document.add(new Paragraph(konto.getBezeichnung() + " (" + konto.getIban() + ")", untertitel));
             document.add(new Paragraph("Zeitraum: 01.01." + jahr + " - 31.12." + jahr, untertitel));
             document.add(leerzeile());
@@ -341,6 +352,61 @@ public class BerichtService {
 
     private Paragraph leerzeile() {
         return new Paragraph(" ");
+    }
+
+    /** Briefkopf-Zeilen aus den Vereins-Stammdaten (siehe VereinDialogController) - leer, wenn
+     * noch keine Vereinsdaten hinterlegt sind (Berichte sollen auch ohne das funktionieren). */
+    private List<Paragraph> vereinKopf(Font nameFont, Font detailFont) {
+        List<Paragraph> zeilen = new ArrayList<>();
+        Optional<Verein> verein = vereinRepository.find();
+        if (verein.isEmpty()) {
+            return zeilen;
+        }
+        Verein v = verein.get();
+        zeilen.add(new Paragraph(v.getName(), nameFont));
+        String adresse = vereinAdresse(v);
+        if (!adresse.isBlank()) {
+            zeilen.add(new Paragraph(adresse, detailFont));
+        }
+        String kontakt = vereinKontakt(v);
+        if (!kontakt.isBlank()) {
+            zeilen.add(new Paragraph(kontakt, detailFont));
+        }
+        String bankverbindung = vereinBankverbindung(v);
+        if (!bankverbindung.isBlank()) {
+            zeilen.add(new Paragraph(bankverbindung, detailFont));
+        }
+        zeilen.add(leerzeile());
+        return zeilen;
+    }
+
+    private String vereinAdresse(Verein v) {
+        String strasse = v.getStrasse() != null ? v.getStrasse() : "";
+        String ortsteil = ((v.getPlz() != null ? v.getPlz() : "") + " " + (v.getOrt() != null ? v.getOrt() : "")).trim();
+        return (strasse + (!strasse.isBlank() && !ortsteil.isBlank() ? ", " : "") + ortsteil).trim();
+    }
+
+    private String vereinKontakt(Verein v) {
+        List<String> teile = new ArrayList<>();
+        if (v.getTelefon() != null && !v.getTelefon().isBlank()) {
+            teile.add("Tel: " + v.getTelefon());
+        }
+        if (v.getEmail() != null && !v.getEmail().isBlank()) {
+            teile.add("E-Mail: " + v.getEmail());
+        }
+        if (v.getHomepage() != null && !v.getHomepage().isBlank()) {
+            teile.add("Web: " + v.getHomepage());
+        }
+        return String.join("  ·  ", teile);
+    }
+
+    private String vereinBankverbindung(Verein v) {
+        if (v.getIban() == null || v.getIban().isBlank()) {
+            return "";
+        }
+        String bic = v.getBic() != null && !v.getBic().isBlank() ? " / " + v.getBic() : "";
+        String bank = v.getBankname() != null && !v.getBankname().isBlank() ? " (" + v.getBankname() + ")" : "";
+        return "Bankverbindung: " + v.getIban() + bic + bank;
     }
 
     private PdfPTable kategorieTabelle(Map<String, Long> summenProKategorie, long gesamtCent) {

@@ -14,6 +14,7 @@
             <menus>
                 <Menu text="Einstellungen">
                     <items>
+                        <MenuItem text="Vereinsdaten…" onAction="#onVereinsdaten" />
                         <MenuItem text="Kategorien…" onAction="#onKategorien" />
                         <MenuItem text="Konto-Einstellungen…" onAction="#onKontoEinstellungen" />
                         <MenuItem text="Geschäftsjahre…" onAction="#onGeschaeftsjahre" />
@@ -34,6 +35,7 @@
                 <Menu text="Exporte">
                     <items>
                         <MenuItem text="Mitgliederliste exportieren…" onAction="#onMitgliederlisteExport" />
+                        <MenuItem text="Kontobewegungen exportieren…" onAction="#onKontobewegungenExport" />
                         <MenuItem text="Datensicherung erstellen…" onAction="#onDatensicherung" />
                     </items>
                 </Menu>

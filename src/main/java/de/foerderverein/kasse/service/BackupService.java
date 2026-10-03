@@ -15,6 +15,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
@@ -99,6 +105,79 @@ public class BackupService {
                         + csv(b.getErstelltAm() != null ? b.getErstelltAm().toString() : "") + "\n");
             }
         }
+    }
+
+    /** Wie exportiereAlleBuchungen(...), aber als Excel-Datei fuer die direkte Weiterverarbeitung
+     * (Betrag als echte Zahl, damit sich die Spalte in Excel direkt summieren laesst) - anders
+     * als der CSV-Export hier bewusst keine formatunabhaengige Zweitsicherung, siehe
+     * Klassenkommentar. */
+    public void exportiereAlleBuchungenAlsExcel(Path ziel) throws IOException {
+        Map<Long, Konto> kontenById = new HashMap<>();
+        for (Konto k : kontoRepository.findAll()) {
+            kontenById.put(k.getId(), k);
+        }
+        Map<Long, Kategorie> kategorienById = new HashMap<>();
+        for (Kategorie k : kategorieRepository.findAll()) {
+            kategorienById.put(k.getId(), k);
+        }
+        Map<Long, Mitglied> mitgliederById = new HashMap<>();
+        for (Mitglied m : mitgliedRepository.findAll()) {
+            mitgliederById.put(m.getId(), m);
+        }
+
+        List<Buchung> buchungen = buchungRepository.findAll();
+        Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
+
+        String[] spalten = {"Datum", "Konto", "Betrag", "Kategorie", "Mitglied", "Verwendungszweck",
+                "Gegenkonto IBAN", "Gegenkonto Name", "Quelle", "Storniert", "Erstellt von", "Erstellt am"};
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Kontobewegungen");
+
+            org.apache.poi.ss.usermodel.Font kopfSchrift = workbook.createFont();
+            kopfSchrift.setBold(true);
+            CellStyle kopfStil = workbook.createCellStyle();
+            kopfStil.setFont(kopfSchrift);
+
+            Row kopfzeile = sheet.createRow(0);
+            for (int i = 0; i < spalten.length; i++) {
+                Cell zelle = kopfzeile.createCell(i);
+                zelle.setCellValue(spalten[i]);
+                zelle.setCellStyle(kopfStil);
+            }
+
+            int zeilenIndex = 1;
+            for (Buchung b : buchungen) {
+                Konto konto = kontenById.get(b.getKontoId());
+                Kategorie kategorie = kategorienById.get(b.getKategorieId());
+                Mitglied mitglied = mitgliederById.get(b.getMitgliedId());
+                Row zeile = sheet.createRow(zeilenIndex++);
+                zeile.createCell(0).setCellValue(b.getBuchungsdatum().format(DATUM_FORMAT));
+                zeile.createCell(1).setCellValue(konto != null ? konto.getBezeichnung() : "");
+                zeile.createCell(2).setCellValue(b.getBetragEuro().doubleValue());
+                zeile.createCell(3).setCellValue(kategorie != null ? kategorie.getName() : "");
+                zeile.createCell(4).setCellValue(mitglied != null ? mitglied.getVollerName() : "");
+                zeile.createCell(5).setCellValue(wert(b.getVerwendungszweck()));
+                zeile.createCell(6).setCellValue(wert(b.getGegenkontoIban()));
+                zeile.createCell(7).setCellValue(wert(b.getGegenkontoName()));
+                zeile.createCell(8).setCellValue(b.getQuelle().name());
+                zeile.createCell(9).setCellValue(b.isStorniert() ? "Ja" : "Nein");
+                zeile.createCell(10).setCellValue(wert(b.getErstelltVon()));
+                zeile.createCell(11).setCellValue(b.getErstelltAm() != null ? b.getErstelltAm().toString() : "");
+            }
+
+            for (int i = 0; i < spalten.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
+                workbook.write(out);
+            }
+        }
+    }
+
+    private String wert(String text) {
+        return text != null ? text : "";
     }
 
     private String csv(String wert) {

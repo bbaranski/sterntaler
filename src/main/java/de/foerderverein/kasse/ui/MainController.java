@@ -56,6 +56,21 @@ public class MainController {
     }
 
     @FXML
+    private void onVereinsdaten() {
+        try {
+            FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/VereinDialog.fxml");
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle("Vereinsdaten");
+            stage.setScene(Views.scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            zeigeFehler("Vereinsdaten konnten nicht geoeffnet werden", e);
+        }
+    }
+
+    @FXML
     private void onKategorien() {
         try {
             FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/KategorieDialog.fxml");
@@ -257,6 +272,26 @@ public class MainController {
             oeffneDatei(datei);
         } catch (IOException e) {
             zeigeFehler("Mitgliederliste konnte nicht exportiert werden", e);
+        }
+    }
+
+    @FXML
+    private void onKontobewegungenExport() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Kontobewegungen speichern");
+        fileChooser.setInitialFileName("Kontobewegungen.xlsx");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel-Datei", "*.xlsx"));
+        File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
+        if (datei == null) {
+            return;
+        }
+
+        try {
+            Path ziel = datei.toPath();
+            ctx.backupService.exportiereAlleBuchungenAlsExcel(ziel);
+            oeffneDatei(datei);
+        } catch (IOException e) {
+            zeigeFehler("Kontobewegungen konnten nicht exportiert werden", e);
         }
     }
 
