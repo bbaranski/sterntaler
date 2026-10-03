@@ -13,7 +13,6 @@ import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Konto;
-import de.foerderverein.kasse.domain.Mitglied;
 
 class BuchungRepositoryTest {
 
@@ -49,21 +48,15 @@ class BuchungRepositoryTest {
     }
 
     @Test
-    void mitgliedZuordnungWirdPersistiert() {
-        Database database = TestDatabase.create();
-        buchungRepository = new BuchungRepository(database);
-        konto = new KontoRepository(database).save(neuesKonto());
-        Mitglied mitglied = new Mitglied();
-        mitglied.setVorname("Erika");
-        mitglied.setNachname("Musterfrau");
-        new MitgliedRepository(database).save(mitglied);
-
+    void kontoauszugUndRechnungsnummerWerdenPersistiert() {
         Buchung buchung = neueBuchung(BuchungsQuelle.MANUELL, null);
-        buchung.setMitgliedId(mitglied.getId());
+        buchung.setKontoauszug("2026-03");
+        buchung.setRechnungsnummer("RE-2026-001");
         buchungRepository.insert(buchung);
 
         var geladen = buchungRepository.findAll().get(0);
-        assertEquals(mitglied.getId(), geladen.getMitgliedId());
+        assertEquals("2026-03", geladen.getKontoauszug());
+        assertEquals("RE-2026-001", geladen.getRechnungsnummer());
     }
 
     @Test

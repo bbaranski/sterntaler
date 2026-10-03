@@ -75,19 +75,19 @@ public final class AppContext {
         AuditLogRepository auditLogRepository = new AuditLogRepository(database);
         VereinRepository vereinRepository = new VereinRepository(database);
         CredentialStore credentialStore = new CredentialStore();
-        MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, buchungRepository, auditLogRepository);
+        MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, auditLogRepository);
 
         return new AppContext(
                 new KontoService(kontoRepository),
                 new KategorieService(kategorieRepository),
                 new BuchungService(buchungRepository, geschaeftsjahrRepository, auditLogRepository,
-                        kategorieRepository, mitgliedRepository, aktivitaetRepository),
+                        kategorieRepository, aktivitaetRepository),
                 mitgliedService,
                 new AktivitaetService(aktivitaetRepository),
                 new BelegService(belegRepository),
                 new GeschaeftsjahrService(geschaeftsjahrRepository),
                 new BerichtService(buchungRepository, kategorieRepository, mitgliedService, vereinRepository),
-                new BackupService(database, buchungRepository, kontoRepository, kategorieRepository, mitgliedRepository),
+                new BackupService(database, buchungRepository, kontoRepository, kategorieRepository),
                 new HbciImportService(buchungRepository, credentialStore),
                 credentialStore,
                 new VereinService(vereinRepository));

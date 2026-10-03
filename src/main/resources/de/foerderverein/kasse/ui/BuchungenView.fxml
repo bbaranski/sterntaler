@@ -37,14 +37,15 @@
             <columns>
                 <TableColumn fx:id="datumColumn" text="Datum" prefWidth="90" />
                 <TableColumn fx:id="geschaeftsjahrColumn" text="Geschäftsjahr" prefWidth="110" />
+                <TableColumn fx:id="kontoauszugColumn" text="Kontoauszug" prefWidth="110" />
                 <TableColumn fx:id="betragColumn" text="Betrag" prefWidth="100" />
                 <TableColumn fx:id="saldoColumn" text="Saldo" prefWidth="100" />
                 <TableColumn fx:id="kategorieColumn" text="Kategorie" prefWidth="160" />
-                <TableColumn fx:id="mitgliedColumn" text="Mitglied" prefWidth="140" />
                 <TableColumn fx:id="aktivitaetColumn" text="Aktivität" prefWidth="140" />
                 <TableColumn fx:id="verwendungszweckColumn" text="Verwendungszweck" prefWidth="260" />
                 <TableColumn fx:id="gegenkontoColumn" text="Gegenkonto" prefWidth="160" />
                 <TableColumn fx:id="quelleColumn" text="Quelle" prefWidth="100" />
+                <TableColumn fx:id="rechnungsnummerColumn" text="Rechnungsnummer" prefWidth="130" />
                 <TableColumn fx:id="belegColumn" text="Beleg" prefWidth="180" />
                 <TableColumn fx:id="kontoColumn" text="Konto" prefWidth="140" visible="false" />
                 <TableColumn fx:id="wertstellungColumn" text="Wertstellung" prefWidth="100" visible="false" />

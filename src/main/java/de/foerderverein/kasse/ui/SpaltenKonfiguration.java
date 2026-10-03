@@ -73,24 +73,32 @@ public final class SpaltenKonfiguration {
     }
 
     /** Ordnet die aktuellen Spalten der Tabelle gemaess der uebergebenen Id-Liste an. Spalten, die
-     * in der Liste fehlen (z. B. seither neu hinzugekommene Felder), werden an das Ende angehaengt
-     * statt verloren zu gehen. */
+     * in der Liste fehlen (z. B. seither neu hinzugekommene Felder), werden an der Position
+     * eingefuegt, die ihrer urspruenglichen (FXML-)Reihenfolge entspricht - direkt hinter der
+     * zuletzt eingeordneten vorangehenden Spalte - statt pauschal ans Ende angehaengt zu werden,
+     * damit eine neue Spalte an ihrer im FXML vorgesehenen Stelle auftaucht, auch wenn der Nutzer
+     * bereits eine eigene Reihenfolge gespeichert hat. Stale Ids (seither entfernte Spalten)
+     * werden stillschweigend ignoriert. */
     private static List<TableColumn<?, ?>> geordneteSpalten(TableView<?> table, List<String> ids) {
         List<TableColumn<?, ?>> aktuelle = new ArrayList<>(table.getColumns());
-        List<TableColumn<?, ?>> neu = new ArrayList<>();
+        List<TableColumn<?, ?>> ergebnis = new ArrayList<>();
         for (String id : ids) {
             for (TableColumn<?, ?> spalte : aktuelle) {
-                if (id.equals(spalteId(spalte)) && !neu.contains(spalte)) {
-                    neu.add(spalte);
+                if (id.equals(spalteId(spalte)) && !ergebnis.contains(spalte)) {
+                    ergebnis.add(spalte);
                 }
             }
         }
+        int einfuegePosition = 0;
         for (TableColumn<?, ?> spalte : aktuelle) {
-            if (!neu.contains(spalte)) {
-                neu.add(spalte);
+            if (ergebnis.contains(spalte)) {
+                einfuegePosition = ergebnis.indexOf(spalte) + 1;
+            } else {
+                ergebnis.add(einfuegePosition, spalte);
+                einfuegePosition++;
             }
         }
-        return neu;
+        return ergebnis;
     }
 
     /** Die urspruengliche, aus dem FXML geladene Spaltenreihenfolge - unabhaengig davon, ob der

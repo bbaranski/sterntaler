@@ -10,13 +10,14 @@ public class Buchung {
     private Long id;
     private Long kontoId;
     private Long kategorieId;
-    private Long mitgliedId;
     private Long aktivitaetId;
     private LocalDate buchungsdatum;
     private LocalDate wertstellung;
     private long betragCent;
+    private String kontoauszug;
     private String waehrung = "EUR";
     private String verwendungszweck;
+    private String rechnungsnummer;
     private String gegenkontoIban;
     private String gegenkontoName;
     private BuchungsQuelle quelle = BuchungsQuelle.MANUELL;
@@ -49,14 +50,6 @@ public class Buchung {
 
     public void setKategorieId(Long kategorieId) {
         this.kategorieId = kategorieId;
-    }
-
-    public Long getMitgliedId() {
-        return mitgliedId;
-    }
-
-    public void setMitgliedId(Long mitgliedId) {
-        this.mitgliedId = mitgliedId;
     }
 
     public Long getAktivitaetId() {
@@ -100,6 +93,14 @@ public class Buchung {
         this.betragCent = betrag.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact();
     }
 
+    public String getKontoauszug() {
+        return kontoauszug;
+    }
+
+    public void setKontoauszug(String kontoauszug) {
+        this.kontoauszug = kontoauszug;
+    }
+
     public String getWaehrung() {
         return waehrung;
     }
@@ -114,6 +115,14 @@ public class Buchung {
 
     public void setVerwendungszweck(String verwendungszweck) {
         this.verwendungszweck = verwendungszweck;
+    }
+
+    public String getRechnungsnummer() {
+        return rechnungsnummer;
+    }
+
+    public void setRechnungsnummer(String rechnungsnummer) {
+        this.rechnungsnummer = rechnungsnummer;
     }
 
     public String getGegenkontoIban() {

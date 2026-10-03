@@ -24,12 +24,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
-import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
-import de.foerderverein.kasse.persistence.MitgliedRepository;
 
 /** Datensicherung: eine konsistente Kopie der Datenbankdatei sowie ein CSV-Export aller
  * Buchungen als formatunabhaengige Zweitsicherung, falls die SQLite-Datei einmal nicht
@@ -42,15 +40,13 @@ public class BackupService {
     private final BuchungRepository buchungRepository;
     private final KontoRepository kontoRepository;
     private final KategorieRepository kategorieRepository;
-    private final MitgliedRepository mitgliedRepository;
 
     public BackupService(Database database, BuchungRepository buchungRepository, KontoRepository kontoRepository,
-                          KategorieRepository kategorieRepository, MitgliedRepository mitgliedRepository) {
+                          KategorieRepository kategorieRepository) {
         this.database = database;
         this.buchungRepository = buchungRepository;
         this.kontoRepository = kontoRepository;
         this.kategorieRepository = kategorieRepository;
-        this.mitgliedRepository = mitgliedRepository;
     }
 
     /** Erstellt eine konsistente Kopie der Datenbank am Zielpfad. Nutzt SQLite's VACUUM INTO
@@ -77,26 +73,22 @@ public class BackupService {
         for (Kategorie k : kategorieRepository.findAll()) {
             kategorienById.put(k.getId(), k);
         }
-        Map<Long, Mitglied> mitgliederById = new HashMap<>();
-        for (Mitglied m : mitgliedRepository.findAll()) {
-            mitgliederById.put(m.getId(), m);
-        }
 
         List<Buchung> buchungen = buchungRepository.findAll();
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         try (Writer writer = new OutputStreamWriter(new FileOutputStream(ziel.toFile()), StandardCharsets.UTF_8)) {
-            writer.write("Datum;Konto;Betrag;Kategorie;Mitglied;Verwendungszweck;Gegenkonto IBAN;"
-                    + "Gegenkonto Name;Quelle;Storniert;Erstellt von;Erstellt am\n");
+            writer.write("Datum;Konto;Kontoauszug;Betrag;Kategorie;Verwendungszweck;Rechnungsnummer;"
+                    + "Gegenkonto IBAN;Gegenkonto Name;Quelle;Storniert;Erstellt von;Erstellt am\n");
             for (Buchung b : buchungen) {
                 Konto konto = kontenById.get(b.getKontoId());
                 Kategorie kategorie = kategorienById.get(b.getKategorieId());
-                Mitglied mitglied = mitgliederById.get(b.getMitgliedId());
                 writer.write(csv(b.getBuchungsdatum().format(DATUM_FORMAT)) + ";"
                         + csv(konto != null ? konto.getBezeichnung() : "") + ";"
+                        + csv(b.getKontoauszug()) + ";"
                         + csv(b.getBetragEuro().toPlainString()) + ";"
                         + csv(kategorie != null ? kategorie.getName() : "") + ";"
-                        + csv(mitglied != null ? mitglied.getVollerName() : "") + ";"
                         + csv(b.getVerwendungszweck()) + ";"
+                        + csv(b.getRechnungsnummer()) + ";"
                         + csv(b.getGegenkontoIban()) + ";"
                         + csv(b.getGegenkontoName()) + ";"
                         + csv(b.getQuelle().name()) + ";"
@@ -120,16 +112,13 @@ public class BackupService {
         for (Kategorie k : kategorieRepository.findAll()) {
             kategorienById.put(k.getId(), k);
         }
-        Map<Long, Mitglied> mitgliederById = new HashMap<>();
-        for (Mitglied m : mitgliedRepository.findAll()) {
-            mitgliederById.put(m.getId(), m);
-        }
 
         List<Buchung> buchungen = buchungRepository.findAll();
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
 
-        String[] spalten = {"Datum", "Konto", "Betrag", "Kategorie", "Mitglied", "Verwendungszweck",
-                "Gegenkonto IBAN", "Gegenkonto Name", "Quelle", "Storniert", "Erstellt von", "Erstellt am"};
+        String[] spalten = {"Datum", "Konto", "Kontoauszug", "Betrag", "Kategorie", "Verwendungszweck",
+                "Rechnungsnummer", "Gegenkonto IBAN", "Gegenkonto Name", "Quelle", "Storniert", "Erstellt von",
+                "Erstellt am"};
 
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Kontobewegungen");
@@ -150,20 +139,20 @@ public class BackupService {
             for (Buchung b : buchungen) {
                 Konto konto = kontenById.get(b.getKontoId());
                 Kategorie kategorie = kategorienById.get(b.getKategorieId());
-                Mitglied mitglied = mitgliederById.get(b.getMitgliedId());
                 Row zeile = sheet.createRow(zeilenIndex++);
                 zeile.createCell(0).setCellValue(b.getBuchungsdatum().format(DATUM_FORMAT));
                 zeile.createCell(1).setCellValue(konto != null ? konto.getBezeichnung() : "");
-                zeile.createCell(2).setCellValue(b.getBetragEuro().doubleValue());
-                zeile.createCell(3).setCellValue(kategorie != null ? kategorie.getName() : "");
-                zeile.createCell(4).setCellValue(mitglied != null ? mitglied.getVollerName() : "");
+                zeile.createCell(2).setCellValue(wert(b.getKontoauszug()));
+                zeile.createCell(3).setCellValue(b.getBetragEuro().doubleValue());
+                zeile.createCell(4).setCellValue(kategorie != null ? kategorie.getName() : "");
                 zeile.createCell(5).setCellValue(wert(b.getVerwendungszweck()));
-                zeile.createCell(6).setCellValue(wert(b.getGegenkontoIban()));
-                zeile.createCell(7).setCellValue(wert(b.getGegenkontoName()));
-                zeile.createCell(8).setCellValue(b.getQuelle().name());
-                zeile.createCell(9).setCellValue(b.isStorniert() ? "Ja" : "Nein");
-                zeile.createCell(10).setCellValue(wert(b.getErstelltVon()));
-                zeile.createCell(11).setCellValue(b.getErstelltAm() != null ? b.getErstelltAm().toString() : "");
+                zeile.createCell(6).setCellValue(wert(b.getRechnungsnummer()));
+                zeile.createCell(7).setCellValue(wert(b.getGegenkontoIban()));
+                zeile.createCell(8).setCellValue(wert(b.getGegenkontoName()));
+                zeile.createCell(9).setCellValue(b.getQuelle().name());
+                zeile.createCell(10).setCellValue(b.isStorniert() ? "Ja" : "Nein");
+                zeile.createCell(11).setCellValue(wert(b.getErstelltVon()));
+                zeile.createCell(12).setCellValue(b.getErstelltAm() != null ? b.getErstelltAm().toString() : "");
             }
 
             for (int i = 0; i < spalten.length; i++) {

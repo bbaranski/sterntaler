@@ -17,7 +17,6 @@ import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
-import de.foerderverein.kasse.domain.Mitglied;
 
 public class BuchungDialogController {
 
@@ -25,11 +24,12 @@ public class BuchungDialogController {
 
     @FXML private ComboBox<Konto> kontoCombo;
     @FXML private DatePicker datumPicker;
+    @FXML private TextField kontoauszugField;
     @FXML private TextField betragField;
     @FXML private ComboBox<Kategorie> kategorieCombo;
-    @FXML private ComboBox<Mitglied> mitgliedCombo;
     @FXML private ComboBox<Aktivitaet> aktivitaetCombo;
     @FXML private TextField verwendungszweckField;
+    @FXML private TextField rechnungsnummerField;
     @FXML private TextField gegenkontoNameField;
     @FXML private TextField gegenkontoIbanField;
     @FXML private Label fehlerLabel;
@@ -46,11 +46,10 @@ public class BuchungDialogController {
         KategorieAuswahl.konfiguriere(kategorieCombo);
     }
 
-    public void setDaten(Buchung bestehend, List<Konto> konten, List<Kategorie> kategorien, List<Mitglied> mitglieder,
+    public void setDaten(Buchung bestehend, List<Konto> konten, List<Kategorie> kategorien,
                           List<Aktivitaet> aktivitaeten) {
         kontoCombo.setItems(FXCollections.observableArrayList(konten));
         kategorieCombo.setItems(FXCollections.observableArrayList(KategorieAuswahl.mitBereichKoepfen(kategorien)));
-        mitgliedCombo.setItems(FXCollections.observableArrayList(mitglieder));
         aktivitaetCombo.setItems(FXCollections.observableArrayList(aktivitaeten));
 
         this.buchung = bestehend;
@@ -59,14 +58,14 @@ public class BuchungDialogController {
                     .ifPresent(kontoCombo::setValue);
             kontoCombo.setDisable(true);
             datumPicker.setValue(bestehend.getBuchungsdatum());
+            kontoauszugField.setText(bestehend.getKontoauszug());
             betragField.setText(bestehend.getBetragEuro().toPlainString().replace('.', ','));
             kategorien.stream().filter(k -> bestehend.getKategorieId() != null && k.getId().equals(bestehend.getKategorieId()))
                     .findFirst().ifPresent(kategorieCombo::setValue);
-            mitglieder.stream().filter(m -> bestehend.getMitgliedId() != null && m.getId().equals(bestehend.getMitgliedId()))
-                    .findFirst().ifPresent(mitgliedCombo::setValue);
             aktivitaeten.stream().filter(a -> bestehend.getAktivitaetId() != null && a.getId().equals(bestehend.getAktivitaetId()))
                     .findFirst().ifPresent(aktivitaetCombo::setValue);
             verwendungszweckField.setText(bestehend.getVerwendungszweck());
+            rechnungsnummerField.setText(bestehend.getRechnungsnummer());
             gegenkontoNameField.setText(bestehend.getGegenkontoName());
             gegenkontoIbanField.setText(bestehend.getGegenkontoIban());
         } else {
@@ -111,14 +110,14 @@ public class BuchungDialogController {
             Buchung ziel = neu ? new Buchung() : buchung;
             ziel.setKontoId(konto.getId());
             ziel.setBuchungsdatum(datum);
+            ziel.setKontoauszug(leerZuNull(kontoauszugField.getText()));
             ziel.setBetragEuro(betrag);
             Kategorie kategorie = kategorieCombo.getValue();
             ziel.setKategorieId(kategorie != null ? kategorie.getId() : null);
-            Mitglied mitglied = mitgliedCombo.getValue();
-            ziel.setMitgliedId(mitglied != null ? mitglied.getId() : null);
             Aktivitaet aktivitaet = aktivitaetCombo.getValue();
             ziel.setAktivitaetId(aktivitaet != null ? aktivitaet.getId() : null);
             ziel.setVerwendungszweck(verwendungszweckField.getText());
+            ziel.setRechnungsnummer(leerZuNull(rechnungsnummerField.getText()));
             ziel.setGegenkontoName(gegenkontoNameField.getText());
             ziel.setGegenkontoIban(gegenkontoIbanField.getText());
 
@@ -141,5 +140,9 @@ public class BuchungDialogController {
 
     private void schliessen() {
         ((Stage) betragField.getScene().getWindow()).close();
+    }
+
+    private String leerZuNull(String text) {
+        return text == null || text.isBlank() ? null : text.trim();
     }
 }

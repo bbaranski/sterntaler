@@ -12,7 +12,6 @@ import de.foerderverein.kasse.domain.AuditEintrag;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
-import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.MitgliedRepository;
 
 public class MitgliedService {
@@ -21,13 +20,10 @@ public class MitgliedService {
     private static final NumberFormat BETRAG_FORMAT = NumberFormat.getCurrencyInstance(Locale.GERMANY);
 
     private final MitgliedRepository repository;
-    private final BuchungRepository buchungRepository;
     private final AuditLogRepository auditLogRepository;
 
-    public MitgliedService(MitgliedRepository repository, BuchungRepository buchungRepository,
-                            AuditLogRepository auditLogRepository) {
+    public MitgliedService(MitgliedRepository repository, AuditLogRepository auditLogRepository) {
         this.repository = repository;
-        this.buchungRepository = buchungRepository;
         this.auditLogRepository = auditLogRepository;
     }
 
@@ -72,8 +68,8 @@ public class MitgliedService {
         return gespeichert;
     }
 
-    /** Mitglieder werden auf inaktiv gesetzt statt geloescht, damit bestehende Buchungszuordnungen
-     * (informative Verknuepfung, siehe Buchung.mitgliedId) nachvollziehbar bleiben. */
+    /** Alternative zum endgueltigen Loeschen, falls die Mitgliedschaft (und ihre Historie im
+     * Verlauf-Dialog) erhalten bleiben soll - setzt lediglich den Status auf "Inaktiv". */
     public void austreten(Mitglied mitglied) {
         Map<String, String> altWerte = feldwerte(mitglied);
         mitglied.setStatus(MitgliedStatus.INAKTIV);
@@ -82,16 +78,8 @@ public class MitgliedService {
     }
 
     /** Loescht ein Mitglied endgueltig - anders als Kategorie/Aktivitaet also kein reines
-     * Deaktivieren, sondern ein echtes Entfernen aus der Datenbank. Nur erlaubt, wenn dem
-     * Mitglied keine Buchung zugeordnet ist (siehe Buchung.mitgliedId); ist es zugeordnet, soll
-     * stattdessen ueber austreten() der Status auf "Inaktiv" gesetzt werden, damit die
-     * Buchungshistorie nachvollziehbar bleibt. */
+     * Deaktivieren, sondern ein echtes Entfernen aus der Datenbank. */
     public void loeschen(Mitglied mitglied) {
-        if (buchungRepository.existsByMitgliedId(mitglied.getId())) {
-            throw new IllegalStateException(
-                    "Mitglied kann nicht gelöscht werden, da Buchungen zugeordnet sind. "
-                            + "Bitte stattdessen den Status auf \"Inaktiv\" setzen.");
-        }
         repository.loesche(mitglied.getId());
         protokolliere(mitglied, AuditAktion.GELOESCHT, aktuellerBenutzer());
     }

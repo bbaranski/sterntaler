@@ -26,7 +26,6 @@ import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
-import de.foerderverein.kasse.persistence.MitgliedRepository;
 import de.foerderverein.kasse.persistence.TestDatabase;
 
 class BackupServiceTest {
@@ -40,7 +39,7 @@ class BackupServiceTest {
         buchungRepository.insert(buchung);
 
         BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
-                new KategorieRepository(database), new MitgliedRepository(database));
+                new KategorieRepository(database));
 
         Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("sicherung.db");
         backupService.sichereDatenbank(ziel);
@@ -64,13 +63,13 @@ class BackupServiceTest {
         buchungRepository.insert(neueBuchung(konto.getId()));
 
         BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
-                new KategorieRepository(database), new MitgliedRepository(database));
+                new KategorieRepository(database));
 
         Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("buchungen.csv");
         backupService.exportiereAlleBuchungen(ziel);
 
         List<String> zeilen = Files.readAllLines(ziel);
-        assertTrue(zeilen.get(0).startsWith("Datum;Konto;Betrag"));
+        assertTrue(zeilen.get(0).startsWith("Datum;Konto;Kontoauszug;Betrag"));
         assertTrue(zeilen.stream().anyMatch(z -> z.contains("Vereinskonto") && z.contains("Testverwendungszweck")));
     }
 
@@ -82,7 +81,7 @@ class BackupServiceTest {
         buchungRepository.insert(neueBuchung(konto.getId()));
 
         BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
-                new KategorieRepository(database), new MitgliedRepository(database));
+                new KategorieRepository(database));
 
         Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("buchungen.xlsx");
         backupService.exportiereAlleBuchungenAlsExcel(ziel);
@@ -93,11 +92,12 @@ class BackupServiceTest {
             Row kopfzeile = sheet.getRow(0);
             assertEquals("Datum", kopfzeile.getCell(0).getStringCellValue());
             assertEquals("Konto", kopfzeile.getCell(1).getStringCellValue());
-            assertEquals("Betrag", kopfzeile.getCell(2).getStringCellValue());
+            assertEquals("Kontoauszug", kopfzeile.getCell(2).getStringCellValue());
+            assertEquals("Betrag", kopfzeile.getCell(3).getStringCellValue());
 
             Row datenzeile = sheet.getRow(1);
             assertEquals("Vereinskonto", datenzeile.getCell(1).getStringCellValue());
-            assertEquals(42.50, datenzeile.getCell(2).getNumericCellValue());
+            assertEquals(42.50, datenzeile.getCell(3).getNumericCellValue());
             assertEquals("Testverwendungszweck", datenzeile.getCell(5).getStringCellValue());
         }
     }

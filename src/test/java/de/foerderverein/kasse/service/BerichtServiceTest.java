@@ -46,7 +46,7 @@ class BerichtServiceTest {
         VereinRepository vereinRepository = new VereinRepository(database);
         BerichtService berichtService = new BerichtService(
                 buchungRepository, kategorieRepository,
-                new MitgliedService(mitgliedRepository, buchungRepository, new AuditLogRepository(database)),
+                new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
                 vereinRepository);
 
         Verein verein = new Verein();
@@ -95,7 +95,7 @@ class BerichtServiceTest {
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         BerichtService berichtService = new BerichtService(
                 buchungRepository, kategorieRepository,
-                new MitgliedService(mitgliedRepository, buchungRepository, new AuditLogRepository(database)),
+                new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
                 new VereinRepository(database));
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
 
@@ -135,7 +135,7 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
-                new MitgliedService(mitgliedRepository, new BuchungRepository(database), new AuditLogRepository(database)),
+                new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
                 new VereinRepository(database));
 
         Mitglied mitglied = new Mitglied();
@@ -192,7 +192,8 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository, new MitgliedService(new MitgliedRepository(database), buchungRepository, new AuditLogRepository(database)),
+                buchungRepository, kategorieRepository,
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
                 new VereinRepository(database));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
@@ -247,7 +248,7 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                new MitgliedService(new MitgliedRepository(database), buchungRepository, new AuditLogRepository(database)),
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
                 new VereinRepository(database));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
@@ -270,7 +271,7 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
-                new MitgliedService(mitgliedRepository, new BuchungRepository(database), new AuditLogRepository(database)),
+                new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
                 new VereinRepository(database));
 
         Mitglied mitglied = new Mitglied();
@@ -295,7 +296,7 @@ class BerichtServiceTest {
         MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
                 new KategorieRepository(zielDatenbank),
-                new MitgliedService(zielRepository, new BuchungRepository(zielDatenbank), new AuditLogRepository(zielDatenbank)),
+                new MitgliedService(zielRepository, new AuditLogRepository(zielDatenbank)),
                 new VereinRepository(zielDatenbank));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
@@ -322,7 +323,7 @@ class BerichtServiceTest {
         MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
         BerichtService quellService = new BerichtService(new BuchungRepository(quellDatenbank),
                 new KategorieRepository(quellDatenbank),
-                new MitgliedService(quellRepository, new BuchungRepository(quellDatenbank), new AuditLogRepository(quellDatenbank)),
+                new MitgliedService(quellRepository, new AuditLogRepository(quellDatenbank)),
                 new VereinRepository(quellDatenbank));
 
         Mitglied gueltig = new Mitglied();
@@ -341,8 +342,7 @@ class BerichtServiceTest {
         Database zielDatenbank = TestDatabase.create();
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
                 new KategorieRepository(zielDatenbank),
-                new MitgliedService(new MitgliedRepository(zielDatenbank), new BuchungRepository(zielDatenbank),
-                        new AuditLogRepository(zielDatenbank)),
+                new MitgliedService(new MitgliedRepository(zielDatenbank), new AuditLogRepository(zielDatenbank)),
                 new VereinRepository(zielDatenbank));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
@@ -356,8 +356,7 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
                 new KategorieRepository(database),
-                new MitgliedService(new MitgliedRepository(database), new BuchungRepository(database),
-                        new AuditLogRepository(database)),
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
                 new VereinRepository(database));
 
         Path falscheDatei = Files.createTempDirectory("kasse-mitgliederliste-falsch").resolve("falsch.xlsx");

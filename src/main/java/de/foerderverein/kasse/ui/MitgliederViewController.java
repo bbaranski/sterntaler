@@ -3,7 +3,6 @@ package de.foerderverein.kasse.ui;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -242,23 +241,10 @@ public class MitgliederViewController {
             return;
         }
 
-        List<String> fehler = new ArrayList<>();
         for (Mitglied m : ausgewaehlt) {
-            try {
-                ctx.mitgliedService.loeschen(m);
-            } catch (IllegalStateException e) {
-                fehler.add(m.getVollerName() + ": " + e.getMessage());
-            }
+            ctx.mitgliedService.loeschen(m);
         }
         lade();
-
-        if (!fehler.isEmpty()) {
-            Alert hinweis = new Alert(Alert.AlertType.WARNING,
-                    (ausgewaehlt.size() - fehler.size()) + " von " + ausgewaehlt.size() + " Mitglied(ern) gelöscht.\n\n"
-                            + "Nicht gelöscht:\n" + String.join("\n", fehler));
-            hinweis.setHeaderText("Einige Mitglieder konnten nicht gelöscht werden");
-            hinweis.showAndWait();
-        }
     }
 
     @FXML

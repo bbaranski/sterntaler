@@ -23,15 +23,15 @@
             <Label text="Datum" GridPane.rowIndex="1" GridPane.columnIndex="0" />
             <DatePicker fx:id="datumPicker" GridPane.rowIndex="1" GridPane.columnIndex="1" maxWidth="Infinity" />
 
-            <Label text="Betrag (€)" GridPane.rowIndex="2" GridPane.columnIndex="0" />
-            <TextField fx:id="betragField" GridPane.rowIndex="2" GridPane.columnIndex="1"
+            <Label text="Kontoauszug" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+            <TextField fx:id="kontoauszugField" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+            <Label text="Betrag (€)" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+            <TextField fx:id="betragField" GridPane.rowIndex="3" GridPane.columnIndex="1"
                        promptText="z. B. -25,00 oder 100,00" />
 
-            <Label text="Kategorie" GridPane.rowIndex="3" GridPane.columnIndex="0" />
-            <ComboBox fx:id="kategorieCombo" GridPane.rowIndex="3" GridPane.columnIndex="1" maxWidth="Infinity" />
-
-            <Label text="Mitglied (optional)" GridPane.rowIndex="4" GridPane.columnIndex="0" />
-            <ComboBox fx:id="mitgliedCombo" GridPane.rowIndex="4" GridPane.columnIndex="1" maxWidth="Infinity" />
+            <Label text="Kategorie" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+            <ComboBox fx:id="kategorieCombo" GridPane.rowIndex="4" GridPane.columnIndex="1" maxWidth="Infinity" />
 
             <Label text="Aktivität (optional)" GridPane.rowIndex="5" GridPane.columnIndex="0" />
             <ComboBox fx:id="aktivitaetCombo" GridPane.rowIndex="5" GridPane.columnIndex="1" maxWidth="Infinity" />
@@ -39,11 +39,14 @@
             <Label text="Verwendungszweck" GridPane.rowIndex="6" GridPane.columnIndex="0" />
             <TextField fx:id="verwendungszweckField" GridPane.rowIndex="6" GridPane.columnIndex="1" />
 
-            <Label text="Gegenkonto Name" GridPane.rowIndex="7" GridPane.columnIndex="0" />
-            <TextField fx:id="gegenkontoNameField" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+            <Label text="Rechnungsnummer" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+            <TextField fx:id="rechnungsnummerField" GridPane.rowIndex="7" GridPane.columnIndex="1" />
 
-            <Label text="Gegenkonto IBAN" GridPane.rowIndex="8" GridPane.columnIndex="0" />
-            <TextField fx:id="gegenkontoIbanField" GridPane.rowIndex="8" GridPane.columnIndex="1" />
+            <Label text="Gegenkonto Name" GridPane.rowIndex="8" GridPane.columnIndex="0" />
+            <TextField fx:id="gegenkontoNameField" GridPane.rowIndex="8" GridPane.columnIndex="1" />
+
+            <Label text="Gegenkonto IBAN" GridPane.rowIndex="9" GridPane.columnIndex="0" />
+            <TextField fx:id="gegenkontoIbanField" GridPane.rowIndex="9" GridPane.columnIndex="1" />
 
             <columnConstraints>
                 <javafx.scene.layout.ColumnConstraints minWidth="140" />

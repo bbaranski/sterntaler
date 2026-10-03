@@ -24,7 +24,6 @@ import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
 import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
-import de.foerderverein.kasse.persistence.MitgliedRepository;
 import de.foerderverein.kasse.persistence.TestDatabase;
 
 class BuchungServiceTest {
@@ -40,8 +39,7 @@ class BuchungServiceTest {
         geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         kategorieRepository = new KategorieRepository(database);
         buchungService = new BuchungService(new BuchungRepository(database), geschaeftsjahrRepository,
-                new AuditLogRepository(database), kategorieRepository, new MitgliedRepository(database),
-                new AktivitaetRepository(database));
+                new AuditLogRepository(database), kategorieRepository, new AktivitaetRepository(database));
         Konto neu = new Konto();
         neu.setBezeichnung("Vereinskonto");
         neu.setIban("DE02120300000000202051");

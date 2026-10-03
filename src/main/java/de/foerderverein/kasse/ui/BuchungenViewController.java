@@ -35,6 +35,7 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.ComboBoxTableCell;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -49,8 +50,6 @@ import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
-import de.foerderverein.kasse.domain.Mitglied;
-import de.foerderverein.kasse.domain.MitgliedStatus;
 
 /** Ansicht "Buchungen" (Kontoverwaltung) - die Hauptansicht der Anwendung. Wird als Tab in
  * MainView.fxml eingebettet; Kategorien-/Konto-/Geschaeftsjahr-Verwaltung sowie Berichte und
@@ -61,11 +60,9 @@ public class BuchungenViewController {
     private final AppContext ctx;
     private final ObservableList<Buchung> buchungen = FXCollections.observableArrayList();
     private final ObservableList<Kategorie> kategorienFuerAuswahl = FXCollections.observableArrayList();
-    private final ObservableList<Mitglied> mitgliederFuerAuswahl = FXCollections.observableArrayList();
     private final ObservableList<Aktivitaet> aktivitaetenFuerAuswahl = FXCollections.observableArrayList();
     private Map<Long, Kategorie> kategorienById = new HashMap<>();
     private Map<Long, Konto> kontenById = new HashMap<>();
-    private Map<Long, Mitglied> mitgliederById = new HashMap<>();
     private Map<Long, Aktivitaet> aktivitaetenById = new HashMap<>();
     private Map<Long, Beleg> belegeByBuchungId = new HashMap<>();
     private List<Geschaeftsjahr> geschaeftsjahre = List.of();
@@ -75,14 +72,15 @@ public class BuchungenViewController {
     @FXML private TableView<Buchung> buchungenTable;
     @FXML private TableColumn<Buchung, LocalDate> datumColumn;
     @FXML private TableColumn<Buchung, String> geschaeftsjahrColumn;
+    @FXML private TableColumn<Buchung, String> kontoauszugColumn;
     @FXML private TableColumn<Buchung, Long> betragColumn;
     @FXML private TableColumn<Buchung, Long> saldoColumn;
     @FXML private TableColumn<Buchung, Kategorie> kategorieColumn;
-    @FXML private TableColumn<Buchung, Mitglied> mitgliedColumn;
     @FXML private TableColumn<Buchung, Aktivitaet> aktivitaetColumn;
     @FXML private TableColumn<Buchung, String> verwendungszweckColumn;
     @FXML private TableColumn<Buchung, String> gegenkontoColumn;
     @FXML private TableColumn<Buchung, String> quelleColumn;
+    @FXML private TableColumn<Buchung, String> rechnungsnummerColumn;
     @FXML private TableColumn<Buchung, Buchung> belegColumn;
     @FXML private TableColumn<Buchung, String> kontoColumn;
     @FXML private TableColumn<Buchung, LocalDate> wertstellungColumn;
@@ -119,6 +117,20 @@ public class BuchungenViewController {
             Geschaeftsjahr g = geschaeftsjahrByBuchungId.get(cd.getValue().getId());
             return new ReadOnlyStringWrapper(g != null ? g.getBezeichnung() : "");
         });
+        kontoauszugColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getKontoauszug()));
+        kontoauszugColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        kontoauszugColumn.setOnEditCommit(event -> {
+            Buchung b = event.getRowValue();
+            String alt = b.getKontoauszug();
+            b.setKontoauszug(event.getNewValue());
+            try {
+                ctx.buchungService.aktualisiere(b);
+            } catch (IllegalStateException e) {
+                b.setKontoauszug(alt);
+                zeigeFehler("Kontoauszug konnte nicht geaendert werden", e);
+            }
+            buchungenTable.refresh();
+        });
         betragColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getBetragCent()));
         betragColumn.setCellFactory(SpaltenFormat.betragCentZelle(BETRAG_FORMAT));
         saldoColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(laufendeSalden.get(cd.getValue().getId())));
@@ -136,23 +148,6 @@ public class BuchungenViewController {
             } catch (IllegalStateException e) {
                 b.setKategorieId(alt);
                 zeigeFehler("Kategorie konnte nicht geaendert werden", e);
-            }
-            buchungenTable.refresh();
-        });
-
-        mitgliedColumn.setCellValueFactory(cd ->
-                new ReadOnlyObjectWrapper<>(mitgliederById.get(cd.getValue().getMitgliedId())));
-        mitgliedColumn.setCellFactory(ComboBoxTableCell.forTableColumn(mitgliederFuerAuswahl));
-        mitgliedColumn.setOnEditCommit(event -> {
-            Buchung b = event.getRowValue();
-            Long alt = b.getMitgliedId();
-            Mitglied neu = event.getNewValue();
-            b.setMitgliedId(neu != null ? neu.getId() : null);
-            try {
-                ctx.buchungService.aktualisiere(b);
-            } catch (IllegalStateException e) {
-                b.setMitgliedId(alt);
-                zeigeFehler("Mitglied konnte nicht geaendert werden", e);
             }
             buchungenTable.refresh();
         });
@@ -179,6 +174,21 @@ public class BuchungenViewController {
                 new ReadOnlyStringWrapper(cd.getValue().getGegenkontoName()));
         quelleColumn.setCellValueFactory(cd ->
                 new ReadOnlyStringWrapper(cd.getValue().getQuelle().name()));
+
+        rechnungsnummerColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getRechnungsnummer()));
+        rechnungsnummerColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        rechnungsnummerColumn.setOnEditCommit(event -> {
+            Buchung b = event.getRowValue();
+            String alt = b.getRechnungsnummer();
+            b.setRechnungsnummer(event.getNewValue());
+            try {
+                ctx.buchungService.aktualisiere(b);
+            } catch (IllegalStateException e) {
+                b.setRechnungsnummer(alt);
+                zeigeFehler("Rechnungsnummer konnte nicht geaendert werden", e);
+            }
+            buchungenTable.refresh();
+        });
 
         belegColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue()));
         belegColumn.setCellFactory(col -> new TableCell<Buchung, Buchung>() {
@@ -258,8 +268,8 @@ public class BuchungenViewController {
         }
     }
 
-    /** Wird von der Shell (MainController) nach Aenderungen an Kategorien/Konto/Mitgliedern
-     * (Menue-Dialoge bzw. Mitglieder-Tab) sowie beim Zurueckwechseln in diesen Tab aufgerufen. */
+    /** Wird von der Shell (MainController) nach Aenderungen an Kategorien/Konto
+     * (Menue-Dialoge) sowie beim Zurueckwechseln in diesen Tab aufgerufen. */
     public void ladeStammdaten() {
         // Alle Kategorien (auch deaktivierte) fuer die Anzeige bereits vergebener Zuordnungen,
         // aber nur aktive zur Auswahl in Buchungsdialog/HBCI-Import (siehe kategorienAktiv()).
@@ -271,11 +281,6 @@ public class BuchungenViewController {
         for (Konto k : ctx.kontoService.findAll()) {
             kontenById.put(k.getId(), k);
         }
-        // Analog: alle Mitglieder fuer die Anzeige, nur aktive zur Auswahl (mitgliederAktiv()).
-        mitgliederById = new HashMap<>();
-        for (Mitglied m : ctx.mitgliedService.findAll()) {
-            mitgliederById.put(m.getId(), m);
-        }
         aktivitaetenById = new HashMap<>();
         for (Aktivitaet a : ctx.aktivitaetService.findAll()) {
             aktivitaetenById.put(a.getId(), a);
@@ -283,7 +288,6 @@ public class BuchungenViewController {
 
         // Haelt die Dropdown-Optionen der inline editierbaren Tabellenspalten aktuell.
         kategorienFuerAuswahl.setAll(KategorieAuswahl.mitBereichKoepfen(kategorienAktiv()));
-        mitgliederFuerAuswahl.setAll(mitgliederAktiv());
         aktivitaetenFuerAuswahl.setAll(aktivitaetenAktiv());
         buchungenTable.refresh();
     }
@@ -306,16 +310,16 @@ public class BuchungenViewController {
      * bleibt. */
     private List<String> suchfelderFuer(Buchung b) {
         Kategorie kategorie = kategorienById.get(b.getKategorieId());
-        Mitglied mitglied = mitgliederById.get(b.getMitgliedId());
         Konto konto = kontenById.get(b.getKontoId());
         Aktivitaet aktivitaet = aktivitaetenById.get(b.getAktivitaetId());
         return List.of(
                 b.getVerwendungszweck() != null ? b.getVerwendungszweck() : "",
                 b.getGegenkontoName() != null ? b.getGegenkontoName() : "",
                 kategorie != null ? kategorie.getName() : "",
-                mitglied != null ? mitglied.getVollerName() : "",
                 konto != null ? konto.getBezeichnung() : "",
                 aktivitaet != null ? aktivitaet.getName() : "",
+                b.getKontoauszug() != null ? b.getKontoauszug() : "",
+                b.getRechnungsnummer() != null ? b.getRechnungsnummer() : "",
                 BETRAG_FORMAT.format(b.getBetragEuro()),
                 b.getBuchungsdatum().format(DATUM_FORMAT));
     }
@@ -387,10 +391,6 @@ public class BuchungenViewController {
                 }
             }
         };
-    }
-
-    private List<Mitglied> mitgliederAktiv() {
-        return mitgliederById.values().stream().filter(m -> m.getStatus() == MitgliedStatus.AKTIV).toList();
     }
 
     private List<Aktivitaet> aktivitaetenAktiv() {
@@ -577,8 +577,7 @@ public class BuchungenViewController {
             FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/BuchungDialog.fxml");
             Parent root = loader.load();
             BuchungDialogController controller = loader.getController();
-            controller.setDaten(buchung, List.copyOf(kontenById.values()), kategorienAktiv(), mitgliederAktiv(),
-                    aktivitaetenAktiv());
+            controller.setDaten(buchung, List.copyOf(kontenById.values()), kategorienAktiv(), aktivitaetenAktiv());
 
             Stage stage = new Stage();
             stage.initModality(Modality.WINDOW_MODAL);

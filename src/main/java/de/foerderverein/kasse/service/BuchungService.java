@@ -14,13 +14,11 @@ import de.foerderverein.kasse.domain.AuditEintrag;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Kategorie;
-import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
 import de.foerderverein.kasse.persistence.KategorieRepository;
-import de.foerderverein.kasse.persistence.MitgliedRepository;
 
 public class BuchungService {
 
@@ -32,17 +30,15 @@ public class BuchungService {
     private final GeschaeftsjahrRepository geschaeftsjahrRepository;
     private final AuditLogRepository auditLogRepository;
     private final KategorieRepository kategorieRepository;
-    private final MitgliedRepository mitgliedRepository;
     private final AktivitaetRepository aktivitaetRepository;
 
     public BuchungService(BuchungRepository repository, GeschaeftsjahrRepository geschaeftsjahrRepository,
                            AuditLogRepository auditLogRepository, KategorieRepository kategorieRepository,
-                           MitgliedRepository mitgliedRepository, AktivitaetRepository aktivitaetRepository) {
+                           AktivitaetRepository aktivitaetRepository) {
         this.repository = repository;
         this.geschaeftsjahrRepository = geschaeftsjahrRepository;
         this.auditLogRepository = auditLogRepository;
         this.kategorieRepository = kategorieRepository;
-        this.mitgliedRepository = mitgliedRepository;
         this.aktivitaetRepository = aktivitaetRepository;
     }
 
@@ -160,16 +156,17 @@ public class BuchungService {
     /** Menschenlesbarer Schnappschuss der fachlich relevanten, ueber den BuchungDialog
      * editierbaren Felder - Konto ist bewusst ausgenommen, da es bei einer bestehenden Buchung
      * nicht mehr geaendert werden kann (siehe BuchungDialogController). Referenzen auf
-     * Kategorie/Mitglied/Aktivitaet werden auf ihren Namen aufgeloest, damit der Verlauf nicht nur
-     * IDs zeigt. */
+     * Kategorie/Aktivitaet werden auf ihren Namen aufgeloest, damit der Verlauf nicht nur IDs
+     * zeigt. */
     private LinkedHashMap<String, String> feldwerte(Buchung buchung) {
         LinkedHashMap<String, String> werte = new LinkedHashMap<>();
         werte.put("Datum", buchung.getBuchungsdatum() != null ? buchung.getBuchungsdatum().format(DATUM_FORMAT) : "");
+        werte.put("Kontoauszug", wert(buchung.getKontoauszug()));
         werte.put("Betrag", buchung.getBetragEuro() != null ? BETRAG_FORMAT.format(buchung.getBetragEuro()) : "");
         werte.put("Kategorie", kategorieName(buchung.getKategorieId()));
-        werte.put("Mitglied", mitgliedName(buchung.getMitgliedId()));
         werte.put("Aktivität", aktivitaetName(buchung.getAktivitaetId()));
         werte.put("Verwendungszweck", wert(buchung.getVerwendungszweck()));
+        werte.put("Rechnungsnummer", wert(buchung.getRechnungsnummer()));
         werte.put("Gegenkonto", wert(buchung.getGegenkontoName()));
         werte.put("Gegenkonto IBAN", wert(buchung.getGegenkontoIban()));
         werte.put("Storniert", buchung.isStorniert() ? "Ja" : "Nein");
@@ -178,10 +175,6 @@ public class BuchungService {
 
     private String kategorieName(Long id) {
         return id == null ? "" : kategorieRepository.findById(id).map(Kategorie::getName).orElse("(gelöscht)");
-    }
-
-    private String mitgliedName(Long id) {
-        return id == null ? "" : mitgliedRepository.findById(id).map(Mitglied::getVollerName).orElse("(gelöscht)");
     }
 
     private String aktivitaetName(Long id) {
