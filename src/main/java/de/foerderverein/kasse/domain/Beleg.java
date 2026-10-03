@@ -4,23 +4,18 @@ import java.time.LocalDateTime;
 
 /** Hochgeladener Beleg (Rechnung/Quittung als PDF oder JPG) zu genau einer Buchung - technisch
  * 1:1 ueber buchungId (in der DB als UNIQUE erzwungen), fachlich ist "Ersetzen" eines Belegs ein
- * Overwrite, keine Historie mehrerer Belege je Buchung. */
+ * Overwrite, keine Historie mehrerer Belege je Buchung. Die eigentliche Datei liegt nicht in der
+ * Datenbank, sondern im Belege-Verzeichnis neben der .db-Datei (siehe AppConfig.belegeVerzeichnis);
+ * speicherpfad ist nur der Dateiname innerhalb dieses Verzeichnisses, kein absoluter Pfad, damit
+ * Datenbank und Belege-Verzeichnis gemeinsam verschoben werden koennen, ohne die Zuordnung zu
+ * verlieren. */
 public class Beleg {
 
     private Long id;
     private long buchungId;
     private String dateiname;
     private String dateityp;
-
-    /** Die eigentlichen Bytes des Belegs (BLOB). Nullability-Vertrag: dieses Feld ist nur gefuellt,
-     * wenn der Beleg gezielt per BelegRepository.findByBuchungId(...) einzeln geladen wurde (z. B.
-     * zum Oeffnen). Bei der Bulk-Metadatenabfrage BelegRepository.findAllMetadaten(), die fuer die
-     * Tabellenspalte "Beleg" verwendet wird, bleibt dieses Feld bewusst null, damit das BLOB nicht
-     * fuer jede Zeile der Buchungen-Tabelle aus der Datenbank geladen wird. Ein Beleg-Objekt mit
-     * inhalt == null ist also weiterhin ein gueltiger "Beleg vorhanden"-Marker - nicht mit "kein
-     * Beleg vorhanden" (kein Eintrag in der Map) verwechseln. */
-    private byte[] inhalt;
-
+    private String speicherpfad;
     private LocalDateTime hochgeladenAm;
 
     public Long getId() {
@@ -55,12 +50,12 @@ public class Beleg {
         this.dateityp = dateityp;
     }
 
-    public byte[] getInhalt() {
-        return inhalt;
+    public String getSpeicherpfad() {
+        return speicherpfad;
     }
 
-    public void setInhalt(byte[] inhalt) {
-        this.inhalt = inhalt;
+    public void setSpeicherpfad(String speicherpfad) {
+        this.speicherpfad = speicherpfad;
     }
 
     public LocalDateTime getHochgeladenAm() {

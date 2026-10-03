@@ -7,6 +7,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -21,6 +22,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import de.foerderverein.kasse.config.AppConfig;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
@@ -40,18 +42,23 @@ public class BackupService {
     private final BuchungRepository buchungRepository;
     private final KontoRepository kontoRepository;
     private final KategorieRepository kategorieRepository;
+    private final Path belegeVerzeichnis;
 
     public BackupService(Database database, BuchungRepository buchungRepository, KontoRepository kontoRepository,
-                          KategorieRepository kategorieRepository) {
+                          KategorieRepository kategorieRepository, Path belegeVerzeichnis) {
         this.database = database;
         this.buchungRepository = buchungRepository;
         this.kontoRepository = kontoRepository;
         this.kategorieRepository = kategorieRepository;
+        this.belegeVerzeichnis = belegeVerzeichnis;
     }
 
     /** Erstellt eine konsistente Kopie der Datenbank am Zielpfad. Nutzt SQLite's VACUUM INTO
      * statt eines reinen Datei-Kopiervorgangs, damit die Sicherung auch bei einer (theoretisch)
-     * gerade offenen Transaktion konsistent ist, und komprimiert dabei nebenbei die Datei. */
+     * gerade offenen Transaktion konsistent ist, und komprimiert dabei nebenbei die Datei.
+     * Kopiert zusaetzlich das Belege-Verzeichnis als Geschwisterordner neben die Zieldatei - seit
+     * Belege als Dateien statt als BLOB gespeichert werden, deckt VACUUM INTO allein nur noch
+     * die Datenbank selbst ab. */
     public void sichereDatenbank(Path ziel) throws IOException {
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         Files.deleteIfExists(ziel);
@@ -61,6 +68,19 @@ public class BackupService {
             ps.execute();
         } catch (SQLException e) {
             throw new IOException("Datenbank-Sicherung konnte nicht erstellt werden", e);
+        }
+        sichereBelegeVerzeichnis(ziel);
+    }
+
+    private void sichereBelegeVerzeichnis(Path zielDatenbankdatei) throws IOException {
+        if (!Files.isDirectory(belegeVerzeichnis)) {
+            return;
+        }
+        Path zielVerzeichnis = AppConfig.belegeVerzeichnis(zielDatenbankdatei);
+        try (var dateien = Files.list(belegeVerzeichnis)) {
+            for (Path datei : dateien.toList()) {
+                Files.copy(datei, zielVerzeichnis.resolve(datei.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+            }
         }
     }
 

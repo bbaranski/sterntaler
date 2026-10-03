@@ -39,7 +39,7 @@ class BackupServiceTest {
         buchungRepository.insert(buchung);
 
         BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
-                new KategorieRepository(database));
+                new KategorieRepository(database), Files.createTempDirectory("kasse-backup-belege-test"));
 
         Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("sicherung.db");
         backupService.sichereDatenbank(ziel);
@@ -63,7 +63,7 @@ class BackupServiceTest {
         buchungRepository.insert(neueBuchung(konto.getId()));
 
         BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
-                new KategorieRepository(database));
+                new KategorieRepository(database), Files.createTempDirectory("kasse-backup-belege-test"));
 
         Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("buchungen.csv");
         backupService.exportiereAlleBuchungen(ziel);
@@ -81,7 +81,7 @@ class BackupServiceTest {
         buchungRepository.insert(neueBuchung(konto.getId()));
 
         BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
-                new KategorieRepository(database));
+                new KategorieRepository(database), Files.createTempDirectory("kasse-backup-belege-test"));
 
         Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("buchungen.xlsx");
         backupService.exportiereAlleBuchungenAlsExcel(ziel);
@@ -100,6 +100,27 @@ class BackupServiceTest {
             assertEquals(42.50, datenzeile.getCell(3).getNumericCellValue());
             assertEquals("Testverwendungszweck", datenzeile.getCell(5).getStringCellValue());
         }
+    }
+
+    @Test
+    void sichereDatenbankKopiertAuchDasBelegeVerzeichnis() throws IOException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        buchungRepository.insert(neueBuchung(konto.getId()));
+
+        Path quellBelegeVerzeichnis = Files.createTempDirectory("kasse-backup-belege-test");
+        Files.writeString(quellBelegeVerzeichnis.resolve("1_Rechnung.pdf"), "Testinhalt");
+
+        BackupService backupService = new BackupService(database, buchungRepository, new KontoRepository(database),
+                new KategorieRepository(database), quellBelegeVerzeichnis);
+
+        Path ziel = Files.createTempDirectory("kasse-backup-test").resolve("sicherung.db");
+        backupService.sichereDatenbank(ziel);
+
+        Path zielBelegeVerzeichnis = ziel.getParent().resolve("sicherung-belege");
+        assertTrue(Files.exists(zielBelegeVerzeichnis.resolve("1_Rechnung.pdf")));
+        assertEquals("Testinhalt", Files.readString(zielBelegeVerzeichnis.resolve("1_Rechnung.pdf")));
     }
 
     private Konto neuesKonto() {

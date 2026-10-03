@@ -3,7 +3,6 @@ package de.foerderverein.kasse.ui;
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -399,7 +398,7 @@ public class BuchungenViewController {
 
     private void ladeBuchungen() {
         buchungen.setAll(ctx.buchungService.findAll());
-        belegeByBuchungId = ctx.belegService.findAllMetadaten();
+        belegeByBuchungId = ctx.belegService.findAll();
         statusLabel.setText(buchungen.size() + " Buchungen");
         ladeGeschaeftsjahrDaten();
     }
@@ -437,18 +436,10 @@ public class BuchungenViewController {
                         new IllegalStateException("Kein Beleg vorhanden")));
     }
 
-    /** Schreibt die Beleg-Bytes (BLOB, kein Datei-Original vorhanden) in eine temporaere Datei
-     * und oeffnet sie im Standardprogramm. Desktop.open ist asynchron/nicht-blockierend, daher
-     * kann die temporaere Datei nicht direkt danach geloescht werden; deleteOnExit() genuegt hier -
-     * es handelt sich um kleine Belegdateien im OS-Temp-Verzeichnis in einer Single-User-
-     * Desktopanwendung, ein aufwendigerer Aufraeummechanismus lohnt sich nicht. */
     private void oeffneBeleg(Beleg beleg) {
         try {
-            File temp = File.createTempFile("beleg-" + beleg.getBuchungId() + "-", "." + beleg.getDateityp());
-            temp.deleteOnExit();
-            Files.write(temp.toPath(), beleg.getInhalt());
             if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().open(temp);
+                Desktop.getDesktop().open(ctx.belegService.pfadZuDatei(beleg).toFile());
             }
         } catch (IOException e) {
             zeigeFehler("Beleg konnte nicht geoeffnet werden", e);

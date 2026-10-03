@@ -1,7 +1,10 @@
 package de.foerderverein.kasse.service;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -16,6 +19,7 @@ import de.foerderverein.kasse.domain.Beleg;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Konto;
+import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
@@ -25,12 +29,15 @@ import de.foerderverein.kasse.persistence.TestDatabase;
 class BelegServiceTest {
 
     private BelegService service;
+    private Path belegeVerzeichnis;
     private long buchungId;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         Database database = TestDatabase.create();
-        service = new BelegService(new BelegRepository(database));
+        belegeVerzeichnis = Files.createTempDirectory("kasse-test-belege");
+        BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
+        service = new BelegService(new BelegRepository(database), belegeVerzeichnis);
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Buchung buchung = neueBuchung(konto.getId());
         new BuchungRepository(database).insert(buchung);
@@ -46,14 +53,20 @@ class BelegServiceTest {
     }
 
     @Test
-    void pdfWirdAkzeptiert() throws IOException {
+    void pdfWirdAlsDateiImBelegeVerzeichnisGespeichert() throws IOException {
         Path datei = Files.createTempFile("beleg-test", ".pdf");
-        Files.write(datei, new byte[] {1, 2, 3});
+        byte[] inhalt = {1, 2, 3};
+        Files.write(datei, inhalt);
 
-        service.hochladen(buchungId, datei.toFile());
+        Beleg beleg = service.hochladen(buchungId, datei.toFile());
 
         Beleg geladen = service.findByBuchungId(buchungId).orElseThrow();
         assertEquals("pdf", geladen.getDateityp());
+        assertEquals(buchungId + "_" + datei.getFileName().toString(), geladen.getSpeicherpfad());
+
+        Path gespeicherteDatei = service.pfadZuDatei(beleg);
+        assertTrue(Files.exists(gespeicherteDatei));
+        assertArrayEquals(inhalt, Files.readAllBytes(gespeicherteDatei));
     }
 
     @Test
@@ -79,6 +92,21 @@ class BelegServiceTest {
 
         service.hochladen(buchungId, jpeg.toFile());
         assertEquals("jpeg", service.findByBuchungId(buchungId).orElseThrow().getDateityp());
+    }
+
+    @Test
+    void ersetzenMitAndererEndungEntferntDieAlteDatei() throws IOException {
+        Path altesPdf = Files.createTempFile("beleg-test", ".pdf");
+        Files.write(altesPdf, new byte[] {1});
+        Beleg alterBeleg = service.hochladen(buchungId, altesPdf.toFile());
+        Path alteDatei = service.pfadZuDatei(alterBeleg);
+        assertTrue(Files.exists(alteDatei));
+
+        Path neuesJpg = Files.createTempFile("beleg-test", ".jpg");
+        Files.write(neuesJpg, new byte[] {2});
+        service.hochladen(buchungId, neuesJpg.toFile());
+
+        assertFalse(Files.exists(alteDatei));
     }
 
     private Buchung neueBuchung(Long kontoId) {

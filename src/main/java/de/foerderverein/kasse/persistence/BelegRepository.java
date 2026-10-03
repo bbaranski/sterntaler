@@ -20,11 +20,9 @@ public class BelegRepository {
         this.database = database;
     }
 
-    /** Belege ohne den BLOB-Inhalt, keyed by buchungId - fuer die Tabellenspalte "Beleg", die fuer
-     * jede Buchung nur wissen muss, ob (und mit welchem Dateinamen) ein Beleg existiert, ohne
-     * dafuer jedes Mal alle Beleg-Bytes aus der Datenbank zu laden. */
-    public Map<Long, Beleg> findAllMetadaten() {
-        String sql = "SELECT id, buchung_id, dateiname, dateityp, hochgeladen_am FROM beleg";
+    /** Alle Belege, keyed by buchungId. */
+    public Map<Long, Beleg> findAll() {
+        String sql = "SELECT id, buchung_id, dateiname, dateityp, speicherpfad, hochgeladen_am FROM beleg";
         Map<Long, Beleg> result = new HashMap<>();
         try (Connection c = database.connection();
              Statement st = c.createStatement();
@@ -35,12 +33,13 @@ public class BelegRepository {
             }
             return result;
         } catch (SQLException e) {
-            throw new PersistenceException("Beleg-Metadaten konnten nicht geladen werden", e);
+            throw new PersistenceException("Belege konnten nicht geladen werden", e);
         }
     }
 
     public Optional<Beleg> findByBuchungId(long buchungId) {
-        String sql = "SELECT * FROM beleg WHERE buchung_id = ?";
+        String sql = "SELECT id, buchung_id, dateiname, dateityp, speicherpfad, hochgeladen_am "
+                + "FROM beleg WHERE buchung_id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setLong(1, buchungId);
@@ -48,9 +47,7 @@ public class BelegRepository {
                 if (!rs.next()) {
                     return Optional.empty();
                 }
-                Beleg beleg = map(rs);
-                beleg.setInhalt(rs.getBytes("inhalt"));
-                return Optional.of(beleg);
+                return Optional.of(map(rs));
             }
         } catch (SQLException e) {
             throw new PersistenceException("Beleg konnte nicht geladen werden", e);
@@ -72,7 +69,7 @@ public class BelegRepository {
 
     private Beleg insert(Beleg beleg) {
         String sql = """
-                INSERT INTO beleg (buchung_id, dateiname, dateityp, inhalt, hochgeladen_am)
+                INSERT INTO beleg (buchung_id, dateiname, dateityp, speicherpfad, hochgeladen_am)
                 VALUES (?, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
@@ -80,7 +77,7 @@ public class BelegRepository {
             ps.setLong(1, beleg.getBuchungId());
             ps.setString(2, beleg.getDateiname());
             ps.setString(3, beleg.getDateityp());
-            ps.setBytes(4, beleg.getInhalt());
+            ps.setString(4, beleg.getSpeicherpfad());
             ps.setString(5, beleg.getHochgeladenAm().toString());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
@@ -94,12 +91,12 @@ public class BelegRepository {
     }
 
     private Beleg update(Beleg beleg) {
-        String sql = "UPDATE beleg SET dateiname = ?, dateityp = ?, inhalt = ?, hochgeladen_am = ? WHERE id = ?";
+        String sql = "UPDATE beleg SET dateiname = ?, dateityp = ?, speicherpfad = ?, hochgeladen_am = ? WHERE id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, beleg.getDateiname());
             ps.setString(2, beleg.getDateityp());
-            ps.setBytes(3, beleg.getInhalt());
+            ps.setString(3, beleg.getSpeicherpfad());
             ps.setString(4, beleg.getHochgeladenAm().toString());
             ps.setLong(5, beleg.getId());
             ps.executeUpdate();
@@ -115,6 +112,7 @@ public class BelegRepository {
         beleg.setBuchungId(rs.getLong("buchung_id"));
         beleg.setDateiname(rs.getString("dateiname"));
         beleg.setDateityp(rs.getString("dateityp"));
+        beleg.setSpeicherpfad(rs.getString("speicherpfad"));
         beleg.setHochgeladenAm(LocalDateTime.parse(rs.getString("hochgeladen_am")));
         return beleg;
     }

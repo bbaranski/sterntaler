@@ -28,6 +28,21 @@ public final class AppConfig {
         return appDir().resolve("hbci-passport.dat");
     }
 
+    /** Ablageort fuer Belege-Dateien zur gewaehlten Datenbankdatei: ein Geschwisterverzeichnis
+     * direkt neben der .db-Datei (z. B. kasse2.db -> kasse2-belege/), damit Belege automatisch
+     * mitwandern, wenn die Datenbankdatei kopiert, gesichert oder verschoben wird - anders als
+     * appDir() oben, der unabhaengig von der frei waehlbaren Datenbankdatei immer derselbe feste
+     * Ordner ist (siehe DatenbankAuswahlDialog). */
+    public static Path belegeVerzeichnis(Path databaseFile) {
+        Path absolut = databaseFile.toAbsolutePath();
+        String dateiname = absolut.getFileName().toString();
+        int punkt = dateiname.lastIndexOf('.');
+        String basisname = punkt > 0 ? dateiname.substring(0, punkt) : dateiname;
+        Path verzeichnis = absolut.getParent().resolve(basisname + "-belege");
+        ensureExists(verzeichnis);
+        return verzeichnis;
+    }
+
     private static void ensureExists(Path dir) {
         try {
             Files.createDirectories(dir);

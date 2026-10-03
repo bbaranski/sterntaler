@@ -2,10 +2,12 @@ package de.foerderverein.kasse.app;
 
 import java.nio.file.Path;
 
+import de.foerderverein.kasse.config.AppConfig;
 import de.foerderverein.kasse.hbci.CredentialStore;
 import de.foerderverein.kasse.hbci.HbciImportService;
 import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
+import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
@@ -65,6 +67,9 @@ public final class AppContext {
         Database database = new Database(databaseFile);
         database.migrate();
 
+        Path belegeVerzeichnis = AppConfig.belegeVerzeichnis(databaseFile);
+        BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
+
         KontoRepository kontoRepository = new KontoRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BuchungRepository buchungRepository = new BuchungRepository(database);
@@ -84,10 +89,10 @@ public final class AppContext {
                         kategorieRepository, aktivitaetRepository),
                 mitgliedService,
                 new AktivitaetService(aktivitaetRepository),
-                new BelegService(belegRepository),
+                new BelegService(belegRepository, belegeVerzeichnis),
                 new GeschaeftsjahrService(geschaeftsjahrRepository),
                 new BerichtService(buchungRepository, kategorieRepository, mitgliedService, vereinRepository),
-                new BackupService(database, buchungRepository, kontoRepository, kategorieRepository),
+                new BackupService(database, buchungRepository, kontoRepository, kategorieRepository, belegeVerzeichnis),
                 new HbciImportService(buchungRepository, credentialStore),
                 credentialStore,
                 new VereinService(vereinRepository));
