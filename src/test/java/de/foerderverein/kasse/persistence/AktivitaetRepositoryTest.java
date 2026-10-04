@@ -23,7 +23,7 @@ class AktivitaetRepositoryTest {
     }
 
     @Test
-    void findAllAktivFiltertInaktive() {
+    void deaktivierungWirdPersistiert() {
         AktivitaetRepository repository = new AktivitaetRepository(TestDatabase.create());
         Aktivitaet aktiv = repository.save(neueAktivitaet());
         Aktivitaet inaktiv = neueAktivitaet();
@@ -31,10 +31,10 @@ class AktivitaetRepositoryTest {
         inaktiv.setAktiv(false);
         repository.save(inaktiv);
 
-        var aktive = repository.findAllAktiv();
+        var alle = repository.findAll();
 
-        assertTrue(aktive.stream().anyMatch(a -> a.getId().equals(aktiv.getId())));
-        assertFalse(aktive.stream().anyMatch(a -> a.getId().equals(inaktiv.getId())));
+        assertTrue(alle.stream().filter(a -> a.getId().equals(aktiv.getId())).findFirst().orElseThrow().isAktiv());
+        assertFalse(alle.stream().filter(a -> a.getId().equals(inaktiv.getId())).findFirst().orElseThrow().isAktiv());
     }
 
     @Test

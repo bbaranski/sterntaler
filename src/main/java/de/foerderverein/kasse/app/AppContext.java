@@ -7,7 +7,6 @@ import de.foerderverein.kasse.hbci.CredentialStore;
 import de.foerderverein.kasse.hbci.HbciImportService;
 import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
-import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
 import de.foerderverein.kasse.persistence.BriefvorlageRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
@@ -80,7 +79,6 @@ public final class AppContext {
         database.migrate();
 
         Path belegeVerzeichnis = AppConfig.belegeVerzeichnis(databaseFile);
-        BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
         Path vorlagenVerzeichnis = AppConfig.vorlagenVerzeichnis(databaseFile);
 
         KontoRepository kontoRepository = new KontoRepository(database);

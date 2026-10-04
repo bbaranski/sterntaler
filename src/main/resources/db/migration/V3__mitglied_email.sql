@@ -1,1 +1,0 @@
-ALTER TABLE mitglied ADD COLUMN email TEXT;

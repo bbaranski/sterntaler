@@ -31,11 +31,7 @@ public class MitgliedService {
         return repository.findAll();
     }
 
-    public List<Mitglied> findAllAktiv() {
-        return repository.findAllAktiv();
-    }
-
-    public List<AuditEintrag> findVerlauf(long mitgliedId) {
+        public List<AuditEintrag> findVerlauf(long mitgliedId) {
         return auditLogRepository.findByEntity(ENTITY, mitgliedId);
     }
 

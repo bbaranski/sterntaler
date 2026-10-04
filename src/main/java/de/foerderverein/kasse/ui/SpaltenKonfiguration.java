@@ -1,7 +1,9 @@
 package de.foerderverein.kasse.ui;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
@@ -41,6 +43,11 @@ public final class SpaltenKonfiguration {
      * jede weitere Umsortierung (z. B. per Drag&Drop) automatisch. Vor der ersten Anzeige der
      * Tabelle aufzurufen. */
     public static void wiederherstellen(TableView<?> table, String tabellenSchluessel) {
+        // Muss vor dem Anwenden der gespeicherten Sichtbarkeit erfolgen, damit hier wirklich die
+        // aus dem FXML geladene, pristine Sichtbarkeit gesichert wird - sie ist die Grundlage
+        // fuer den "Anzeige zuruecksetzen"-Button im Spalten-Dialog.
+        ergaenzeStandardSichtbarkeit(table, tabellenSchluessel);
+
         for (TableColumn<?, ?> column : table.getColumns()) {
             String gespeichert = PREFS.get(sichtbarkeitKey(tabellenSchluessel, column), null);
             if (gespeichert != null) {
@@ -61,6 +68,43 @@ public final class SpaltenKonfiguration {
 
         table.getColumns().addListener((ListChangeListener<TableColumn<?, ?>>) change ->
                 speichereReihenfolge(table, tabellenSchluessel));
+    }
+
+    /** Sichert die pristine FXML-Sichtbarkeit je Spalte (als "id=true,id2=false,..."). Bereits
+     * gesicherte Spalten bleiben unangetastet; nur seither neu hinzugekommene Spalten werden
+     * ergaenzt - so bleibt der Standard fuer bestehende Spalten stabil, waehrend eine neue Spalte
+     * trotzdem mit ihrer im FXML vorgesehenen Sichtbarkeit im Standard landet. */
+    private static void ergaenzeStandardSichtbarkeit(TableView<?> table, String tabellenSchluessel) {
+        Map<String, Boolean> standard = standardSichtbarkeit(tabellenSchluessel);
+        boolean geaendert = false;
+        for (TableColumn<?, ?> column : table.getColumns()) {
+            if (!standard.containsKey(spalteId(column))) {
+                standard.put(spalteId(column), column.isVisible());
+                geaendert = true;
+            }
+        }
+        if (geaendert) {
+            PREFS.put(standardSichtbarkeitKey(tabellenSchluessel), standard.entrySet().stream()
+                    .map(e -> e.getKey() + "=" + e.getValue())
+                    .collect(Collectors.joining(",")));
+        }
+    }
+
+    /** Die urspruengliche, aus dem FXML geladene Sichtbarkeit je Spalten-Id - unabhaengig davon,
+     * was der Nutzer inzwischen ein- oder ausgeblendet hat. */
+    private static Map<String, Boolean> standardSichtbarkeit(String tabellenSchluessel) {
+        Map<String, Boolean> standard = new LinkedHashMap<>();
+        String gespeichert = PREFS.get(standardSichtbarkeitKey(tabellenSchluessel), null);
+        if (gespeichert == null || gespeichert.isBlank()) {
+            return standard;
+        }
+        for (String eintrag : gespeichert.split(",")) {
+            int trenner = eintrag.lastIndexOf('=');
+            if (trenner > 0) {
+                standard.put(eintrag.substring(0, trenner), Boolean.parseBoolean(eintrag.substring(trenner + 1)));
+            }
+        }
+        return standard;
     }
 
     private static void sichereStandardReihenfolgeFallsFehlt(TableView<?> table, String tabellenSchluessel) {
@@ -138,6 +182,16 @@ public final class SpaltenKonfiguration {
         Button alleButton = new Button("Alle anzeigen");
         alleButton.setOnAction(e -> checkboxen.forEach(cb -> cb.setSelected(true)));
 
+        // Setzt nur die Checkboxen auf den Ursprungszustand - wirksam wird das wie bei den
+        // Checkboxen selbst erst mit "Übernehmen", damit der Nutzer noch abbrechen kann.
+        Button anzeigeZuruecksetzenButton = new Button("Anzeige zurücksetzen");
+        anzeigeZuruecksetzenButton.setOnAction(e -> {
+            Map<String, Boolean> standard = standardSichtbarkeit(tabellenSchluessel);
+            for (int i = 0; i < spalten.size(); i++) {
+                checkboxen.get(i).setSelected(standard.getOrDefault(spalteId(spalten.get(i)), true));
+            }
+        });
+
         // Wirkt sofort auf die Tabelle (wie ein manuelles Ziehen der Spaltenueberschrift) - der
         // in wiederherstellen() registrierte Listener speichert die neue Reihenfolge automatisch,
         // eine gesonderte Behandlung ist hier nicht noetig.
@@ -158,10 +212,12 @@ public final class SpaltenKonfiguration {
             stage.close();
         });
 
-        for (Button button : List.of(alleButton, reihenfolgeZuruecksetzenButton, abbrechenButton, uebernehmenButton)) {
+        for (Button button : List.of(alleButton, anzeigeZuruecksetzenButton, reihenfolgeZuruecksetzenButton,
+                abbrechenButton, uebernehmenButton)) {
             button.setMaxWidth(Double.MAX_VALUE);
         }
-        VBox buttonZeile = new VBox(8, alleButton, reihenfolgeZuruecksetzenButton, abbrechenButton, uebernehmenButton);
+        VBox buttonZeile = new VBox(8, alleButton, anzeigeZuruecksetzenButton, reihenfolgeZuruecksetzenButton,
+                abbrechenButton, uebernehmenButton);
 
         ScrollPane scrollPane = new ScrollPane(liste);
         scrollPane.setFitToWidth(true);
@@ -208,5 +264,9 @@ public final class SpaltenKonfiguration {
 
     private static String standardReihenfolgeKey(String tabellenSchluessel) {
         return "spaltenstandardreihenfolge." + tabellenSchluessel;
+    }
+
+    private static String standardSichtbarkeitKey(String tabellenSchluessel) {
+        return "spaltenstandardsichtbarkeit." + tabellenSchluessel;
     }
 }

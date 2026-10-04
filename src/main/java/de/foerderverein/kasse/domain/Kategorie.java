@@ -5,7 +5,6 @@ public class Kategorie {
     private Long id;
     private String name;
     private Bereich bereich = Bereich.IDEELLER_BEREICH;
-    private Long uebergeordneteKategorieId;
     private boolean aktiv = true;
 
     public Long getId() {
@@ -30,14 +29,6 @@ public class Kategorie {
 
     public void setBereich(Bereich bereich) {
         this.bereich = bereich;
-    }
-
-    public Long getUebergeordneteKategorieId() {
-        return uebergeordneteKategorieId;
-    }
-
-    public void setUebergeordneteKategorieId(Long uebergeordneteKategorieId) {
-        this.uebergeordneteKategorieId = uebergeordneteKategorieId;
     }
 
     public boolean isAktiv() {

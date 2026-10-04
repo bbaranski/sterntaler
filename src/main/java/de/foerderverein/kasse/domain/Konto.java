@@ -9,7 +9,6 @@ public class Konto {
     private String iban;
     private String bic;
     private String bankname;
-    private Long saldoStandCent;
     private LocalDate saldoStandDatum;
     private String hbciBlz;
     private String hbciUserId;
@@ -53,14 +52,6 @@ public class Konto {
 
     public void setBankname(String bankname) {
         this.bankname = bankname;
-    }
-
-    public Long getSaldoStandCent() {
-        return saldoStandCent;
-    }
-
-    public void setSaldoStandCent(Long saldoStandCent) {
-        this.saldoStandCent = saldoStandCent;
     }
 
     public LocalDate getSaldoStandDatum() {

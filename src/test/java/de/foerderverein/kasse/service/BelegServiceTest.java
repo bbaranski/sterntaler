@@ -19,7 +19,6 @@ import de.foerderverein.kasse.domain.Beleg;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
 import de.foerderverein.kasse.domain.Konto;
-import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
@@ -38,7 +37,6 @@ class BelegServiceTest {
     void setUp() throws IOException {
         Database database = TestDatabase.create();
         belegeVerzeichnis = Files.createTempDirectory("kasse-test-belege");
-        BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(new GeschaeftsjahrRepository(database));
         service = new BelegService(new BelegRepository(database), geschaeftsjahrService, belegeVerzeichnis);
         Konto konto = new KontoRepository(database).save(neuesKonto());

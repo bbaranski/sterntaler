@@ -26,7 +26,7 @@ class MitgliedRepositoryTest {
     }
 
     @Test
-    void findAllAktivFiltertInaktive() {
+    void statusWirdPersistiert() {
         MitgliedRepository repository = new MitgliedRepository(TestDatabase.create());
         Mitglied aktiv = repository.save(neuesMitglied());
         Mitglied inaktiv = neuesMitglied();
@@ -34,10 +34,12 @@ class MitgliedRepositoryTest {
         inaktiv.setStatus(MitgliedStatus.INAKTIV);
         repository.save(inaktiv);
 
-        var aktive = repository.findAllAktiv();
+        var alle = repository.findAll();
 
-        assertTrue(aktive.stream().anyMatch(m -> m.getId().equals(aktiv.getId())));
-        assertFalse(aktive.stream().anyMatch(m -> m.getId().equals(inaktiv.getId())));
+        assertEquals(MitgliedStatus.AKTIV,
+                alle.stream().filter(m -> m.getId().equals(aktiv.getId())).findFirst().orElseThrow().getStatus());
+        assertEquals(MitgliedStatus.INAKTIV,
+                alle.stream().filter(m -> m.getId().equals(inaktiv.getId())).findFirst().orElseThrow().getStatus());
     }
 
     @Test

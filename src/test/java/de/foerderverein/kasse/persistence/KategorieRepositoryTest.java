@@ -17,7 +17,7 @@ class KategorieRepositoryTest {
     void starterKategorienSindNachMigrationVorhanden() {
         KategorieRepository repository = new KategorieRepository(TestDatabase.create());
 
-        var alle = repository.findAllAktiv();
+        var alle = repository.findAll();
 
         assertTrue(alle.stream().anyMatch(k -> k.getName().equals("Mitgliedsbeiträge") && k.getBereich() == Bereich.IDEELLER_BEREICH));
         assertTrue(alle.stream().anyMatch(k -> k.getName().equals("Zinserträge") && k.getBereich() == Bereich.VERMOEGENSVERWALTUNG));
@@ -46,6 +46,9 @@ class KategorieRepositoryTest {
         neu.setAktiv(false);
         repository.save(neu);
 
-        assertFalse(repository.findAllAktiv().stream().anyMatch(k -> k.getName().equals("Testkategorie")));
+        assertFalse(repository.findAll().stream()
+                .filter(k -> k.getName().equals("Testkategorie"))
+                .findFirst().orElseThrow()
+                .isAktiv());
     }
 }

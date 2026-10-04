@@ -20,7 +20,6 @@ import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
-import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
@@ -45,7 +44,6 @@ class SicherheitskopieServiceTest {
         Database database = new Database(databaseFile);
         database.migrate();
         belegeVerzeichnis = Files.createTempDirectory("kasse-test-belege");
-        BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         BuchungRepository buchungRepository = new BuchungRepository(database);

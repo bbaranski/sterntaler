@@ -34,22 +34,7 @@ public class AktivitaetRepository {
         }
     }
 
-    public List<Aktivitaet> findAllAktiv() {
-        String sql = "SELECT * FROM aktivitaet WHERE aktiv = 1 ORDER BY name";
-        List<Aktivitaet> result = new ArrayList<>();
-        try (Connection c = database.connection();
-             Statement st = c.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                result.add(map(rs));
-            }
-            return result;
-        } catch (SQLException e) {
-            throw new PersistenceException("Aktivitaeten konnten nicht geladen werden", e);
-        }
-    }
-
-    public Optional<Aktivitaet> findById(long id) {
+        public Optional<Aktivitaet> findById(long id) {
         String sql = "SELECT * FROM aktivitaet WHERE id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {

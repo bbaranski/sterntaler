@@ -3,6 +3,7 @@
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.BorderPane?>
@@ -15,10 +16,13 @@
                 <Menu text="Einstellungen">
                     <items>
                         <MenuItem text="Vereinsdaten…" onAction="#onVereinsdaten" />
-                        <MenuItem text="Kategorien…" onAction="#onKategorien" />
-                        <MenuItem text="Konto-Einstellungen…" onAction="#onKontoEinstellungen" />
                         <MenuItem text="Geschäftsjahre…" onAction="#onGeschaeftsjahre" />
+                        <SeparatorMenuItem />
+                        <MenuItem text="Konto-Einstellungen…" onAction="#onKontoEinstellungen" />
+                        <SeparatorMenuItem />
+                        <MenuItem text="Kategorien…" onAction="#onKategorien" />
                         <MenuItem text="Aktivitäten/Veranstaltungen…" onAction="#onAktivitaeten" />
+                        <SeparatorMenuItem />
                         <MenuItem text="Serienbriefvorlagen…" onAction="#onSerienbriefvorlagen" />
                     </items>
                 </Menu>
@@ -37,6 +41,7 @@
                     <items>
                         <MenuItem text="Mitgliederliste exportieren…" onAction="#onMitgliederlisteExport" />
                         <MenuItem text="Kontobewegungen exportieren…" onAction="#onKontobewegungenExport" />
+                        <SeparatorMenuItem />
                         <MenuItem text="Sicherheitskopie…" onAction="#onSicherheitskopie" />
                     </items>
                 </Menu>

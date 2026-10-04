@@ -36,22 +36,7 @@ public class MitgliedRepository {
         }
     }
 
-    public List<Mitglied> findAllAktiv() {
-        String sql = "SELECT * FROM mitglied WHERE status = 'AKTIV' ORDER BY nachname, vorname";
-        List<Mitglied> result = new ArrayList<>();
-        try (Connection c = database.connection();
-             Statement st = c.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                result.add(map(rs));
-            }
-            return result;
-        } catch (SQLException e) {
-            throw new PersistenceException("Mitglieder konnten nicht geladen werden", e);
-        }
-    }
-
-    public Optional<Mitglied> findById(long id) {
+        public Optional<Mitglied> findById(long id) {
         String sql = "SELECT * FROM mitglied WHERE id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {

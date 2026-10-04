@@ -24,10 +24,6 @@ public final class AppConfig {
         return appDir().resolve("kasse.db");
     }
 
-    public static Path hbciPassportFile() {
-        return appDir().resolve("hbci-passport.dat");
-    }
-
     /** Ablageort fuer Belege-Dateien zur gewaehlten Datenbankdatei: ein Geschwisterverzeichnis
      * direkt neben der .db-Datei (z. B. kasse2.db -> kasse2-belege/), damit Belege automatisch
      * mitwandern, wenn die Datenbankdatei kopiert, gesichert oder verschoben wird - anders als

@@ -35,28 +35,15 @@ public class KontoRepository {
         }
     }
 
-    public Optional<Konto> findById(long id) {
-        String sql = "SELECT * FROM konto WHERE id = ?";
-        try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setLong(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
-            }
-        } catch (SQLException e) {
-            throw new PersistenceException("Konto konnte nicht geladen werden", e);
-        }
-    }
-
-    public Konto save(Konto konto) {
+        public Konto save(Konto konto) {
         return konto.getId() == null ? insert(konto) : update(konto);
     }
 
     private Konto insert(Konto konto) {
         String sql = """
-                INSERT INTO konto (bezeichnung, iban, bic, bankname, saldo_stand_cent, saldo_stand_datum,
+                INSERT INTO konto (bezeichnung, iban, bic, bankname, saldo_stand_datum,
                        hbci_blz, hbci_user_id, hbci_customer_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -75,14 +62,14 @@ public class KontoRepository {
     private Konto update(Konto konto) {
         String sql = """
                 UPDATE konto SET bezeichnung = ?, iban = ?, bic = ?, bankname = ?,
-                       saldo_stand_cent = ?, saldo_stand_datum = ?,
+                       saldo_stand_datum = ?,
                        hbci_blz = ?, hbci_user_id = ?, hbci_customer_id = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, konto);
-            ps.setLong(10, konto.getId());
+            ps.setLong(9, konto.getId());
             ps.executeUpdate();
             return konto;
         } catch (SQLException e) {
@@ -95,15 +82,10 @@ public class KontoRepository {
         ps.setString(2, konto.getIban());
         ps.setString(3, konto.getBic());
         ps.setString(4, konto.getBankname());
-        if (konto.getSaldoStandCent() != null) {
-            ps.setLong(5, konto.getSaldoStandCent());
-        } else {
-            ps.setNull(5, java.sql.Types.INTEGER);
-        }
-        ps.setString(6, konto.getSaldoStandDatum() != null ? konto.getSaldoStandDatum().toString() : null);
-        ps.setString(7, konto.getHbciBlz());
-        ps.setString(8, konto.getHbciUserId());
-        ps.setString(9, konto.getHbciCustomerId());
+        ps.setString(5, konto.getSaldoStandDatum() != null ? konto.getSaldoStandDatum().toString() : null);
+        ps.setString(6, konto.getHbciBlz());
+        ps.setString(7, konto.getHbciUserId());
+        ps.setString(8, konto.getHbciCustomerId());
     }
 
     private Konto map(ResultSet rs) throws SQLException {
@@ -113,8 +95,6 @@ public class KontoRepository {
         konto.setIban(rs.getString("iban"));
         konto.setBic(rs.getString("bic"));
         konto.setBankname(rs.getString("bankname"));
-        long saldoCent = rs.getLong("saldo_stand_cent");
-        konto.setSaldoStandCent(rs.wasNull() ? null : saldoCent);
         String saldoDatum = rs.getString("saldo_stand_datum");
         konto.setSaldoStandDatum(saldoDatum != null ? LocalDate.parse(saldoDatum) : null);
         konto.setHbciBlz(rs.getString("hbci_blz"));

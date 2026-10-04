@@ -28,12 +28,7 @@ public class KategorieRepository {
         this.database = database;
     }
 
-    public List<Kategorie> findAllAktiv() {
-        String sql = "SELECT * FROM kategorie WHERE aktiv = 1";
-        return query(sql);
-    }
-
-    public List<Kategorie> findAll() {
+        public List<Kategorie> findAll() {
         String sql = "SELECT * FROM kategorie";
         return query(sql);
     }
@@ -71,8 +66,8 @@ public class KategorieRepository {
 
     private Kategorie insert(Kategorie kategorie) {
         String sql = """
-                INSERT INTO kategorie (name, bereich, uebergeordnete_kategorie_id, aktiv)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO kategorie (name, bereich, aktiv)
+                VALUES (?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -90,13 +85,13 @@ public class KategorieRepository {
 
     private Kategorie update(Kategorie kategorie) {
         String sql = """
-                UPDATE kategorie SET name = ?, bereich = ?, uebergeordnete_kategorie_id = ?, aktiv = ?
+                UPDATE kategorie SET name = ?, bereich = ?, aktiv = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, kategorie);
-            ps.setLong(5, kategorie.getId());
+            ps.setLong(4, kategorie.getId());
             ps.executeUpdate();
             return kategorie;
         } catch (SQLException e) {
@@ -107,12 +102,7 @@ public class KategorieRepository {
     private void bind(PreparedStatement ps, Kategorie kategorie) throws SQLException {
         ps.setString(1, kategorie.getName());
         ps.setString(2, kategorie.getBereich().name());
-        if (kategorie.getUebergeordneteKategorieId() != null) {
-            ps.setLong(3, kategorie.getUebergeordneteKategorieId());
-        } else {
-            ps.setNull(3, java.sql.Types.INTEGER);
-        }
-        ps.setInt(4, kategorie.isAktiv() ? 1 : 0);
+        ps.setInt(3, kategorie.isAktiv() ? 1 : 0);
     }
 
     private Kategorie map(ResultSet rs) throws SQLException {
@@ -120,8 +110,6 @@ public class KategorieRepository {
         kategorie.setId(rs.getLong("id"));
         kategorie.setName(rs.getString("name"));
         kategorie.setBereich(Bereich.valueOf(rs.getString("bereich")));
-        long parent = rs.getLong("uebergeordnete_kategorie_id");
-        kategorie.setUebergeordneteKategorieId(rs.wasNull() ? null : parent);
         kategorie.setAktiv(rs.getInt("aktiv") == 1);
         return kategorie;
     }

@@ -29,7 +29,6 @@ class BelegRepositoryTest {
     void setUp() {
         Database database = TestDatabase.create();
         belegeVerzeichnis = neuesTempVerzeichnis();
-        BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
         belegRepository = new BelegRepository(database);
         Konto konto = new KontoRepository(database).save(neuesKonto());
         BuchungRepository buchungRepository = new BuchungRepository(database);

@@ -102,11 +102,7 @@ public class BuchungService {
         return importiert;
     }
 
-    public boolean existsByHbciHash(long kontoId, String hash) {
-        return repository.existsByHbciHash(kontoId, hash);
-    }
-
-    private void pruefeNichtGesperrt(LocalDate datum) {
+        private void pruefeNichtGesperrt(LocalDate datum) {
         geschaeftsjahrRepository.findAbgeschlossenesJahrFuer(datum).ifPresent(jahr -> {
             throw new IllegalStateException("Das Geschaeftsjahr \"" + jahr.getBezeichnung()
                     + "\" ist abgeschlossen. Buchungen mit Datum " + datum + " sind gesperrt.");
