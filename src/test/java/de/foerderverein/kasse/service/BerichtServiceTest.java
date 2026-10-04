@@ -129,6 +129,58 @@ class BerichtServiceTest {
         assertEquals(erwarteterEndsaldo, laufendeSalden.get(ausgabeBuchung.getId()));
     }
 
+    /** Spiegelt den bestehenden Konsistenztest, aber mit einer am Stichtag ins Folgejahr
+     * umgehaengten Buchung: Kassenbericht-Filter (BerichtService.gehoertZu) und Saldo-Berechnung
+     * (GeschaeftsjahrService.findeFuer) leiten die Jahreszugehoerigkeit unabhaengig voneinander
+     * ab - sie duerfen dabei nie auseinanderlaufen. */
+    @Test
+    void umgehaengteStichtagsbuchungBleibtZwischenBerichtUndSaldoKonsistent() throws IOException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
+                new VereinRepository(database));
+        GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Geschaeftsjahr jahr2026 = geschaeftsjahrRepository.save(neuesJahr());
+        Geschaeftsjahr jahr2027 = new Geschaeftsjahr();
+        jahr2027.setBezeichnung("2027");
+        jahr2027.setStartDatum(LocalDate.of(2027, 1, 1));
+        jahr2027.setEndDatum(LocalDate.of(2027, 12, 31));
+        jahr2027.setStartsaldoCent(0);
+        jahr2027 = geschaeftsjahrRepository.save(jahr2027);
+
+        Kategorie kategorie = kategorieRepository.findAll().get(0);
+
+        Buchung imJahr = neueBuchung(konto.getId(), kategorie.getId(), LocalDate.of(2026, 3, 1), new BigDecimal("100.00"));
+        buchungRepository.insert(imJahr);
+        // Liegt am Stichtag 31.12.2026, gehoert fachlich aber schon ins Folgejahr.
+        Buchung amStichtag = neueBuchung(konto.getId(), kategorie.getId(), LocalDate.of(2026, 12, 31), new BigDecimal("77.00"));
+        amStichtag.setGeschaeftsjahrId(jahr2027.getId());
+        buchungRepository.insert(amStichtag);
+
+        List<Buchung> alle = buchungRepository.findAll();
+        List<Geschaeftsjahr> jahre = List.of(jahr2026, jahr2027);
+        Map<Long, Long> salden = geschaeftsjahrService.berechneLaufendeSalden(alle, jahre);
+
+        // Die umgehaengte Buchung zaehlt nicht mehr zum Saldo von 2026 ...
+        long erwarteterEndsaldo2026 = jahr2026.getStartsaldoCent() + 10000;
+        assertEquals(erwarteterEndsaldo2026, salden.get(imJahr.getId()));
+        // ... sondern eroeffnet die Kette von 2027.
+        assertEquals(jahr2027.getStartsaldoCent() + 7700, salden.get(amStichtag.getId()));
+
+        // Und der Kassenbericht beider Jahre laesst sich fehlerfrei erzeugen.
+        Path ziel2026 = Files.createTempDirectory("kasse-bericht-test").resolve("2026.pdf");
+        berichtService.erstelleKassenbericht(ziel2026, konto, jahr2026);
+        Path ziel2027 = Files.createTempDirectory("kasse-bericht-test").resolve("2027.pdf");
+        berichtService.erstelleKassenbericht(ziel2027, konto, jahr2027);
+        assertTrue(Files.exists(ziel2026));
+        assertTrue(Files.exists(ziel2027));
+    }
+
     @Test
     void erstelltMitgliederlisteAlsExcel() throws Exception {
         Database database = TestDatabase.create();

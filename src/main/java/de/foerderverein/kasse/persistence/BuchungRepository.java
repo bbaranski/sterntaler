@@ -69,8 +69,8 @@ public class BuchungRepository {
                 INSERT INTO buchung (konto_id, kategorie_id, aktivitaet_id, buchungsdatum,
                        wertstellung, betrag_cent, kontoauszug, waehrung, verwendungszweck, rechnungsnummer,
                        gegenkonto_iban, gegenkonto_name, quelle, hbci_import_hash, storniert, storno_referenz_id,
-                       erstellt_von, erstellt_am)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                       erstellt_von, erstellt_am, geschaeftsjahr_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -103,6 +103,7 @@ public class BuchungRepository {
             }
             ps.setString(16, buchung.getErstelltVon());
             ps.setString(17, LocalDateTime.now().toString());
+            setzeLongOderNull(ps, 18, buchung.getGeschaeftsjahrId());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 keys.next();
@@ -118,7 +119,8 @@ public class BuchungRepository {
         String sql = """
                 UPDATE buchung SET kategorie_id = ?, aktivitaet_id = ?, buchungsdatum = ?,
                        wertstellung = ?, betrag_cent = ?, kontoauszug = ?, verwendungszweck = ?,
-                       rechnungsnummer = ?, gegenkonto_iban = ?, gegenkonto_name = ?, geaendert_am = ?
+                       rechnungsnummer = ?, gegenkonto_iban = ?, gegenkonto_name = ?,
+                       geschaeftsjahr_id = ?, geaendert_am = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
@@ -141,8 +143,9 @@ public class BuchungRepository {
             ps.setString(8, buchung.getRechnungsnummer());
             ps.setString(9, buchung.getGegenkontoIban());
             ps.setString(10, buchung.getGegenkontoName());
-            ps.setString(11, LocalDateTime.now().toString());
-            ps.setLong(12, buchung.getId());
+            setzeLongOderNull(ps, 11, buchung.getGeschaeftsjahrId());
+            ps.setString(12, LocalDateTime.now().toString());
+            ps.setLong(13, buchung.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new PersistenceException("Buchung konnte nicht aktualisiert werden", e);
@@ -159,6 +162,14 @@ public class BuchungRepository {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new PersistenceException("Buchung konnte nicht storniert werden", e);
+        }
+    }
+
+    private void setzeLongOderNull(PreparedStatement ps, int position, Long wert) throws SQLException {
+        if (wert != null) {
+            ps.setLong(position, wert);
+        } else {
+            ps.setNull(position, java.sql.Types.INTEGER);
         }
     }
 
@@ -183,6 +194,8 @@ public class BuchungRepository {
         buchung.setQuelle(BuchungsQuelle.valueOf(rs.getString("quelle")));
         buchung.setHbciImportHash(rs.getString("hbci_import_hash"));
         buchung.setStorniert(rs.getInt("storniert") == 1);
+        long geschaeftsjahrId = rs.getLong("geschaeftsjahr_id");
+        buchung.setGeschaeftsjahrId(rs.wasNull() ? null : geschaeftsjahrId);
         long stornoRef = rs.getLong("storno_referenz_id");
         buchung.setStornoReferenzId(rs.wasNull() ? null : stornoRef);
         buchung.setErstelltVon(rs.getString("erstellt_von"));

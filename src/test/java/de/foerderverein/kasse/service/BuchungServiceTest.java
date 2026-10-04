@@ -202,6 +202,103 @@ class BuchungServiceTest {
         assertEquals("RE-042", buchungService.findAll().get(0).getRechnungsnummer());
     }
 
+    @Test
+    void umhaengenInEinAbgeschlossenesJahrWirdAbgelehnt() {
+        Geschaeftsjahr offen = geschaeftsjahrRepository.save(
+                jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), false));
+        Geschaeftsjahr abgeschlossen = geschaeftsjahrRepository.save(
+                jahr("2025", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), true));
+
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchungService.erfasseManuell(buchung, "tester");
+        assertEquals(offen.getId(), geschaeftsjahrRepository.findAll().stream()
+                .filter(g -> g.getBezeichnung().equals("2026")).findFirst().orElseThrow().getId());
+
+        buchung.setGeschaeftsjahrId(abgeschlossen.getId());
+
+        assertThrows(IllegalStateException.class, () -> buchungService.aktualisiere(buchung));
+    }
+
+    @Test
+    void umhaengenAusEinemAbgeschlossenenJahrHerausWirdAbgelehnt() {
+        geschaeftsjahrRepository.save(jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), false));
+
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchungService.erfasseManuell(buchung, "tester");
+
+        // Jahr erst nach dem Anlegen abschliessen, sonst waere schon das Erfassen gesperrt.
+        Geschaeftsjahr jahr2026 = geschaeftsjahrRepository.findAll().stream()
+                .filter(g -> g.getBezeichnung().equals("2026")).findFirst().orElseThrow();
+        jahr2026.setAbgeschlossen(true);
+        geschaeftsjahrRepository.save(jahr2026);
+        Geschaeftsjahr ziel = geschaeftsjahrRepository.save(
+                jahr("2027", LocalDate.of(2027, 1, 1), LocalDate.of(2027, 12, 31), false));
+
+        buchung.setGeschaeftsjahrId(ziel.getId());
+
+        assertThrows(IllegalStateException.class, () -> buchungService.aktualisiere(buchung));
+    }
+
+    @Test
+    void umhaengenZwischenOffenenJahrenIstErlaubt() {
+        geschaeftsjahrRepository.save(jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), false));
+        Geschaeftsjahr ziel = geschaeftsjahrRepository.save(
+                jahr("2027", LocalDate.of(2027, 1, 1), LocalDate.of(2027, 12, 31), false));
+
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchungService.erfasseManuell(buchung, "tester");
+        buchung.setGeschaeftsjahrId(ziel.getId());
+        buchungService.aktualisiere(buchung);
+
+        assertEquals(ziel.getId(), buchungService.findAll().get(0).getGeschaeftsjahrId());
+    }
+
+    @Test
+    void umhaengenWirdImVerlaufProtokolliert() {
+        geschaeftsjahrRepository.save(jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), false));
+        Geschaeftsjahr ziel = geschaeftsjahrRepository.save(
+                jahr("2027", LocalDate.of(2027, 1, 1), LocalDate.of(2027, 12, 31), false));
+
+        Buchung buchung = buchung(new BigDecimal("10.00"));
+        buchungService.erfasseManuell(buchung, "tester");
+        buchung.setGeschaeftsjahrId(ziel.getId());
+        buchungService.aktualisiere(buchung);
+
+        var geaendert = buchungService.findVerlauf(buchung.getId()).stream()
+                .filter(e -> "Geschäftsjahr".equals(e.getFeld()))
+                .findFirst().orElseThrow();
+        assertEquals("2026", geaendert.getWertAlt());
+        assertEquals("2027 (fest zugeordnet)", geaendert.getWertNeu());
+    }
+
+    @Test
+    void rechnungsnummerEindeutigkeitFolgtDemUmgehaengtenJahr() {
+        geschaeftsjahrRepository.save(jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), false));
+        Geschaeftsjahr ziel = geschaeftsjahrRepository.save(
+                jahr("2027", LocalDate.of(2027, 1, 1), LocalDate.of(2027, 12, 31), false));
+
+        Buchung erste = buchung(new BigDecimal("10.00"));
+        erste.setRechnungsnummer("RE-042");
+        buchungService.erfasseManuell(erste, "tester");
+
+        Buchung zweite = buchung(new BigDecimal("20.00"));
+        zweite.setRechnungsnummer("RE-042");
+        // Im selben Jahr waere das ein Konflikt - umgehaengt ins Folgejahr nicht mehr.
+        zweite.setGeschaeftsjahrId(ziel.getId());
+        buchungService.erfasseManuell(zweite, "tester");
+
+        assertEquals(2, buchungService.findAll().size());
+    }
+
+    private Geschaeftsjahr jahr(String bezeichnung, LocalDate start, LocalDate end, boolean abgeschlossen) {
+        Geschaeftsjahr jahr = new Geschaeftsjahr();
+        jahr.setBezeichnung(bezeichnung);
+        jahr.setStartDatum(start);
+        jahr.setEndDatum(end);
+        jahr.setAbgeschlossen(abgeschlossen);
+        return jahr;
+    }
+
     private Buchung buchung(BigDecimal betrag) {
         Buchung buchung = new Buchung();
         buchung.setKontoId(konto.getId());

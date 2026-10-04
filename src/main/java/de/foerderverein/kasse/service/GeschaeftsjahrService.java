@@ -92,17 +92,36 @@ public class GeschaeftsjahrService {
         }
     }
 
-    /** Liefert das Geschaeftsjahr, in dessen Zeitraum das Datum faellt, sofern eines existiert.
-     * Reine Funktion ohne Datenbankzugriff, damit Aufrufer eine konsistente Momentaufnahme
+    /** Liefert das Geschaeftsjahr, dem die Buchung tatsaechlich zugeordnet ist - die einzige
+     * Stelle, an der diese Frage beantwortet wird. Traegt die Buchung eine ausdrueckliche
+     * Zuordnung (geschaeftsjahrId), gewinnt diese; sonst entscheidet wie bisher das
+     * Buchungsdatum. Die Uebersteuerung gibt es, weil Geschaeftsjahre tagesgenau abgegrenzt sind
+     * und sich keinen Stichtag teilen duerfen: liegen am Start-/Endtag mehrere Buchungen, von
+     * denen nur ein Teil ins Jahr gehoert, liesse sich das sonst nur durch Verfaelschen des
+     * Buchungsdatums ausdruecken.
+     *
+     * <p>Reine Funktion ohne Datenbankzugriff, damit Aufrufer eine konsistente Momentaufnahme
      * verwenden koennen (siehe berechneLaufendeSalden). */
+    public Optional<Geschaeftsjahr> findeFuer(Buchung buchung, List<Geschaeftsjahr> geschaeftsjahre) {
+        if (buchung.getGeschaeftsjahrId() != null) {
+            return geschaeftsjahre.stream()
+                    .filter(g -> buchung.getGeschaeftsjahrId().equals(g.getId()))
+                    .findFirst();
+        }
+        return findeFuer(buchung.getBuchungsdatum(), geschaeftsjahre);
+    }
+
+    /** Zuordnung allein ueber den Zeitraum - Grundlage der automatischen Zuordnung und damit
+     * auch des Vorschlags, von dem eine Uebersteuerung abweicht. */
     public Optional<Geschaeftsjahr> findeFuer(LocalDate datum, List<Geschaeftsjahr> geschaeftsjahre) {
         return geschaeftsjahre.stream().filter(g -> g.enthaelt(datum)).findFirst();
     }
 
     /** Berechnet je Buchung das laufende Saldo: ausgehend vom Startsaldo des Geschaeftsjahres,
-     * in dessen Zeitraum die Buchung faellt, kumuliert je (Konto, Geschaeftsjahr)-Gruppe in
-     * chronologischer Reihenfolge (Buchungsdatum, dann Id als stabiler Tiebreak). Stornierte
-     * Buchungen und Buchungen ausserhalb jedes Geschaeftsjahres tauchen nicht im Ergebnis auf. */
+     * dem die Buchung zugeordnet ist (siehe findeFuer - inklusive einer etwaigen
+     * Uebersteuerung), kumuliert je (Konto, Geschaeftsjahr)-Gruppe in chronologischer
+     * Reihenfolge (Buchungsdatum, dann Id als stabiler Tiebreak). Stornierte Buchungen und
+     * Buchungen ausserhalb jedes Geschaeftsjahres tauchen nicht im Ergebnis auf. */
     public Map<Long, Long> berechneLaufendeSalden(List<Buchung> buchungen, List<Geschaeftsjahr> geschaeftsjahre) {
         record GruppenSchluessel(Long kontoId, Long geschaeftsjahrId) {
         }
@@ -117,7 +136,7 @@ public class GeschaeftsjahrService {
             if (b.isStorniert()) {
                 continue;
             }
-            Optional<Geschaeftsjahr> jahr = findeFuer(b.getBuchungsdatum(), geschaeftsjahre);
+            Optional<Geschaeftsjahr> jahr = findeFuer(b, geschaeftsjahre);
             if (jahr.isEmpty()) {
                 continue;
             }

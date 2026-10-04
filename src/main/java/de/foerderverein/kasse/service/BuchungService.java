@@ -1,7 +1,6 @@
 package de.foerderverein.kasse.service;
 
 import java.text.NumberFormat;
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,7 +55,7 @@ public class BuchungService {
 
     public Buchung erfasseManuell(Buchung buchung, String erstelltVon) {
         validiere(buchung);
-        pruefeNichtGesperrt(buchung.getBuchungsdatum());
+        pruefeNichtGesperrt(buchung);
         buchung.setQuelle(BuchungsQuelle.MANUELL);
         buchung.setErstelltVon(erstelltVon);
         repository.insert(buchung);
@@ -66,16 +65,20 @@ public class BuchungService {
 
     public void aktualisiere(Buchung buchung) {
         validiere(buchung);
-        pruefeNichtGesperrt(buchung.getBuchungsdatum());
-        Map<String, String> altWerte = repository.findById(buchung.getId())
-                .map(this::feldwerte)
+        Buchung bisher = repository.findById(buchung.getId())
                 .orElseThrow(() -> new IllegalStateException("Buchung nicht gefunden"));
+        // Beide Seiten pruefen: sonst liesse sich eine in einem abgeschlossenen Jahr gesperrte
+        // Buchung durch Umhaengen in ein offenes Jahr nachtraeglich doch noch aendern - und
+        // umgekehrt eine offene Buchung in ein bereits abgeschlossenes Jahr einschleusen.
+        pruefeNichtGesperrt(bisher);
+        pruefeNichtGesperrt(buchung);
+        Map<String, String> altWerte = feldwerte(bisher);
         repository.update(buchung);
         protokolliereAenderung(buchung, altWerte, aktuellerBenutzer());
     }
 
     public void storniere(Buchung buchung) {
-        pruefeNichtGesperrt(buchung.getBuchungsdatum());
+        pruefeNichtGesperrt(buchung);
         repository.storno(buchung.getId());
         protokolliere(buchung, AuditAktion.STORNIERT, aktuellerBenutzer());
     }
@@ -102,11 +105,17 @@ public class BuchungService {
         return importiert;
     }
 
-        private void pruefeNichtGesperrt(LocalDate datum) {
-        geschaeftsjahrRepository.findAbgeschlossenesJahrFuer(datum).ifPresent(jahr -> {
-            throw new IllegalStateException("Das Geschaeftsjahr \"" + jahr.getBezeichnung()
-                    + "\" ist abgeschlossen. Buchungen mit Datum " + datum + " sind gesperrt.");
-        });
+    /** Sperrt Aenderungen in abgeschlossenen Geschaeftsjahren. Massgeblich ist das effektive
+     * Jahr der Buchung (siehe GeschaeftsjahrService.findeFuer), nicht allein ihr Datum - eine
+     * ausdrueckliche Zuordnung kann die Buchung in ein anderes Jahr verschieben als das, in
+     * dessen Zeitraum ihr Datum faellt. */
+    private void pruefeNichtGesperrt(Buchung buchung) {
+        geschaeftsjahrService.findeFuer(buchung, geschaeftsjahrService.findAll())
+                .filter(Geschaeftsjahr::isAbgeschlossen)
+                .ifPresent(jahr -> {
+                    throw new IllegalStateException("Das Geschaeftsjahr \"" + jahr.getBezeichnung()
+                            + "\" ist abgeschlossen und kann nicht mehr geaendert werden.");
+                });
     }
 
     private void validiere(Buchung buchung) {
@@ -133,7 +142,7 @@ public class BuchungService {
             return;
         }
         List<Geschaeftsjahr> geschaeftsjahre = geschaeftsjahrService.findAll();
-        Long geschaeftsjahrId = geschaeftsjahrIdFuer(buchung.getBuchungsdatum(), geschaeftsjahre);
+        Long geschaeftsjahrId = geschaeftsjahrIdFuer(buchung, geschaeftsjahre);
 
         for (Buchung andere : repository.findAll()) {
             if (Objects.equals(andere.getId(), buchung.getId())) {
@@ -142,7 +151,7 @@ public class BuchungService {
             if (!rechnungsnummer.equals(andere.getRechnungsnummer())) {
                 continue;
             }
-            Long andereGeschaeftsjahrId = geschaeftsjahrIdFuer(andere.getBuchungsdatum(), geschaeftsjahre);
+            Long andereGeschaeftsjahrId = geschaeftsjahrIdFuer(andere, geschaeftsjahre);
             if (Objects.equals(geschaeftsjahrId, andereGeschaeftsjahrId)) {
                 throw new IllegalStateException(
                         "Die Rechnungsnummer \"" + rechnungsnummer + "\" ist in diesem Geschaeftsjahr bereits vergeben.");
@@ -150,8 +159,8 @@ public class BuchungService {
         }
     }
 
-    private Long geschaeftsjahrIdFuer(LocalDate datum, List<Geschaeftsjahr> geschaeftsjahre) {
-        return geschaeftsjahrService.findeFuer(datum, geschaeftsjahre).map(Geschaeftsjahr::getId).orElse(null);
+    private Long geschaeftsjahrIdFuer(Buchung buchung, List<Geschaeftsjahr> geschaeftsjahre) {
+        return geschaeftsjahrService.findeFuer(buchung, geschaeftsjahre).map(Geschaeftsjahr::getId).orElse(null);
     }
 
     private void protokolliere(Buchung buchung, AuditAktion aktion, String benutzer) {
@@ -194,6 +203,7 @@ public class BuchungService {
     private LinkedHashMap<String, String> feldwerte(Buchung buchung) {
         LinkedHashMap<String, String> werte = new LinkedHashMap<>();
         werte.put("Datum", buchung.getBuchungsdatum() != null ? buchung.getBuchungsdatum().format(DATUM_FORMAT) : "");
+        werte.put("Geschäftsjahr", geschaeftsjahrName(buchung));
         werte.put("Kontoauszug", wert(buchung.getKontoauszug()));
         werte.put("Betrag", buchung.getBetragEuro() != null ? BETRAG_FORMAT.format(buchung.getBetragEuro()) : "");
         werte.put("Kategorie", kategorieName(buchung.getKategorieId()));
@@ -204,6 +214,15 @@ public class BuchungService {
         werte.put("Gegenkonto IBAN", wert(buchung.getGegenkontoIban()));
         werte.put("Storniert", buchung.isStorniert() ? "Ja" : "Nein");
         return werte;
+    }
+
+    /** Zeigt das effektive Jahr und kennzeichnet, ob es ausdruecklich gesetzt oder aus dem
+     * Datum abgeleitet wurde - sonst waere im Verlauf nicht erkennbar, dass umgehaengt wurde. */
+    private String geschaeftsjahrName(Buchung buchung) {
+        String bezeichnung = geschaeftsjahrService.findeFuer(buchung, geschaeftsjahrService.findAll())
+                .map(Geschaeftsjahr::getBezeichnung)
+                .orElse("");
+        return buchung.getGeschaeftsjahrId() != null ? bezeichnung + " (fest zugeordnet)" : bezeichnung;
     }
 
     private String kategorieName(Long id) {

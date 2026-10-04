@@ -76,7 +76,7 @@ public class BerichtService {
         List<Buchung> buchungen = buchungRepository.findAll().stream()
                 .filter(b -> b.getKontoId().equals(konto.getId()))
                 .filter(b -> !b.isStorniert())
-                .filter(b -> jahr.enthaelt(b.getBuchungsdatum()))
+                .filter(b -> gehoertZu(b, jahr))
                 .sorted(Comparator.comparing(Buchung::getBuchungsdatum))
                 .toList();
 
@@ -505,6 +505,16 @@ public class BerichtService {
                 workbook.write(out);
             }
         }
+    }
+
+    /** Beruecksichtigt eine ausdrueckliche Geschaeftsjahr-Zuordnung der Buchung, die vom
+     * Buchungsdatum abweichen kann (siehe GeschaeftsjahrService.findeFuer) - sonst wuerde der
+     * Kassenbericht am Stichtag andere Buchungen zeigen als die Saldo-Spalte der Uebersicht. */
+    private boolean gehoertZu(Buchung buchung, Geschaeftsjahr jahr) {
+        if (buchung.getGeschaeftsjahrId() != null) {
+            return buchung.getGeschaeftsjahrId().equals(jahr.getId());
+        }
+        return jahr.enthaelt(buchung.getBuchungsdatum());
     }
 
     private String wert(String text) {

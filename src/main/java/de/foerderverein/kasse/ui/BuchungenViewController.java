@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,6 +62,11 @@ public class BuchungenViewController {
     private final ObservableList<Buchung> buchungen = FXCollections.observableArrayList();
     private final ObservableList<Kategorie> kategorienFuerAuswahl = FXCollections.observableArrayList();
     private final ObservableList<Aktivitaet> aktivitaetenFuerAuswahl = FXCollections.observableArrayList();
+    private final ObservableList<Geschaeftsjahr> geschaeftsjahreFuerAuswahl = FXCollections.observableArrayList();
+
+    /** Sentinel fuer den Eintrag "(automatisch)" im Geschaeftsjahr-Dropdown: hebt eine feste
+     * Zuordnung wieder auf, sodass erneut das Buchungsdatum entscheidet. */
+    private static final Geschaeftsjahr AUTOMATISCH = automatischEintrag();
     private Map<Long, Kategorie> kategorienById = new HashMap<>();
     private Map<Long, Konto> kontenById = new HashMap<>();
     private Map<Long, Aktivitaet> aktivitaetenById = new HashMap<>();
@@ -71,7 +77,7 @@ public class BuchungenViewController {
 
     @FXML private TableView<Buchung> buchungenTable;
     @FXML private TableColumn<Buchung, LocalDate> datumColumn;
-    @FXML private TableColumn<Buchung, String> geschaeftsjahrColumn;
+    @FXML private TableColumn<Buchung, Geschaeftsjahr> geschaeftsjahrColumn;
     @FXML private TableColumn<Buchung, String> kontoauszugColumn;
     @FXML private TableColumn<Buchung, Long> betragColumn;
     @FXML private TableColumn<Buchung, Long> saldoColumn;
@@ -113,9 +119,24 @@ public class BuchungenViewController {
     private void initialize() {
         datumColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getBuchungsdatum()));
         datumColumn.setCellFactory(SpaltenFormat.datumZelle(DATUM_FORMAT));
-        geschaeftsjahrColumn.setCellValueFactory(cd -> {
-            Geschaeftsjahr g = geschaeftsjahrByBuchungId.get(cd.getValue().getId());
-            return new ReadOnlyStringWrapper(g != null ? g.getBezeichnung() : "");
+        geschaeftsjahrColumn.setCellValueFactory(cd ->
+                new ReadOnlyObjectWrapper<>(geschaeftsjahrByBuchungId.get(cd.getValue().getId())));
+        geschaeftsjahrColumn.setCellFactory(col -> geschaeftsjahrZelle());
+        geschaeftsjahrColumn.setOnEditCommit(event -> {
+            Buchung b = event.getRowValue();
+            Long alt = b.getGeschaeftsjahrId();
+            Geschaeftsjahr neu = event.getNewValue();
+            b.setGeschaeftsjahrId(neu == null || neu == AUTOMATISCH ? null : neu.getId());
+            try {
+                ctx.buchungService.aktualisiere(b);
+                // Nicht nur refresh(): durch das Umhaengen aendert sich die Saldo-Kette beider
+                // betroffener Geschaeftsjahre, nicht bloß die Anzeige dieser einen Zeile.
+                ladeGeschaeftsjahrDaten();
+            } catch (IllegalStateException e) {
+                b.setGeschaeftsjahrId(alt);
+                zeigeFehler("Geschäftsjahr konnte nicht geändert werden", e);
+                buchungenTable.refresh();
+            }
         });
         kontoauszugColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getKontoauszug()));
         kontoauszugColumn.setCellFactory(TextFieldTableCell.forTableColumn());
@@ -309,10 +330,14 @@ public class BuchungenViewController {
         geschaeftsjahre = ctx.geschaeftsjahrService.findAll();
         Map<Long, Geschaeftsjahr> zuordnung = new HashMap<>();
         for (Buchung b : buchungen) {
-            ctx.geschaeftsjahrService.findeFuer(b.getBuchungsdatum(), geschaeftsjahre)
+            ctx.geschaeftsjahrService.findeFuer(b, geschaeftsjahre)
                     .ifPresent(g -> zuordnung.put(b.getId(), g));
         }
         geschaeftsjahrByBuchungId = zuordnung;
+        List<Geschaeftsjahr> auswahl = new ArrayList<>();
+        auswahl.add(AUTOMATISCH);
+        auswahl.addAll(geschaeftsjahre);
+        geschaeftsjahreFuerAuswahl.setAll(auswahl);
         laufendeSalden = ctx.geschaeftsjahrService.berechneLaufendeSalden(buchungen, geschaeftsjahre);
         buchungenTable.refresh();
     }
@@ -345,6 +370,75 @@ public class BuchungenViewController {
     /** Eigene TableCell statt ComboBoxTableCell.forTableColumn(...), da diese eingebaute Zelle
      * keine Anpassung der Dropdown-Darstellung erlaubt (kein Zugriff auf die intern verwaltete
      * ComboBox) - hier aber gebraucht, um Bereich-Kopfzeilen anzuzeigen (siehe KategorieAuswahl). */
+    private static Geschaeftsjahr automatischEintrag() {
+        Geschaeftsjahr automatisch = new Geschaeftsjahr();
+        automatisch.setBezeichnung("(automatisch)");
+        return automatisch;
+    }
+
+    /** Dropdown-Zelle fuer das Geschaeftsjahr - nach demselben Muster wie kategorieZelle().
+     * Angezeigt wird stets das effektive Jahr; eine ausdrueckliche Zuordnung, die vom
+     * Buchungsdatum abweicht, wird kursiv hervorgehoben, damit erkennbar bleibt, wo von der
+     * automatischen Zuordnung abgewichen wurde. */
+    private TableCell<Buchung, Geschaeftsjahr> geschaeftsjahrZelle() {
+        return new TableCell<>() {
+            private final ComboBox<Geschaeftsjahr> comboBox = new ComboBox<>(geschaeftsjahreFuerAuswahl);
+            {
+                comboBox.setMaxWidth(Double.MAX_VALUE);
+                // setOnAction statt valueProperty-Listener - siehe Begruendung in kategorieZelle().
+                comboBox.setOnAction(event -> {
+                    if (isEditing()) {
+                        commitEdit(comboBox.getValue());
+                    }
+                });
+            }
+
+            @Override
+            public void startEdit() {
+                if (!isEditable() || !getTableView().isEditable() || !getTableColumn().isEditable()) {
+                    return;
+                }
+                super.startEdit();
+                comboBox.setValue(getItem());
+                setText(null);
+                setGraphic(comboBox);
+                comboBox.requestFocus();
+                Platform.runLater(comboBox::show);
+            }
+
+            @Override
+            public void cancelEdit() {
+                super.cancelEdit();
+                zeigeText(getItem());
+                setGraphic(null);
+            }
+
+            @Override
+            protected void updateItem(Geschaeftsjahr item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText(null);
+                    setGraphic(null);
+                    setStyle("");
+                } else if (isEditing()) {
+                    comboBox.setValue(item);
+                    setText(null);
+                    setGraphic(comboBox);
+                } else {
+                    zeigeText(item);
+                    setGraphic(null);
+                }
+            }
+
+            private void zeigeText(Geschaeftsjahr item) {
+                setText(item == null ? "" : item.getBezeichnung());
+                Buchung zeile = getTableRow() != null ? getTableRow().getItem() : null;
+                boolean festZugeordnet = zeile != null && zeile.getGeschaeftsjahrId() != null;
+                setStyle(festZugeordnet ? "-fx-font-style: italic;" : "");
+            }
+        };
+    }
+
     private TableCell<Buchung, Kategorie> kategorieZelle() {
         return new TableCell<>() {
             private final ComboBox<Kategorie> comboBox = new ComboBox<>(kategorienFuerAuswahl);

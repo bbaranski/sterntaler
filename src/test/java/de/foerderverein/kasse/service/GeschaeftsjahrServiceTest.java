@@ -171,6 +171,73 @@ class GeschaeftsjahrServiceTest {
         assertEquals(1300, salden.get(2L));
     }
 
+    @Test
+    void stichtageGehoerenOhneUebersteuerungZumJahr() {
+        GeschaeftsjahrService service = new GeschaeftsjahrService(new GeschaeftsjahrRepository(TestDatabase.create()));
+        Geschaeftsjahr jahr = jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 0);
+
+        assertTrue(service.findeFuer(LocalDate.of(2026, 1, 1), List.of(jahr)).isPresent());
+        assertTrue(service.findeFuer(LocalDate.of(2026, 12, 31), List.of(jahr)).isPresent());
+    }
+
+    @Test
+    void ausdrueckicheZuordnungGewinntGegenDasDatum() {
+        GeschaeftsjahrService service = new GeschaeftsjahrService(new GeschaeftsjahrRepository(TestDatabase.create()));
+        Geschaeftsjahr alt = jahr("2025", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), 0);
+        alt.setId(1L);
+        Geschaeftsjahr neu = jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 0);
+        neu.setId(2L);
+
+        Buchung amStichtag = buchung(1L, 1L, LocalDate.of(2025, 12, 31), 1000, false);
+        assertEquals("2025", service.findeFuer(amStichtag, List.of(alt, neu)).orElseThrow().getBezeichnung());
+
+        amStichtag.setGeschaeftsjahrId(2L);
+        assertEquals("2026", service.findeFuer(amStichtag, List.of(alt, neu)).orElseThrow().getBezeichnung());
+
+        amStichtag.setGeschaeftsjahrId(null);
+        assertEquals("2025", service.findeFuer(amStichtag, List.of(alt, neu)).orElseThrow().getBezeichnung());
+    }
+
+    @Test
+    void umgehaengteStichtagsbuchungVerschiebtBeideSaldoKetten() {
+        GeschaeftsjahrService service = new GeschaeftsjahrService(new GeschaeftsjahrRepository(TestDatabase.create()));
+        Geschaeftsjahr alt = jahr("2025", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), 10000);
+        alt.setId(1L);
+        Geschaeftsjahr neu = jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 50000);
+        neu.setId(2L);
+
+        Buchung bleibt = buchung(1L, 1L, LocalDate.of(2025, 12, 31), 1000, false);
+        Buchung wandert = buchung(2L, 1L, LocalDate.of(2025, 12, 31), 2000, false);
+        Buchung imNeuenJahr = buchung(3L, 1L, LocalDate.of(2026, 1, 2), 500, false);
+
+        Map<Long, Long> vorher = service.berechneLaufendeSalden(List.of(bleibt, wandert, imNeuenJahr), List.of(alt, neu));
+        assertEquals(11000, vorher.get(1L));
+        assertEquals(13000, vorher.get(2L));
+        assertEquals(50500, vorher.get(3L));
+
+        wandert.setGeschaeftsjahrId(2L);
+        Map<Long, Long> nachher = service.berechneLaufendeSalden(List.of(bleibt, wandert, imNeuenJahr), List.of(alt, neu));
+
+        // Vorjahr endet jetzt 2000 niedriger ...
+        assertEquals(11000, nachher.get(1L));
+        // ... und die umgehaengte Buchung startet die Kette des Folgejahres.
+        assertEquals(52000, nachher.get(2L));
+        assertEquals(52500, nachher.get(3L));
+    }
+
+    @Test
+    void zuordnungAufUnbekanntesJahrLiefertKeinJahr() {
+        GeschaeftsjahrService service = new GeschaeftsjahrService(new GeschaeftsjahrRepository(TestDatabase.create()));
+        Geschaeftsjahr jahr = jahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 0);
+        jahr.setId(1L);
+
+        Buchung buchung = buchung(1L, 1L, LocalDate.of(2026, 6, 1), 1000, false);
+        buchung.setGeschaeftsjahrId(99L);
+
+        assertTrue(service.findeFuer(buchung, List.of(jahr)).isEmpty());
+        assertTrue(service.berechneLaufendeSalden(List.of(buchung), List.of(jahr)).isEmpty());
+    }
+
     private Geschaeftsjahr jahr(String bezeichnung, LocalDate start, LocalDate end, long startsaldoCent) {
         Geschaeftsjahr g = new Geschaeftsjahr();
         g.setBezeichnung(bezeichnung);

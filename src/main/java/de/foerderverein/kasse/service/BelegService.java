@@ -94,7 +94,7 @@ public class BelegService {
     }
 
     private String geschaeftsjahrBezeichnung(Buchung buchung) {
-        return geschaeftsjahrService.findeFuer(buchung.getBuchungsdatum(), geschaeftsjahrService.findAll())
+        return geschaeftsjahrService.findeFuer(buchung, geschaeftsjahrService.findAll())
                 .map(Geschaeftsjahr::getBezeichnung)
                 .orElse("ohne-Geschaeftsjahr");
     }

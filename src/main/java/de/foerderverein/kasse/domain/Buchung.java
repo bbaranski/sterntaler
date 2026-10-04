@@ -11,6 +11,10 @@ public class Buchung {
     private Long kontoId;
     private Long kategorieId;
     private Long aktivitaetId;
+
+    /** Uebersteuert die sonst aus dem Buchungsdatum abgeleitete Zuordnung zu einem
+     * Geschaeftsjahr. null = automatisch aus dem Datum (Normalfall). */
+    private Long geschaeftsjahrId;
     private LocalDate buchungsdatum;
     private LocalDate wertstellung;
     private long betragCent;
@@ -58,6 +62,14 @@ public class Buchung {
 
     public void setAktivitaetId(Long aktivitaetId) {
         this.aktivitaetId = aktivitaetId;
+    }
+
+    public Long getGeschaeftsjahrId() {
+        return geschaeftsjahrId;
+    }
+
+    public void setGeschaeftsjahrId(Long geschaeftsjahrId) {
+        this.geschaeftsjahrId = geschaeftsjahrId;
     }
 
     public LocalDate getBuchungsdatum() {
