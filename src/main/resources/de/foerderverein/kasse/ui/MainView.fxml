@@ -19,6 +19,7 @@
                         <MenuItem text="Konto-Einstellungen…" onAction="#onKontoEinstellungen" />
                         <MenuItem text="Geschäftsjahre…" onAction="#onGeschaeftsjahre" />
                         <MenuItem text="Aktivitäten/Veranstaltungen…" onAction="#onAktivitaeten" />
+                        <MenuItem text="Serienbriefvorlagen…" onAction="#onSerienbriefvorlagen" />
                     </items>
                 </Menu>
                 <Menu text="Berichte">

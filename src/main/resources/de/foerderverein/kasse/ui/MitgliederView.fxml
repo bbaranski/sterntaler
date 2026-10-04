@@ -24,6 +24,8 @@
             <Button fx:id="loeschenButton" text="Löschen" onAction="#onLoeschen" disable="true" />
             <Button fx:id="verlaufButton" text="Verlauf…" onAction="#onVerlauf" disable="true" />
             <Separator orientation="VERTICAL" />
+            <Button fx:id="serienbriefButton" text="Serienbrief…" onAction="#onSerienbrief" disable="true" />
+            <Separator orientation="VERTICAL" />
             <ToggleButton fx:id="filterAlleButton" text="Alle" selected="true">
                 <toggleGroup>
                     <ToggleGroup fx:id="filterGruppe" />
@@ -50,6 +52,7 @@
                 <TableColumn fx:id="strasseColumn" text="Straße" prefWidth="160" />
                 <TableColumn fx:id="plzColumn" text="PLZ" prefWidth="70" />
                 <TableColumn fx:id="ortColumn" text="Ort" prefWidth="120" />
+                <TableColumn fx:id="telefonColumn" text="Telefon" prefWidth="130" />
                 <TableColumn fx:id="emailColumn" text="E-Mail" prefWidth="160" />
                 <TableColumn fx:id="eintrittsdatumColumn" text="Eintrittsdatum" prefWidth="100" />
                 <TableColumn fx:id="austrittsdatumColumn" text="Austrittsdatum" prefWidth="100" />

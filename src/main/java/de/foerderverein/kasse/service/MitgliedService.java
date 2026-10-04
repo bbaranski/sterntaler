@@ -125,6 +125,7 @@ public class MitgliedService {
         werte.put("Straße", wert(mitglied.getStrasse()));
         werte.put("PLZ", wert(mitglied.getPlz()));
         werte.put("Ort", wert(mitglied.getOrt()));
+        werte.put("Telefon", wert(mitglied.getTelefon()));
         werte.put("E-Mail", wert(mitglied.getEmail()));
         werte.put("Eintrittsdatum", wert(mitglied.getEintrittsdatum()));
         werte.put("Austrittsdatum", wert(mitglied.getAustrittsdatum()));

@@ -56,6 +56,7 @@ public class MitgliederViewController {
     @FXML private TableColumn<Mitglied, String> strasseColumn;
     @FXML private TableColumn<Mitglied, String> plzColumn;
     @FXML private TableColumn<Mitglied, String> ortColumn;
+    @FXML private TableColumn<Mitglied, String> telefonColumn;
     @FXML private TableColumn<Mitglied, String> emailColumn;
     @FXML private TableColumn<Mitglied, String> eintrittsdatumColumn;
     @FXML private TableColumn<Mitglied, String> austrittsdatumColumn;
@@ -69,6 +70,7 @@ public class MitgliederViewController {
     @FXML private Button bearbeitenButton;
     @FXML private Button loeschenButton;
     @FXML private Button verlaufButton;
+    @FXML private Button serienbriefButton;
     @FXML private ToggleGroup filterGruppe;
     @FXML private ToggleButton filterAlleButton;
     @FXML private ToggleButton filterAktivButton;
@@ -92,6 +94,7 @@ public class MitgliederViewController {
         strasseColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getStrasse()));
         plzColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getPlz()));
         ortColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getOrt()));
+        telefonColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getTelefon()));
         emailColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getEmail()));
         eintrittsdatumColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getEintrittsdatum()));
         austrittsdatumColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getAustrittsdatum()));
@@ -113,6 +116,7 @@ public class MitgliederViewController {
             bearbeitenButton.setDisable(anzahl != 1);
             loeschenButton.setDisable(anzahl == 0);
             verlaufButton.setDisable(anzahl != 1);
+            serienbriefButton.setDisable(anzahl == 0);
             aktualisiereStatuszeile();
         });
         mitglieder.addListener((ListChangeListener<Mitglied>) change -> aktualisiereStatuszeile());
@@ -173,6 +177,7 @@ public class MitgliederViewController {
         return List.of(
                 m.getVollerName() != null ? m.getVollerName() : "",
                 m.getEmail() != null ? m.getEmail() : "",
+                m.getTelefon() != null ? m.getTelefon() : "",
                 m.getOrt() != null ? m.getOrt() : "",
                 m.getStrasse() != null ? m.getStrasse() : "",
                 m.getNotiz() != null ? m.getNotiz() : "",
@@ -266,6 +271,28 @@ public class MitgliederViewController {
             stage.showAndWait();
         } catch (Exception e) {
             zeigeFehler("Verlauf konnte nicht geoeffnet werden", e);
+        }
+    }
+
+    @FXML
+    private void onSerienbrief() {
+        List<Mitglied> ausgewaehlt = List.copyOf(mitgliederTable.getSelectionModel().getSelectedItems());
+        if (ausgewaehlt.isEmpty()) {
+            return;
+        }
+        try {
+            FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/SerienbriefDialog.fxml");
+            Parent root = loader.load();
+            SerienbriefDialogController controller = loader.getController();
+            controller.setEmpfaenger(ausgewaehlt);
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle("Serienbrief erzeugen");
+            stage.setScene(Views.scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            zeigeFehler("Serienbrief konnte nicht geoeffnet werden", e);
         }
     }
 

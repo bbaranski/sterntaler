@@ -34,6 +34,7 @@ public class MitgliedDialogController {
     @FXML private TextField strasseField;
     @FXML private TextField plzField;
     @FXML private TextField ortField;
+    @FXML private TextField telefonField;
     @FXML private TextField emailField;
     @FXML private TextField eintrittsdatumField;
     @FXML private TextField austrittsdatumField;
@@ -95,6 +96,7 @@ public class MitgliedDialogController {
         strasseField.setText(bestehend.getStrasse());
         plzField.setText(bestehend.getPlz());
         ortField.setText(bestehend.getOrt());
+        telefonField.setText(bestehend.getTelefon());
         emailField.setText(bestehend.getEmail());
         eintrittsdatumField.setText(bestehend.getEintrittsdatum());
         austrittsdatumField.setText(bestehend.getAustrittsdatum());
@@ -151,6 +153,7 @@ public class MitgliedDialogController {
             ziel.setStrasse(leerZuNull(strasseField.getText()));
             ziel.setPlz(leerZuNull(plzField.getText()));
             ziel.setOrt(leerZuNull(ortField.getText()));
+            ziel.setTelefon(leerZuNull(telefonField.getText()));
             ziel.setEmail(leerZuNull(emailField.getText()));
             ziel.setEintrittsdatum(leerZuNull(eintrittsdatumField.getText()));
             ziel.setAustrittsdatum(leerZuNull(austrittsdatumField.getText()));

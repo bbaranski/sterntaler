@@ -447,7 +447,7 @@ public class BerichtService {
     }
 
     private static final String[] MITGLIEDER_SPALTEN = {
-            "Id", "Anrede", "Vorname", "Nachname", "Straße", "PLZ", "Ort", "E-Mail", "Eintrittsdatum",
+            "Id", "Anrede", "Vorname", "Nachname", "Straße", "PLZ", "Ort", "Telefon", "E-Mail", "Eintrittsdatum",
             "Austrittsdatum", "Status", "Jahresbeitrag", "IBAN", "BIC", "Mandatsreferenz", "Sammellastschrift", "Notiz"
     };
 
@@ -482,18 +482,19 @@ public class BerichtService {
                 zeile.createCell(4).setCellValue(wert(m.getStrasse()));
                 zeile.createCell(5).setCellValue(wert(m.getPlz()));
                 zeile.createCell(6).setCellValue(wert(m.getOrt()));
-                zeile.createCell(7).setCellValue(wert(m.getEmail()));
-                zeile.createCell(8).setCellValue(wert(m.getEintrittsdatum()));
-                zeile.createCell(9).setCellValue(wert(m.getAustrittsdatum()));
-                zeile.createCell(10).setCellValue(m.getStatus().name());
-                zeile.createCell(11).setCellValue(m.getJahresbeitragEuro() != null
+                zeile.createCell(7).setCellValue(wert(m.getTelefon()));
+                zeile.createCell(8).setCellValue(wert(m.getEmail()));
+                zeile.createCell(9).setCellValue(wert(m.getEintrittsdatum()));
+                zeile.createCell(10).setCellValue(wert(m.getAustrittsdatum()));
+                zeile.createCell(11).setCellValue(m.getStatus().name());
+                zeile.createCell(12).setCellValue(m.getJahresbeitragEuro() != null
                         ? m.getJahresbeitragEuro().toPlainString().replace('.', ',') : "");
-                zeile.createCell(12).setCellValue(wert(m.getIban()));
-                zeile.createCell(13).setCellValue(wert(m.getBic()));
-                zeile.createCell(14).setCellValue(m.getMandatsreferenz() != null
+                zeile.createCell(13).setCellValue(wert(m.getIban()));
+                zeile.createCell(14).setCellValue(wert(m.getBic()));
+                zeile.createCell(15).setCellValue(m.getMandatsreferenz() != null
                         ? String.valueOf(m.getMandatsreferenz()) : "");
-                zeile.createCell(15).setCellValue(wert(m.getSammellastschrift()));
-                zeile.createCell(16).setCellValue(wert(m.getNotiz()));
+                zeile.createCell(16).setCellValue(wert(m.getSammellastschrift()));
+                zeile.createCell(17).setCellValue(wert(m.getNotiz()));
             }
 
             for (int i = 0; i < MITGLIEDER_SPALTEN.length; i++) {
@@ -561,24 +562,25 @@ public class BerichtService {
         mitglied.setStrasse(leerZuNull(zellenwert(formatter, zeile, 4)));
         mitglied.setPlz(leerZuNull(zellenwert(formatter, zeile, 5)));
         mitglied.setOrt(leerZuNull(zellenwert(formatter, zeile, 6)));
-        mitglied.setEmail(leerZuNull(zellenwert(formatter, zeile, 7)));
-        mitglied.setEintrittsdatum(leerZuNull(zellenwert(formatter, zeile, 8)));
-        mitglied.setAustrittsdatum(leerZuNull(zellenwert(formatter, zeile, 9)));
-        String statusText = zellenwert(formatter, zeile, 10);
+        mitglied.setTelefon(leerZuNull(zellenwert(formatter, zeile, 7)));
+        mitglied.setEmail(leerZuNull(zellenwert(formatter, zeile, 8)));
+        mitglied.setEintrittsdatum(leerZuNull(zellenwert(formatter, zeile, 9)));
+        mitglied.setAustrittsdatum(leerZuNull(zellenwert(formatter, zeile, 10)));
+        String statusText = zellenwert(formatter, zeile, 11);
         mitglied.setStatus(statusText.isBlank() ? MitgliedStatus.AKTIV : MitgliedStatus.valueOf(statusText.trim().toUpperCase(Locale.ROOT)));
-        String jahresbeitragText = zellenwert(formatter, zeile, 11);
+        String jahresbeitragText = zellenwert(formatter, zeile, 12);
         mitglied.setJahresbeitragEuro(jahresbeitragText.isBlank()
                 ? null : new BigDecimal(jahresbeitragText.replace(',', '.')));
-        mitglied.setIban(leerZuNull(zellenwert(formatter, zeile, 12)));
-        mitglied.setBic(leerZuNull(zellenwert(formatter, zeile, 13)));
-        String mandatsreferenzText = zellenwert(formatter, zeile, 14);
+        mitglied.setIban(leerZuNull(zellenwert(formatter, zeile, 13)));
+        mitglied.setBic(leerZuNull(zellenwert(formatter, zeile, 14)));
+        String mandatsreferenzText = zellenwert(formatter, zeile, 15);
         try {
             mitglied.setMandatsreferenz(mandatsreferenzText.isBlank() ? null : Long.parseLong(mandatsreferenzText));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Mandatsreferenz muss eine Ganzzahl sein");
         }
-        mitglied.setSammellastschrift(leerZuNull(zellenwert(formatter, zeile, 15)));
-        mitglied.setNotiz(leerZuNull(zellenwert(formatter, zeile, 16)));
+        mitglied.setSammellastschrift(leerZuNull(zellenwert(formatter, zeile, 16)));
+        mitglied.setNotiz(leerZuNull(zellenwert(formatter, zeile, 17)));
         return mitglied;
     }
 

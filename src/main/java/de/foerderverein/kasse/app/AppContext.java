@@ -9,6 +9,7 @@ import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BelegDateiMigration;
 import de.foerderverein.kasse.persistence.BelegRepository;
+import de.foerderverein.kasse.persistence.BriefvorlageRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
 import de.foerderverein.kasse.persistence.GeschaeftsjahrRepository;
@@ -19,12 +20,14 @@ import de.foerderverein.kasse.persistence.VereinRepository;
 import de.foerderverein.kasse.service.AktivitaetService;
 import de.foerderverein.kasse.service.BelegService;
 import de.foerderverein.kasse.service.BerichtService;
+import de.foerderverein.kasse.service.BriefvorlageService;
 import de.foerderverein.kasse.service.BuchungService;
 import de.foerderverein.kasse.service.GeschaeftsjahrService;
 import de.foerderverein.kasse.service.KategorieService;
 import de.foerderverein.kasse.service.KontobewegungenExportService;
 import de.foerderverein.kasse.service.KontoService;
 import de.foerderverein.kasse.service.MitgliedService;
+import de.foerderverein.kasse.service.SerienbriefService;
 import de.foerderverein.kasse.service.SicherheitskopieService;
 import de.foerderverein.kasse.service.VereinService;
 
@@ -42,6 +45,8 @@ public final class AppContext {
     public final BerichtService berichtService;
     public final KontobewegungenExportService kontobewegungenExportService;
     public final SicherheitskopieService sicherheitskopieService;
+    public final BriefvorlageService briefvorlageService;
+    public final SerienbriefService serienbriefService;
     public final HbciImportService hbciImportService;
     public final CredentialStore credentialStore;
     public final VereinService vereinService;
@@ -50,7 +55,8 @@ public final class AppContext {
                         MitgliedService mitgliedService, AktivitaetService aktivitaetService, BelegService belegService,
                         GeschaeftsjahrService geschaeftsjahrService, BerichtService berichtService,
                         KontobewegungenExportService kontobewegungenExportService,
-                        SicherheitskopieService sicherheitskopieService, HbciImportService hbciImportService,
+                        SicherheitskopieService sicherheitskopieService, BriefvorlageService briefvorlageService,
+                        SerienbriefService serienbriefService, HbciImportService hbciImportService,
                         CredentialStore credentialStore, VereinService vereinService) {
         this.kontoService = kontoService;
         this.kategorieService = kategorieService;
@@ -62,6 +68,8 @@ public final class AppContext {
         this.berichtService = berichtService;
         this.kontobewegungenExportService = kontobewegungenExportService;
         this.sicherheitskopieService = sicherheitskopieService;
+        this.briefvorlageService = briefvorlageService;
+        this.serienbriefService = serienbriefService;
         this.hbciImportService = hbciImportService;
         this.credentialStore = credentialStore;
         this.vereinService = vereinService;
@@ -73,6 +81,7 @@ public final class AppContext {
 
         Path belegeVerzeichnis = AppConfig.belegeVerzeichnis(databaseFile);
         BelegDateiMigration.migriereFallsNoetig(database, belegeVerzeichnis);
+        Path vorlagenVerzeichnis = AppConfig.vorlagenVerzeichnis(databaseFile);
 
         KontoRepository kontoRepository = new KontoRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
@@ -80,6 +89,7 @@ public final class AppContext {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
         BelegRepository belegRepository = new BelegRepository(database);
+        BriefvorlageRepository briefvorlageRepository = new BriefvorlageRepository(database);
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         AuditLogRepository auditLogRepository = new AuditLogRepository(database);
         VereinRepository vereinRepository = new VereinRepository(database);
@@ -90,6 +100,7 @@ public final class AppContext {
                 vereinRepository);
         KontobewegungenExportService kontobewegungenExportService = new KontobewegungenExportService(
                 buchungRepository, kontoRepository, kategorieRepository, aktivitaetRepository);
+        BriefvorlageService briefvorlageService = new BriefvorlageService(briefvorlageRepository, vorlagenVerzeichnis);
 
         return new AppContext(
                 new KontoService(kontoRepository),
@@ -104,6 +115,8 @@ public final class AppContext {
                 kontobewegungenExportService,
                 new SicherheitskopieService(kontobewegungenExportService, berichtService, belegeVerzeichnis,
                         databaseFile),
+                briefvorlageService,
+                new SerienbriefService(vorlagenVerzeichnis, vereinRepository),
                 new HbciImportService(buchungRepository, credentialStore),
                 credentialStore,
                 new VereinService(vereinRepository));

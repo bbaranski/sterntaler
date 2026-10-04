@@ -141,6 +141,7 @@ class BerichtServiceTest {
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
         mitglied.setNachname("Musterfrau");
+        mitglied.setTelefon("02841 908103");
         mitglied.setEmail("erika@example.org");
         mitglied.setEintrittsdatum("01.01.2020");
         mitglied.setIban("DE02120300000000202051");
@@ -163,26 +164,28 @@ class BerichtServiceTest {
             assertEquals("Anrede", kopfzeile.getCell(1).getStringCellValue());
             assertEquals("Vorname", kopfzeile.getCell(2).getStringCellValue());
             assertEquals("Nachname", kopfzeile.getCell(3).getStringCellValue());
-            assertEquals("E-Mail", kopfzeile.getCell(7).getStringCellValue());
-            assertEquals("Jahresbeitrag", kopfzeile.getCell(11).getStringCellValue());
-            assertEquals("IBAN", kopfzeile.getCell(12).getStringCellValue());
-            assertEquals("BIC", kopfzeile.getCell(13).getStringCellValue());
-            assertEquals("Mandatsreferenz", kopfzeile.getCell(14).getStringCellValue());
-            assertEquals("Sammellastschrift", kopfzeile.getCell(15).getStringCellValue());
-            assertEquals("Notiz", kopfzeile.getCell(16).getStringCellValue());
+            assertEquals("Telefon", kopfzeile.getCell(7).getStringCellValue());
+            assertEquals("E-Mail", kopfzeile.getCell(8).getStringCellValue());
+            assertEquals("Jahresbeitrag", kopfzeile.getCell(12).getStringCellValue());
+            assertEquals("IBAN", kopfzeile.getCell(13).getStringCellValue());
+            assertEquals("BIC", kopfzeile.getCell(14).getStringCellValue());
+            assertEquals("Mandatsreferenz", kopfzeile.getCell(15).getStringCellValue());
+            assertEquals("Sammellastschrift", kopfzeile.getCell(16).getStringCellValue());
+            assertEquals("Notiz", kopfzeile.getCell(17).getStringCellValue());
 
             Row datenzeile = sheet.getRow(1);
             assertEquals(String.valueOf(mitglied.getId()), datenzeile.getCell(0).getStringCellValue());
             assertEquals("FRAU", datenzeile.getCell(1).getStringCellValue());
             assertEquals("Erika", datenzeile.getCell(2).getStringCellValue());
-            assertEquals("erika@example.org", datenzeile.getCell(7).getStringCellValue());
-            assertEquals("01.01.2020", datenzeile.getCell(8).getStringCellValue());
-            assertEquals("24,00", datenzeile.getCell(11).getStringCellValue());
-            assertEquals("DE02120300000000202051", datenzeile.getCell(12).getStringCellValue());
-            assertEquals("BYLADEM1001", datenzeile.getCell(13).getStringCellValue());
-            assertEquals("1001", datenzeile.getCell(14).getStringCellValue());
-            assertEquals("Sammler-2026-03", datenzeile.getCell(15).getStringCellValue());
-            assertEquals("Gruendungsmitglied", datenzeile.getCell(16).getStringCellValue());
+            assertEquals("02841 908103", datenzeile.getCell(7).getStringCellValue());
+            assertEquals("erika@example.org", datenzeile.getCell(8).getStringCellValue());
+            assertEquals("01.01.2020", datenzeile.getCell(9).getStringCellValue());
+            assertEquals("24,00", datenzeile.getCell(12).getStringCellValue());
+            assertEquals("DE02120300000000202051", datenzeile.getCell(13).getStringCellValue());
+            assertEquals("BYLADEM1001", datenzeile.getCell(14).getStringCellValue());
+            assertEquals("1001", datenzeile.getCell(15).getStringCellValue());
+            assertEquals("Sammler-2026-03", datenzeile.getCell(16).getStringCellValue());
+            assertEquals("Gruendungsmitglied", datenzeile.getCell(17).getStringCellValue());
         }
     }
 
@@ -277,6 +280,7 @@ class BerichtServiceTest {
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
         mitglied.setNachname("Musterfrau");
+        mitglied.setTelefon("02841 908103");
         mitglied.setEmail("erika@example.org");
         mitglied.setEintrittsdatum("01.01.2020");
         mitglied.setIban("DE02120300000000202051");
@@ -306,6 +310,7 @@ class BerichtServiceTest {
         Mitglied importiert = zielRepository.findAll().get(0);
         assertEquals("Erika", importiert.getVorname());
         assertEquals("Musterfrau", importiert.getNachname());
+        assertEquals("02841 908103", importiert.getTelefon());
         assertEquals("erika@example.org", importiert.getEmail());
         assertEquals("01.01.2020", importiert.getEintrittsdatum());
         assertEquals("DE02120300000000202051", importiert.getIban());

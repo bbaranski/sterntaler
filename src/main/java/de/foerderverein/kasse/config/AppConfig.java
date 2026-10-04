@@ -34,11 +34,21 @@ public final class AppConfig {
      * appDir() oben, der unabhaengig von der frei waehlbaren Datenbankdatei immer derselbe feste
      * Ordner ist (siehe DatenbankAuswahlDialog). */
     public static Path belegeVerzeichnis(Path databaseFile) {
+        return geschwisterVerzeichnis(databaseFile, "-belege");
+    }
+
+    /** Ablageort fuer Serienbrief-Word-Vorlagen zur gewaehlten Datenbankdatei - Geschwisterordner
+     * neben der .db-Datei, aus demselben Grund wie belegeVerzeichnis(...) oben. */
+    public static Path vorlagenVerzeichnis(Path databaseFile) {
+        return geschwisterVerzeichnis(databaseFile, "-vorlagen");
+    }
+
+    private static Path geschwisterVerzeichnis(Path databaseFile, String suffix) {
         Path absolut = databaseFile.toAbsolutePath();
         String dateiname = absolut.getFileName().toString();
         int punkt = dateiname.lastIndexOf('.');
         String basisname = punkt > 0 ? dateiname.substring(0, punkt) : dateiname;
-        Path verzeichnis = absolut.getParent().resolve(basisname + "-belege");
+        Path verzeichnis = absolut.getParent().resolve(basisname + suffix);
         ensureExists(verzeichnis);
         return verzeichnis;
     }

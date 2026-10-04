@@ -83,8 +83,8 @@ public class MitgliedRepository {
         String sql = """
                 INSERT INTO mitglied (vorname, nachname, strasse, plz, ort, email, eintrittsdatum,
                        austrittsdatum, status, notiz, iban, bic, jahresbeitrag_cent, anrede,
-                       mandatsreferenz, sammellastschrift)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       mandatsreferenz, sammellastschrift, telefon)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -104,13 +104,14 @@ public class MitgliedRepository {
         String sql = """
                 UPDATE mitglied SET vorname = ?, nachname = ?, strasse = ?, plz = ?, ort = ?, email = ?,
                        eintrittsdatum = ?, austrittsdatum = ?, status = ?, notiz = ?, iban = ?, bic = ?,
-                       jahresbeitrag_cent = ?, anrede = ?, mandatsreferenz = ?, sammellastschrift = ?
+                       jahresbeitrag_cent = ?, anrede = ?, mandatsreferenz = ?, sammellastschrift = ?,
+                       telefon = ?
                 WHERE id = ?
                 """;
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, mitglied);
-            ps.setLong(17, mitglied.getId());
+            ps.setLong(18, mitglied.getId());
             ps.executeUpdate();
             return mitglied;
         } catch (SQLException e) {
@@ -143,6 +144,7 @@ public class MitgliedRepository {
             ps.setNull(15, java.sql.Types.INTEGER);
         }
         ps.setString(16, mitglied.getSammellastschrift());
+        ps.setString(17, mitglied.getTelefon());
     }
 
     private Mitglied map(ResultSet rs) throws SQLException {
@@ -153,6 +155,7 @@ public class MitgliedRepository {
         mitglied.setStrasse(rs.getString("strasse"));
         mitglied.setPlz(rs.getString("plz"));
         mitglied.setOrt(rs.getString("ort"));
+        mitglied.setTelefon(rs.getString("telefon"));
         mitglied.setEmail(rs.getString("email"));
         mitglied.setEintrittsdatum(rs.getString("eintrittsdatum"));
         mitglied.setAustrittsdatum(rs.getString("austrittsdatum"));

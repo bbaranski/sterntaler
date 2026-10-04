@@ -137,6 +137,21 @@ public class MainController {
     }
 
     @FXML
+    private void onSerienbriefvorlagen() {
+        try {
+            FXMLLoader loader = Views.loader("/de/foerderverein/kasse/ui/BriefvorlageDialog.fxml");
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setTitle("Serienbriefvorlagen verwalten");
+            stage.setScene(Views.scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            zeigeFehler("Serienbriefvorlagen konnten nicht geoeffnet werden", e);
+        }
+    }
+
+    @FXML
     private void onKassenbericht() {
         List<Konto> konten = ctx.kontoService.findAll();
         if (konten.isEmpty()) {

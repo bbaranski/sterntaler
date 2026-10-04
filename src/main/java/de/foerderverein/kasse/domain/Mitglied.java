@@ -12,6 +12,7 @@ public class Mitglied {
     private String strasse;
     private String plz;
     private String ort;
+    private String telefon;
     private String email;
     private String eintrittsdatum;
     private String austrittsdatum;
@@ -77,6 +78,14 @@ public class Mitglied {
 
     public void setOrt(String ort) {
         this.ort = ort;
+    }
+
+    public String getTelefon() {
+        return telefon;
+    }
+
+    public void setTelefon(String telefon) {
+        this.telefon = telefon;
     }
 
     public String getEmail() {

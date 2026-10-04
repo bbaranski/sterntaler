@@ -35,38 +35,41 @@
             <Label text="Ort" GridPane.rowIndex="5" GridPane.columnIndex="0" />
             <TextField fx:id="ortField" GridPane.rowIndex="5" GridPane.columnIndex="1" />
 
-            <Label text="E-Mail" GridPane.rowIndex="6" GridPane.columnIndex="0" />
-            <TextField fx:id="emailField" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+            <Label text="Telefon" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+            <TextField fx:id="telefonField" GridPane.rowIndex="6" GridPane.columnIndex="1" />
 
-            <Label text="Eintrittsdatum" GridPane.rowIndex="7" GridPane.columnIndex="0" />
-            <TextField fx:id="eintrittsdatumField" GridPane.rowIndex="7" GridPane.columnIndex="1" />
+            <Label text="E-Mail" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+            <TextField fx:id="emailField" GridPane.rowIndex="7" GridPane.columnIndex="1" />
 
-            <Label text="Austrittsdatum" GridPane.rowIndex="8" GridPane.columnIndex="0" />
-            <TextField fx:id="austrittsdatumField" GridPane.rowIndex="8" GridPane.columnIndex="1" />
+            <Label text="Eintrittsdatum" GridPane.rowIndex="8" GridPane.columnIndex="0" />
+            <TextField fx:id="eintrittsdatumField" GridPane.rowIndex="8" GridPane.columnIndex="1" />
 
-            <Label text="Status" GridPane.rowIndex="9" GridPane.columnIndex="0" />
-            <ComboBox fx:id="statusCombo" GridPane.rowIndex="9" GridPane.columnIndex="1" maxWidth="Infinity" />
+            <Label text="Austrittsdatum" GridPane.rowIndex="9" GridPane.columnIndex="0" />
+            <TextField fx:id="austrittsdatumField" GridPane.rowIndex="9" GridPane.columnIndex="1" />
 
-            <Label text="Jahresbeitrag (Euro)" GridPane.rowIndex="10" GridPane.columnIndex="0" />
-            <TextField fx:id="jahresbeitragField" GridPane.rowIndex="10" GridPane.columnIndex="1" promptText="z. B. 24,00" />
+            <Label text="Status" GridPane.rowIndex="10" GridPane.columnIndex="0" />
+            <ComboBox fx:id="statusCombo" GridPane.rowIndex="10" GridPane.columnIndex="1" maxWidth="Infinity" />
 
-            <Label text="IBAN" GridPane.rowIndex="11" GridPane.columnIndex="0" />
-            <TextField fx:id="ibanField" GridPane.rowIndex="11" GridPane.columnIndex="1" />
+            <Label text="Jahresbeitrag (Euro)" GridPane.rowIndex="11" GridPane.columnIndex="0" />
+            <TextField fx:id="jahresbeitragField" GridPane.rowIndex="11" GridPane.columnIndex="1" promptText="z. B. 24,00" />
+
+            <Label text="IBAN" GridPane.rowIndex="12" GridPane.columnIndex="0" />
+            <TextField fx:id="ibanField" GridPane.rowIndex="12" GridPane.columnIndex="1" />
 
             <Label fx:id="ibanHinweisLabel" styleClass="warnung-label" wrapText="true"
-                   GridPane.rowIndex="12" GridPane.columnIndex="1" />
+                   GridPane.rowIndex="13" GridPane.columnIndex="1" />
 
-            <Label text="BIC" GridPane.rowIndex="13" GridPane.columnIndex="0" />
-            <TextField fx:id="bicField" GridPane.rowIndex="13" GridPane.columnIndex="1" />
+            <Label text="BIC" GridPane.rowIndex="14" GridPane.columnIndex="0" />
+            <TextField fx:id="bicField" GridPane.rowIndex="14" GridPane.columnIndex="1" />
 
-            <Label text="Mandatsreferenz" GridPane.rowIndex="14" GridPane.columnIndex="0" />
-            <TextField fx:id="mandatsreferenzField" GridPane.rowIndex="14" GridPane.columnIndex="1" promptText="z. B. 1001" />
+            <Label text="Mandatsreferenz" GridPane.rowIndex="15" GridPane.columnIndex="0" />
+            <TextField fx:id="mandatsreferenzField" GridPane.rowIndex="15" GridPane.columnIndex="1" promptText="z. B. 1001" />
 
-            <Label text="Sammellastschrift" GridPane.rowIndex="15" GridPane.columnIndex="0" />
-            <TextField fx:id="sammellastschriftField" GridPane.rowIndex="15" GridPane.columnIndex="1" />
+            <Label text="Sammellastschrift" GridPane.rowIndex="16" GridPane.columnIndex="0" />
+            <TextField fx:id="sammellastschriftField" GridPane.rowIndex="16" GridPane.columnIndex="1" />
 
-            <Label text="Notiz" GridPane.rowIndex="16" GridPane.columnIndex="0" />
-            <TextArea fx:id="notizField" GridPane.rowIndex="16" GridPane.columnIndex="1" prefRowCount="2" wrapText="true" />
+            <Label text="Notiz" GridPane.rowIndex="17" GridPane.columnIndex="0" />
+            <TextArea fx:id="notizField" GridPane.rowIndex="17" GridPane.columnIndex="1" prefRowCount="2" wrapText="true" />
 
             <columnConstraints>
                 <javafx.scene.layout.ColumnConstraints minWidth="140" />
