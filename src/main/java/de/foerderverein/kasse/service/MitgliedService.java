@@ -31,25 +31,12 @@ public class MitgliedService {
         return repository.findAll();
     }
 
-        public List<AuditEintrag> findVerlauf(long mitgliedId) {
+    public List<AuditEintrag> findVerlauf(long mitgliedId) {
         return auditLogRepository.findByEntity(ENTITY, mitgliedId);
     }
 
     public Mitglied save(Mitglied mitglied) {
-        if (mitglied.getVorname() == null || mitglied.getVorname().isBlank()) {
-            throw new IllegalArgumentException("Vorname darf nicht leer sein");
-        }
-        if (mitglied.getNachname() == null || mitglied.getNachname().isBlank()) {
-            throw new IllegalArgumentException("Nachname darf nicht leer sein");
-        }
-        if (mitglied.getIban() != null) {
-            String normalisiert = mitglied.getIban().replace(" ", "").toUpperCase();
-            mitglied.setIban(normalisiert.isBlank() ? null : normalisiert);
-        }
-        if (mitglied.getBic() != null) {
-            String normalisiert = mitglied.getBic().replace(" ", "").toUpperCase();
-            mitglied.setBic(normalisiert.isBlank() ? null : normalisiert);
-        }
+        pruefeUndNormalisiere(mitglied);
         boolean neu = mitglied.getId() == null;
         if (neu) {
             Mitglied gespeichert = repository.save(mitglied);
@@ -64,6 +51,40 @@ public class MitgliedService {
         return gespeichert;
     }
 
+    /** Pflichtfelder pruefen und Bankdaten in Normalform bringen. Bewusst getrennt von save(...),
+     * damit der Mitgliederimport dieselben Regeln schon im Pruefdurchgang anwenden kann, also vor
+     * dem ersten Schreibzugriff - sonst koennte eine Datei als fehlerfrei gelten und das Einfuegen
+     * trotzdem scheitern (siehe BerichtService.importiereMitgliederliste). */
+    void pruefeUndNormalisiere(Mitglied mitglied) {
+        if (mitglied.getVorname() == null || mitglied.getVorname().isBlank()) {
+            throw new IllegalArgumentException("Vorname darf nicht leer sein");
+        }
+        if (mitglied.getNachname() == null || mitglied.getNachname().isBlank()) {
+            throw new IllegalArgumentException("Nachname darf nicht leer sein");
+        }
+        if (mitglied.getIban() != null) {
+            String normalisiert = mitglied.getIban().replace(" ", "").toUpperCase();
+            mitglied.setIban(normalisiert.isBlank() ? null : normalisiert);
+        }
+        if (mitglied.getBic() != null) {
+            String normalisiert = mitglied.getBic().replace(" ", "").toUpperCase();
+            mitglied.setBic(normalisiert.isBlank() ? null : normalisiert);
+        }
+    }
+
+    /** Legt alle uebergebenen Mitglieder an - entweder alle oder keines (siehe
+     * MitgliedRepository.insertAlle). Gedacht fuer den Mitgliederimport, der die Datensaetze
+     * vorher komplett geprueft hat. Die Verlaufseintraege entstehen erst nach erfolgreichem
+     * Commit: scheitert das Einfuegen, soll keine Historie zu Mitgliedern zurueckbleiben, die es
+     * nicht gibt. */
+    public void importiere(List<Mitglied> mitglieder) {
+        repository.insertAlle(mitglieder);
+        String benutzer = aktuellerBenutzer();
+        for (Mitglied mitglied : mitglieder) {
+            protokolliere(mitglied, AuditAktion.ANGELEGT, benutzer);
+        }
+    }
+
     /** Alternative zum endgueltigen Loeschen, falls die Mitgliedschaft (und ihre Historie im
      * Verlauf-Dialog) erhalten bleiben soll - setzt lediglich den Status auf "Inaktiv". */
     public void austreten(Mitglied mitglied) {
@@ -74,15 +95,20 @@ public class MitgliedService {
     }
 
     /** Loescht ein Mitglied endgueltig - anders als Kategorie/Aktivitaet also kein reines
-     * Deaktivieren, sondern ein echtes Entfernen aus der Datenbank. */
+     * Deaktivieren, sondern ein echtes Entfernen aus der Datenbank. Die Historie des Mitglieds
+     * wird mitgeloescht, und es wird deshalb auch kein GELOESCHT-Eintrag mehr geschrieben: der
+     * waere der einzige Rest und enthielte mit Name und E-Mail genau die Daten, die hier
+     * verschwinden sollen - erreichbar waere er ohnehin nicht, da der Verlauf-Dialog ein
+     * ausgewaehltes Mitglied braucht. Soll die Mitgliedschaft samt Historie erhalten bleiben,
+     * ist austreten(...) der richtige Weg. */
     public void loeschen(Mitglied mitglied) {
         repository.loesche(mitglied.getId());
-        protokolliere(mitglied, AuditAktion.GELOESCHT, aktuellerBenutzer());
+        auditLogRepository.loescheFuerEntity(ENTITY, mitglied.getId());
     }
 
-    /** Fuer ANGELEGT/GELOESCHT - ein knapper, menschenlesbarer Schnappschuss statt einzelner
-     * Feld-Differenzen (bei Neuanlage/Loeschung ist ohnehin "alles neu"/"alles weg", eine
-     * Feld-fuer-Feld-Aufschluesselung bringt dort wenig). */
+    /** Fuer ANGELEGT - ein knapper, menschenlesbarer Schnappschuss statt einzelner
+     * Feld-Differenzen (bei der Neuanlage ist ohnehin "alles neu", eine Feld-fuer-Feld-
+     * Aufschluesselung bringt dort wenig). */
     private void protokolliere(Mitglied mitglied, AuditAktion aktion, String benutzer) {
         AuditEintrag eintrag = new AuditEintrag();
         eintrag.setEntity(ENTITY);

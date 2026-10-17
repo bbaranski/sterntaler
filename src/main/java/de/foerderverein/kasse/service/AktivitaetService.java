@@ -17,7 +17,7 @@ public class AktivitaetService {
         return repository.findAll();
     }
 
-        public Aktivitaet save(Aktivitaet aktivitaet) {
+    public Aktivitaet save(Aktivitaet aktivitaet) {
         if (aktivitaet.getName() == null || aktivitaet.getName().isBlank()) {
             throw new IllegalArgumentException("Name darf nicht leer sein");
         }

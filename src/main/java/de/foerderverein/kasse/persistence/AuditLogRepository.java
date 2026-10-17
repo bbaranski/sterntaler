@@ -65,6 +65,22 @@ public class AuditLogRepository {
         }
     }
 
+    /** Entfernt die komplette Historie eines Datensatzes - gedacht fuer das endgueltige Loeschen
+     * einer Entitaet, deren Verlauf sonst als ueber die Oberflaeche nicht mehr erreichbarer Rest
+     * zurueckbliebe. Die Einschraenkung auf entity ist wesentlich: entity_id ist nur je
+     * Entitaetstyp eindeutig, ohne sie wuerden auch Buchungen gleicher id getroffen. */
+    public void loescheFuerEntity(String entity, long entityId) {
+        String sql = "DELETE FROM audit_log WHERE entity = ? AND entity_id = ?";
+        try (Connection c = database.connection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, entity);
+            ps.setLong(2, entityId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new PersistenceException("Audit-Eintraege konnten nicht geloescht werden", e);
+        }
+    }
+
     private AuditEintrag map(ResultSet rs) throws SQLException {
         AuditEintrag eintrag = new AuditEintrag();
         eintrag.setId(rs.getLong("id"));

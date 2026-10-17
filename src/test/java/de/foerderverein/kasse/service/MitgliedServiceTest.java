@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import de.foerderverein.kasse.domain.AuditAktion;
+import de.foerderverein.kasse.domain.AuditEintrag;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
@@ -56,7 +57,7 @@ class MitgliedServiceTest {
     }
 
     @Test
-    void speichernUndLoeschenProtokollierenVerlauf() {
+    void speichernProtokolliertVerlauf() {
         Database database = TestDatabase.create();
         MitgliedService service = new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database));
         Mitglied mitglied = new Mitglied();
@@ -67,17 +68,74 @@ class MitgliedServiceTest {
         mitglied.setOrt("Musterstadt");
         service.save(mitglied);
 
+        var verlauf = service.findVerlauf(mitglied.getId());
+        assertEquals(2, verlauf.size());
+        // findVerlauf sortiert absteigend nach Zeitpunkt.
+        assertEquals(AuditAktion.GEAENDERT, verlauf.get(0).getAktion());
+        assertEquals(AuditAktion.ANGELEGT, verlauf.get(1).getAktion());
+        assertEquals("Ort", verlauf.get(0).getFeld());
+        assertEquals("", verlauf.get(0).getWertAlt());
+        assertEquals("Musterstadt", verlauf.get(0).getWertNeu());
+    }
+
+    /** Mit dem Mitglied verschwindet auch seine Historie - sonst bliebe ein ueber die
+     * Oberflaeche nicht mehr erreichbarer Rest mit personenbezogenen Daten zurueck. */
+    @Test
+    void loeschenEntferntAuchDenVerlauf() {
+        Database database = TestDatabase.create();
+        MitgliedService service = new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database));
+        Mitglied mitglied = new Mitglied();
+        mitglied.setVorname("Erika");
+        mitglied.setNachname("Musterfrau");
+        service.save(mitglied);
+        mitglied.setOrt("Musterstadt");
+        service.save(mitglied);
         long mitgliedId = mitglied.getId();
+
         service.loeschen(mitglied);
 
-        var verlauf = service.findVerlauf(mitgliedId);
-        assertEquals(3, verlauf.size());
-        // findVerlauf sortiert absteigend nach Zeitpunkt - zuletzt geschieht das Loeschen.
-        assertEquals(AuditAktion.GELOESCHT, verlauf.get(0).getAktion());
-        assertEquals(AuditAktion.GEAENDERT, verlauf.get(1).getAktion());
-        assertEquals(AuditAktion.ANGELEGT, verlauf.get(2).getAktion());
-        assertEquals("Ort", verlauf.get(1).getFeld());
-        assertEquals("", verlauf.get(1).getWertAlt());
-        assertEquals("Musterstadt", verlauf.get(1).getWertNeu());
+        assertTrue(service.findVerlauf(mitgliedId).isEmpty());
+    }
+
+    @Test
+    void loeschenLaesstDenVerlaufAndererMitgliederUnberuehrt() {
+        Database database = TestDatabase.create();
+        MitgliedService service = new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database));
+        Mitglied bleibt = new Mitglied();
+        bleibt.setVorname("Max");
+        bleibt.setNachname("Mustermann");
+        service.save(bleibt);
+        Mitglied geht = new Mitglied();
+        geht.setVorname("Erika");
+        geht.setNachname("Musterfrau");
+        service.save(geht);
+
+        service.loeschen(geht);
+
+        assertEquals(1, service.findVerlauf(bleibt.getId()).size());
+    }
+
+    /** entity_id ist nur je Entitaetstyp eindeutig: eine Buchung kann dieselbe id tragen wie das
+     * geloeschte Mitglied und darf ihre Historie behalten. */
+    @Test
+    void loeschenTrifftNurEintraegeDesMitglieds() {
+        Database database = TestDatabase.create();
+        AuditLogRepository auditLogRepository = new AuditLogRepository(database);
+        MitgliedService service = new MitgliedService(new MitgliedRepository(database), auditLogRepository);
+        Mitglied mitglied = new Mitglied();
+        mitglied.setVorname("Erika");
+        mitglied.setNachname("Musterfrau");
+        service.save(mitglied);
+
+        AuditEintrag fremd = new AuditEintrag();
+        fremd.setEntity("Buchung");
+        fremd.setEntityId(mitglied.getId());
+        fremd.setAktion(AuditAktion.ANGELEGT);
+        fremd.setDetails("Buchung mit derselben id");
+        auditLogRepository.insert(fremd);
+
+        service.loeschen(mitglied);
+
+        assertEquals(1, auditLogRepository.findByEntity("Buchung", mitglied.getId()).size());
     }
 }

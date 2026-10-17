@@ -18,7 +18,7 @@ public final class Views {
         context = appContext;
     }
 
-        public static FXMLLoader loader(String fxmlResource) {
+    public static FXMLLoader loader(String fxmlResource) {
         FXMLLoader loader = new FXMLLoader(Views.class.getResource(fxmlResource));
         loader.setControllerFactory(Views::createController);
         return loader;

@@ -15,6 +15,13 @@ import de.foerderverein.kasse.domain.MitgliedStatus;
 
 public class MitgliedRepository {
 
+    private static final String INSERT_SQL = """
+            INSERT INTO mitglied (vorname, nachname, strasse, plz, ort, email, eintrittsdatum,
+                   austrittsdatum, status, notiz, iban, bic, jahresbeitrag_cent, anrede,
+                   mandatsreferenz, sammellastschrift, telefon)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+
     private final Database database;
 
     public MitgliedRepository(Database database) {
@@ -36,7 +43,7 @@ public class MitgliedRepository {
         }
     }
 
-        public Optional<Mitglied> findById(long id) {
+    public Optional<Mitglied> findById(long id) {
         String sql = "SELECT * FROM mitglied WHERE id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {
@@ -64,24 +71,80 @@ public class MitgliedRepository {
         }
     }
 
-    private Mitglied insert(Mitglied mitglied) {
-        String sql = """
-                INSERT INTO mitglied (vorname, nachname, strasse, plz, ort, email, eintrittsdatum,
-                       austrittsdatum, status, notiz, iban, bic, jahresbeitrag_cent, anrede,
-                       mandatsreferenz, sammellastschrift, telefon)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """;
-        try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            bind(ps, mitglied);
-            ps.executeUpdate();
-            try (ResultSet keys = ps.getGeneratedKeys()) {
-                keys.next();
-                mitglied.setId(keys.getLong(1));
+    /** Legt alle uebergebenen Mitglieder in einer einzigen Transaktion an: entweder alle oder
+     * keines. Gedacht fuer den Mitgliederimport, der zusagt, eine Datei nur ganz oder gar nicht
+     * zu schreiben - ohne Transaktion blieben bei einem Fehler mitten im Durchlauf (etwa
+     * Datentraeger voll) die bereits eingefuegten Zeilen stehen. Die generierten ids werden an
+     * den uebergebenen Objekten gesetzt. */
+    public void insertAlle(List<Mitglied> mitglieder) {
+        if (mitglieder.isEmpty()) {
+            return;
+        }
+        try (Connection c = database.connection()) {
+            c.setAutoCommit(false);
+            try {
+                setzeIdZaehlerZurueckWennLeer(c);
+                // Ein Statement fuer alle Zeilen: bind(...) setzt jeden der 17 Parameter
+                // unbedingt (null-Werte ueber setNull), es kann also kein Wert der Vorzeile
+                // stehenbleiben.
+                try (PreparedStatement ps = c.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
+                    for (Mitglied mitglied : mitglieder) {
+                        bind(ps, mitglied);
+                        ps.executeUpdate();
+                        try (ResultSet keys = ps.getGeneratedKeys()) {
+                            keys.next();
+                            mitglied.setId(keys.getLong(1));
+                        }
+                    }
+                }
+                c.commit();
+            } catch (SQLException e) {
+                c.rollback();
+                // Die ids der bereits verarbeiteten Objekte zeigen nach dem Rollback auf nicht
+                // vorhandene Zeilen - zuruecksetzen, damit niemand damit weiterarbeitet.
+                mitglieder.forEach(m -> m.setId(null));
+                throw e;
             }
-            return mitglied;
+        } catch (SQLException e) {
+            throw new PersistenceException("Mitglieder konnten nicht angelegt werden", e);
+        }
+    }
+
+    private Mitglied insert(Mitglied mitglied) {
+        try (Connection c = database.connection()) {
+            setzeIdZaehlerZurueckWennLeer(c);
+            try (PreparedStatement ps = c.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
+                bind(ps, mitglied);
+                ps.executeUpdate();
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    keys.next();
+                    mitglied.setId(keys.getLong(1));
+                }
+                return mitglied;
+            }
         } catch (SQLException e) {
             throw new PersistenceException("Mitglied konnte nicht angelegt werden", e);
+        }
+    }
+
+    /** AUTOINCREMENT (siehe V1__init.sql) merkt sich die hoechste je vergebene id in der internen
+     * Tabelle sqlite_sequence und vergibt sie nie erneut - nach dem Loeschen aller Mitglieder
+     * wuerde der naechste Import deshalb nicht bei 1 beginnen, sondern weiterzaehlen. Ist die
+     * Tabelle leer, gibt es keine id mehr zu schuetzen, also wird der Zaehler verworfen.
+     * Die Pruefung auf Leere ist wesentlich: bei noch vorhandenen Mitgliedern wuerde SQLite auf
+     * max(id)+1 zurueckfallen und bereits vergebene ids erneut ausgeben. Laeuft bewusst auf der
+     * Connection des folgenden INSERT. */
+    private void setzeIdZaehlerZurueckWennLeer(Connection c) throws SQLException {
+        try (Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery("SELECT count(*) FROM mitglied")) {
+            if (rs.next() && rs.getLong(1) > 0) {
+                return;
+            }
+        }
+        try (Statement st = c.createStatement()) {
+            // Kein Treffer, wenn noch nie ein Mitglied angelegt wurde - dann steht der Zaehler
+            // ohnehin auf dem Anfang.
+            st.executeUpdate("DELETE FROM sqlite_sequence WHERE name = 'mitglied'");
         }
     }
 

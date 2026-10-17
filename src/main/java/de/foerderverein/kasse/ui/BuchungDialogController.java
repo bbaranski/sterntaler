@@ -49,8 +49,9 @@ public class BuchungDialogController {
     public void setDaten(Buchung bestehend, List<Konto> konten, List<Kategorie> kategorien,
                           List<Aktivitaet> aktivitaeten) {
         kontoCombo.setItems(FXCollections.observableArrayList(konten));
-        kategorieCombo.setItems(FXCollections.observableArrayList(KategorieAuswahl.mitBereichKoepfen(kategorien)));
-        aktivitaetCombo.setItems(FXCollections.observableArrayList(aktivitaeten));
+        kategorieCombo.setItems(FXCollections.observableArrayList(KategorieAuswahl.alsAuswahlListe(kategorien)));
+        aktivitaetCombo.setItems(FXCollections.observableArrayList(
+                AktivitaetAuswahl.alsAuswahlListe(aktivitaeten)));
 
         this.buchung = bestehend;
         if (bestehend != null) {

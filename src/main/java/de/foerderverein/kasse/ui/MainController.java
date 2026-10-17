@@ -4,6 +4,7 @@ import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +14,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -153,6 +155,68 @@ public class MainController {
 
     @FXML
     private void onKassenbericht() {
+        waehleKontoUndJahr("Kassenbericht", (konto, jahr) -> {
+            String dateiname = jahr.getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
+            File datei = waehleZieldatei("Kassenbericht speichern", "Kassenbericht-" + dateiname + ".pdf");
+            if (datei == null) {
+                return;
+            }
+            try {
+                ctx.berichtService.erstelleKassenbericht(datei.toPath(), konto, jahr);
+                oeffneDatei(datei);
+            } catch (IOException e) {
+                zeigeFehler("Kassenbericht konnte nicht erstellt werden", e);
+            }
+        });
+    }
+
+    /** Anhang zum Kassenbericht mit der Aufschluesselung je Aktivitaet - braucht dieselbe Auswahl
+     * von Konto und Geschaeftsjahr wie der Kassenbericht selbst. */
+    @FXML
+    private void onKassenberichtAnhang() {
+        waehleKontoUndJahr("Kassenbericht Anhang", (konto, jahr) -> {
+            String dateiname = jahr.getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
+            File datei = waehleZieldatei("Kassenbericht Anhang speichern",
+                    "Kassenbericht-Anhang-" + dateiname + ".pdf");
+            if (datei == null) {
+                return;
+            }
+            try {
+                ctx.berichtService.erstelleKassenberichtAnhang(datei.toPath(), konto, jahr);
+                oeffneDatei(datei);
+            } catch (IOException e) {
+                zeigeFehler("Kassenbericht Anhang konnte nicht erstellt werden", e);
+            }
+        });
+    }
+
+    /** Alle Buchungen eines Geschaeftsjahres einzeln - erscheint in der Oberflaeche als
+     * "Umsätze", im Code weiter als Buchungsjournal (siehe
+     * BerichtService.erstelleBuchungsjournal). Querformat. */
+    @FXML
+    private void onBuchungsjournal() {
+        waehleKontoUndJahr("Umsätze", (konto, jahr) -> {
+            String dateiname = jahr.getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
+            File datei = waehleZieldatei("Umsätze speichern", "Umsätze-" + dateiname + ".pdf");
+            if (datei == null) {
+                return;
+            }
+            try {
+                ctx.berichtService.erstelleBuchungsjournal(datei.toPath(), konto, jahr);
+                oeffneDatei(datei);
+            } catch (IOException e) {
+                zeigeFehler("Umsätze konnten nicht erstellt werden", e);
+            }
+        });
+    }
+
+    private interface BerichtAuftrag {
+        void ausfuehren(Konto konto, Geschaeftsjahr jahr);
+    }
+
+    /** Fragt Konto und Geschaeftsjahr ab und ruft danach den Bericht auf. Bei nur einem Konto
+     * entfaellt die Kontoauswahl; bricht der Nutzer einen Dialog ab, passiert nichts. */
+    private void waehleKontoUndJahr(String berichtsname, BerichtAuftrag auftrag) {
         List<Konto> konten = ctx.kontoService.findAll();
         if (konten.isEmpty()) {
             Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
@@ -173,7 +237,8 @@ public class MainController {
         Konto konto = konten.get(0);
         if (konten.size() > 1) {
             ChoiceDialog<Konto> kontoAuswahl = new ChoiceDialog<>(konto, konten);
-            kontoAuswahl.setHeaderText("Fuer welches Konto soll der Kassenbericht erstellt werden?");
+            kontoAuswahl.setTitle(berichtsname);
+            kontoAuswahl.setHeaderText("Für welches Konto soll der Bericht erstellt werden?");
             Optional<Konto> gewaehlt = kontoAuswahl.showAndWait();
             if (gewaehlt.isEmpty()) {
                 return;
@@ -182,29 +247,22 @@ public class MainController {
         }
 
         ChoiceDialog<Geschaeftsjahr> jahrAuswahl = new ChoiceDialog<>(jahre.get(0), jahre);
-        jahrAuswahl.setHeaderText("Fuer welches Geschäftsjahr soll der Kassenbericht erstellt werden?");
+        jahrAuswahl.setTitle(berichtsname);
+        jahrAuswahl.setHeaderText("Für welches Geschäftsjahr soll der Bericht erstellt werden?");
         Optional<Geschaeftsjahr> gewaehltesJahr = jahrAuswahl.showAndWait();
         if (gewaehltesJahr.isEmpty()) {
             return;
         }
 
-        String dateiname = gewaehltesJahr.get().getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Kassenbericht speichern");
-        fileChooser.setInitialFileName("Kassenbericht-" + dateiname + ".pdf");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
-        File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
-        if (datei == null) {
-            return;
-        }
+        auftrag.ausfuehren(konto, gewaehltesJahr.get());
+    }
 
-        try {
-            Path ziel = datei.toPath();
-            ctx.berichtService.erstelleKassenbericht(ziel, konto, gewaehltesJahr.get());
-            oeffneDatei(datei);
-        } catch (IOException e) {
-            zeigeFehler("Kassenbericht konnte nicht erstellt werden", e);
-        }
+    private File waehleZieldatei(String titel, String vorschlag) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(titel);
+        fileChooser.setInitialFileName(vorschlag);
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
+        return fileChooser.showSaveDialog(tabPane.getScene().getWindow());
     }
 
     @FXML
@@ -325,6 +383,28 @@ public class MainController {
         }
     }
 
+    /** Kennzahlen zu den Mitgliedern als PDF. Anders als Kassenbericht und Steuerreport ohne
+     * Auswahl von Konto und Geschaeftsjahr - der Bericht ist eine Momentaufnahme des gesamten
+     * Mitgliederbestands. */
+    @FXML
+    private void onMitgliederbericht() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Mitgliederbericht speichern");
+        fileChooser.setInitialFileName("Mitgliederbericht-" + LocalDate.now() + ".pdf");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
+        File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
+        if (datei == null) {
+            return;
+        }
+
+        try {
+            ctx.berichtService.erstelleMitgliederbericht(datei.toPath());
+            oeffneDatei(datei);
+        } catch (IOException e) {
+            zeigeFehler("Mitgliederbericht konnte nicht erstellt werden", e);
+        }
+    }
+
     @FXML
     private void onMitgliederlisteImport() {
         FileChooser fileChooser = new FileChooser();
@@ -337,21 +417,45 @@ public class MainController {
 
         try {
             MitgliederImportErgebnis ergebnis = ctx.berichtService.importiereMitgliederliste(datei.toPath());
+            if (!ergebnis.fehler().isEmpty()) {
+                // Es wurde nichts geschrieben, die Tabellen muessen also nicht neu geladen werden.
+                zeigeImportFehler(ergebnis.fehler());
+                return;
+            }
             mitgliederViewController.lade();
             buchungenViewController.ladeStammdaten();
 
-            StringBuilder text = new StringBuilder(ergebnis.importiert() + " Mitglieder importiert.");
-            if (!ergebnis.fehler().isEmpty()) {
-                text.append("\n\n").append(ergebnis.fehler().size()).append(" Zeile(n) übersprungen:\n")
-                        .append(String.join("\n", ergebnis.fehler()));
-            }
-            Alert hinweis = new Alert(
-                    ergebnis.fehler().isEmpty() ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING, text.toString());
+            Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
+                    ergebnis.importiert() + " Mitglieder importiert.");
             hinweis.setHeaderText("Mitgliederliste importiert");
             hinweis.showAndWait();
         } catch (IOException e) {
             zeigeFehler("Mitgliederliste konnte nicht importiert werden", e);
         }
+    }
+
+    /** Die Fehlerliste kann so lang sein wie die Importdatei - daher nicht in den Meldungsrumpf,
+     * der den Dialog beliebig hoch werden liesse, sondern in ein scroll- und markierbares
+     * Textfeld im aufklappbaren Bereich. */
+    private void zeigeImportFehler(List<String> fehler) {
+        Alert alert = new Alert(Alert.AlertType.WARNING,
+                fehler.size() + " Zeile(n) enthalten Fehler. Es wurde nichts importiert.\n"
+                        + "Bitte die Datei korrigieren und erneut importieren.");
+        alert.setHeaderText("Import nicht möglich");
+
+        TextArea details = new TextArea(String.join("\n", fehler));
+        details.setEditable(false);
+        details.setWrapText(true);
+        details.setPrefRowCount(12);
+        details.setPrefColumnCount(60);
+        details.setMaxWidth(Double.MAX_VALUE);
+        details.setMaxHeight(Double.MAX_VALUE);
+        alert.getDialogPane().setExpandableContent(details);
+        alert.getDialogPane().setExpanded(true);
+        // Lange Meldungen sollen sich durch Aufziehen des Fensters lesbar machen lassen; das
+        // Textfeld waechst dank maxWidth/maxHeight mit.
+        alert.setResizable(true);
+        alert.showAndWait();
     }
 
     /** Oeffnet die erzeugte Datei bequemlichkeitshalber im Standardprogramm - schlaegt das fehl

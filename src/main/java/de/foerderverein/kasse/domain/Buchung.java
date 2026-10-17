@@ -208,4 +208,26 @@ public class Buchung {
     public void setGeaendertAm(LocalDateTime geaendertAm) {
         this.geaendertAm = geaendertAm;
     }
+
+    /** Ob die nach aussen gehende Zahlung eine Rechnungsnummer tragen muesste, diese aber fehlt -
+     * die Tabelle markiert solche Zellen (siehe BuchungenViewController). Bewusst eingegrenzt:
+     * <ul>
+     * <li>nur Ausgaben (negativer Betrag) - Einnahmen brauchen keinen Eingangsbeleg,</li>
+     * <li>nur mit Gegenkonto - Gebuehren und Zinsen kommen ohne Gegenpartei und sind ausgenommen,
+     *     als Gegenkonto zaehlt Name <em>oder</em> IBAN, da die Bank beim Import nicht immer
+     *     beides liefert,</li>
+     * <li>nicht fuer stornierte Buchungen - die sind nicht mehr aenderbar, die Angabe liesse
+     *     sich dort also gar nicht nachtragen.</li>
+     * </ul>
+     */
+    public boolean fehlendeRechnungsnummer() {
+        return betragCent < 0
+                && !storniert
+                && (gefuellt(gegenkontoName) || gefuellt(gegenkontoIban))
+                && !gefuellt(rechnungsnummer);
+    }
+
+    private static boolean gefuellt(String wert) {
+        return wert != null && !wert.isBlank();
+    }
 }

@@ -13,7 +13,7 @@ public class KategorieService {
         this.repository = repository;
     }
 
-        public List<Kategorie> findAll() {
+    public List<Kategorie> findAll() {
         return repository.findAll();
     }
 

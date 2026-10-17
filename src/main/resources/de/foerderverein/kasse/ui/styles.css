@@ -45,3 +45,17 @@
 .kategorie-bereich-zeile:disabled {
     -fx-opacity: 1;
 }
+
+/* Fehlende Rechnungsnummer bei Ausgaben mit Gegenkonto (siehe
+   Buchung.fehlendeRechnungsnummer()). Die Zelle malt ihren Hintergrund ueber den der Zeile;
+   deshalb wird in der ausgewaehlten Zeile zusaetzlich die Textfarbe zurueckgesetzt - die helle
+   Auswahl-Schrift waere auf dem hellen Rot nicht lesbar. */
+.table-cell:rechnungsnummer-fehlt {
+    /* Fester heller Ton statt derive(red, ...): derive hellt deutlich schwaecher auf als
+       erwartet (85% ergeben noch #FF8282) und waere hier zu kraeftig. */
+    -fx-background-color: #ffd9d9;
+}
+
+.table-row-cell:selected .table-cell:rechnungsnummer-fehlt {
+    -fx-text-fill: -fx-text-inner-color;
+}

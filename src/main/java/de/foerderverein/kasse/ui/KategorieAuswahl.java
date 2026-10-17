@@ -13,7 +13,7 @@ import de.foerderverein.kasse.domain.Kategorie;
  * ComboBox in der inline editierbaren Kategorie-Spalte der Buchungsuebersicht): fuegt vor jeder
  * Bereich-Gruppe einer bereits nach Bereich, Name sortierten Kategorienliste (siehe
  * BuchungenViewController.kategorienAktiv()) eine eigene, nicht auswaehlbare Kopfzeile mit dem
- * Bereich-Namen ein. */
+ * Bereich-Namen ein und stellt der Liste einen Eintrag zum Entfernen der Zuordnung voran. */
 final class KategorieAuswahl {
 
     private KategorieAuswahl() {
@@ -30,10 +30,28 @@ final class KategorieAuswahl {
         }
     }
 
-    /** Fuegt vor jeder Bereich-Gruppe eine eigene BereichKopf-Zeile ein - erwartet eine bereits
-     * nach Bereich, Name sortierte Liste. */
-    static List<Kategorie> mitBereichKoepfen(List<Kategorie> sortierteKategorien) {
+    /** Auswaehlbarer Eintrag, der die Kategorie-Zuordnung wieder entfernt. Traegt bewusst keine
+     * id - der Commit-Handler leitet daraus kategorieId = null ab. Benannt wie der entsprechende
+     * Sammelposten in Kassenbericht und Steuerreport, damit derselbe Zustand ueberall gleich
+     * heisst. */
+    private static final class OhneKategorie extends Kategorie {
+        OhneKategorie() {
+            setName("(ohne Kategorie)");
+        }
+    }
+
+    /** Ob der Eintrag eine reine Bereich-Ueberschrift ist und damit nicht ausgewaehlt werden
+     * darf - im Gegensatz zum Eintrag zum Entfernen der Zuordnung, der auswaehlbar sein muss. */
+    static boolean istBereichKopf(Kategorie kategorie) {
+        return kategorie instanceof BereichKopf;
+    }
+
+    /** Baut aus einer bereits nach Bereich, Name sortierten Kategorienliste die fertige
+     * Dropdown-Liste: vorneweg der Eintrag zum Entfernen der Zuordnung, danach je Bereich-Gruppe
+     * eine nicht auswaehlbare Kopfzeile. */
+    static List<Kategorie> alsAuswahlListe(List<Kategorie> sortierteKategorien) {
         List<Kategorie> ergebnis = new ArrayList<>();
+        ergebnis.add(new OhneKategorie());
         Bereich vorheriger = null;
         for (Kategorie kategorie : sortierteKategorien) {
             if (kategorie.getBereich() != vorheriger) {
@@ -46,14 +64,14 @@ final class KategorieAuswahl {
     }
 
     /** Richtet cellFactory, buttonCell und das Ueberspringen der Kopfzeilen bei der Auswahl ein -
-     * erwartet, dass die Items der ComboBox bereits via mitBereichKoepfen(...) aufbereitet sind. */
+     * erwartet, dass die Items der ComboBox bereits via alsAuswahlListe(...) aufbereitet sind. */
     static void konfiguriere(ComboBox<Kategorie> comboBox) {
         comboBox.setCellFactory(listView -> zelle());
         comboBox.setButtonCell(buttonZelle());
         comboBox.getSelectionModel().selectedIndexProperty().addListener((obs, alt, neu) -> {
             List<Kategorie> items = comboBox.getItems();
             int neuIndex = neu.intValue();
-            if (neuIndex < 0 || neuIndex >= items.size() || !(items.get(neuIndex) instanceof BereichKopf)) {
+            if (neuIndex < 0 || neuIndex >= items.size() || !istBereichKopf(items.get(neuIndex))) {
                 return;
             }
             // Ueberspringt die Kopfzeile in der Richtung, aus der die Auswahl kam (z. B. beim
@@ -62,7 +80,7 @@ final class KategorieAuswahl {
             int altIndex = alt.intValue();
             int schritt = neuIndex >= altIndex ? 1 : -1;
             int kandidat = neuIndex;
-            while (kandidat >= 0 && kandidat < items.size() && items.get(kandidat) instanceof BereichKopf) {
+            while (kandidat >= 0 && kandidat < items.size() && istBereichKopf(items.get(kandidat))) {
                 kandidat += schritt;
             }
             comboBox.getSelectionModel().select(kandidat >= 0 && kandidat < items.size() ? kandidat : altIndex);
@@ -85,7 +103,7 @@ final class KategorieAuswahl {
                     return;
                 }
                 setText(kategorie.getName());
-                if (kategorie instanceof BereichKopf) {
+                if (istBereichKopf(kategorie)) {
                     getStyleClass().add("kategorie-bereich-zeile");
                     setDisable(true);
                 }

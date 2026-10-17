@@ -66,7 +66,8 @@ class SicherheitskopieServiceTest {
         MitgliedService mitgliedService = new MitgliedService(new MitgliedRepository(database),
                 new AuditLogRepository(database));
         BerichtService berichtService = new BerichtService(buchungRepository, new KategorieRepository(database),
-                mitgliedService, new VereinRepository(database));
+                new AktivitaetRepository(database), mitgliedService,
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
         KontobewegungenExportService kontobewegungenExportService = new KontobewegungenExportService(
                 buchungRepository, new KontoRepository(database), new KategorieRepository(database),
                 new AktivitaetRepository(database));

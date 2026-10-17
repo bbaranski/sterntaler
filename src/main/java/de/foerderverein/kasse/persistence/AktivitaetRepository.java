@@ -34,7 +34,7 @@ public class AktivitaetRepository {
         }
     }
 
-        public Optional<Aktivitaet> findById(long id) {
+    public Optional<Aktivitaet> findById(long id) {
         String sql = "SELECT * FROM aktivitaet WHERE id = ?";
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(sql)) {

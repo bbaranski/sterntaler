@@ -1,6 +1,8 @@
 package de.foerderverein.kasse.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,14 +11,19 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 
+import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Anrede;
 import de.foerderverein.kasse.domain.Buchung;
 import de.foerderverein.kasse.domain.BuchungsQuelle;
@@ -24,7 +31,9 @@ import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.domain.Mitglied;
+import de.foerderverein.kasse.domain.MitgliedStatus;
 import de.foerderverein.kasse.domain.Verein;
+import de.foerderverein.kasse.persistence.AktivitaetRepository;
 import de.foerderverein.kasse.persistence.AuditLogRepository;
 import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.Database;
@@ -45,9 +54,9 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         VereinRepository vereinRepository = new VereinRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository,
+                buchungRepository, kategorieRepository, new AktivitaetRepository(database),
                 new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
-                vereinRepository);
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), vereinRepository);
 
         Verein verein = new Verein();
         verein.setName("Förderverein Musterschule e. V.");
@@ -83,9 +92,9 @@ class BerichtServiceTest {
     /** Stellt sicher, dass der im Kassenbericht berechnete Endsaldo mit dem letzten Eintrag von
      * GeschaeftsjahrService.berechneLaufendeSalden (Buchungsuebersicht) fuer dieselbe
      * (Konto, Geschaeftsjahr)-Kombination uebereinstimmt - beide Subsysteme duerfen nie
-     * unterschiedliche Saldi anzeigen. Der PDF-Inhalt selbst wird nicht geparst (dafuer gibt es
-     * keine Text-Extraktion in diesem Projekt), stattdessen wird der erwartete Endsaldo aus den
-     * Test-Eingabedaten unabhaengig nachgerechnet und gegen berechneLaufendeSalden verglichen. */
+     * unterschiedliche Saldi anzeigen. Der erwartete Endsaldo wird dafuer aus den Test-Eingabedaten
+     * unabhaengig nachgerechnet und gegen berechneLaufendeSalden verglichen, statt ihn aus dem PDF
+     * zu lesen (Text-Extraktion siehe pdfText(...), hier aber nicht noetig). */
     @Test
     void endsaldoIstKonsistentMitLaufendemSaldoDerBuchungsuebersicht() throws IOException {
         Database database = TestDatabase.create();
@@ -94,9 +103,9 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository,
+                buchungRepository, kategorieRepository, new AktivitaetRepository(database),
                 new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
@@ -139,9 +148,9 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository, new AktivitaetRepository(database),
                 new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
@@ -186,9 +195,9 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
-                new KategorieRepository(database),
+                new KategorieRepository(database), new AktivitaetRepository(database),
                 new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
 
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
@@ -247,9 +256,9 @@ class BerichtServiceTest {
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
         BerichtService berichtService = new BerichtService(
-                buchungRepository, kategorieRepository,
+                buchungRepository, kategorieRepository, new AktivitaetRepository(database),
                 new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
 
@@ -302,9 +311,9 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         BuchungRepository buchungRepository = new BuchungRepository(database);
         KategorieRepository kategorieRepository = new KategorieRepository(database);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository, new AktivitaetRepository(database),
                 new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
 
         Konto konto = new KontoRepository(database).save(neuesKonto());
         Kategorie spenden = kategorieRepository.findAll().stream()
@@ -325,9 +334,9 @@ class BerichtServiceTest {
         Database database = TestDatabase.create();
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
-                new KategorieRepository(database),
+                new KategorieRepository(database), new AktivitaetRepository(database),
                 new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
 
         Mitglied mitglied = new Mitglied();
         mitglied.setVorname("Erika");
@@ -351,8 +360,9 @@ class BerichtServiceTest {
         Database zielDatenbank = TestDatabase.create();
         MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
-                new KategorieRepository(zielDatenbank),
+                new KategorieRepository(zielDatenbank), new AktivitaetRepository(zielDatenbank),
                 new MitgliedService(zielRepository, new AuditLogRepository(zielDatenbank)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(zielDatenbank)),
                 new VereinRepository(zielDatenbank));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
@@ -374,47 +384,117 @@ class BerichtServiceTest {
         assertEquals("Sammler-2026-04", importiert.getSammellastschrift());
     }
 
+    /** Ganz oder gar nicht: eine einzige beanstandete Zeile verhindert den gesamten Import, die
+     * Zieldatenbank bleibt leer. Vorher wurden die gueltigen Zeilen geschrieben und nur die
+     * fehlerhaften gemeldet - ein korrigierter zweiter Versuch legte sie dann doppelt an. */
     @Test
-    void importUeberspringtUngueltigeZeilenUndMeldetSie() throws Exception {
+    void importLehntDateiMitFehlerhaftenZeilenKomplettAb() throws Exception {
         Database quellDatenbank = TestDatabase.create();
         MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
-        BerichtService quellService = new BerichtService(new BuchungRepository(quellDatenbank),
-                new KategorieRepository(quellDatenbank),
-                new MitgliedService(quellRepository, new AuditLogRepository(quellDatenbank)),
-                new VereinRepository(quellDatenbank));
+        BerichtService quellService = berichtService(quellDatenbank, quellRepository);
 
-        Mitglied gueltig = new Mitglied();
-        gueltig.setVorname("Erika");
-        gueltig.setNachname("Musterfrau");
-        quellRepository.save(gueltig);
+        quellRepository.save(neuesMitglied("Erika", "Musterfrau"));
+        quellRepository.save(neuesMitglied("Max", "Mustermann"));
+        // Umgeht die Service-Pruefung und erzeugt so eine Zeile, die beim Import auffaellt.
+        quellRepository.save(neuesMitglied("Ohne Nachname", " "));
 
-        Mitglied ohneNachname = new Mitglied();
-        ohneNachname.setVorname("Ohne Nachname");
-        ohneNachname.setNachname(" ");
-        quellRepository.save(ohneNachname);
-
-        Path exportiert = Files.createTempDirectory("kasse-mitgliederliste-fehler").resolve("mitglieder.xlsx");
+        Path exportiert = Files.createTempDirectory("kasse-import-abbruch").resolve("mitglieder.xlsx");
         quellService.exportiereMitgliederliste(exportiert);
 
         Database zielDatenbank = TestDatabase.create();
+        MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
+        MitgliederImportErgebnis ergebnis =
+                berichtService(zielDatenbank, zielRepository).importiereMitgliederliste(exportiert);
+
+        assertEquals(0, ergebnis.importiert());
+        assertEquals(1, ergebnis.fehler().size());
+        assertTrue(zielRepository.findAll().isEmpty(),
+                "Datenbank muss unberuehrt bleiben, enthielt aber " + zielRepository.findAll().size() + " Mitglieder");
+    }
+
+    @Test
+    void importSchreibtAlleZeilenWennDateiFehlerfrei() throws Exception {
+        Database quellDatenbank = TestDatabase.create();
+        MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
+        BerichtService quellService = berichtService(quellDatenbank, quellRepository);
+        quellRepository.save(neuesMitglied("Erika", "Musterfrau"));
+        quellRepository.save(neuesMitglied("Max", "Mustermann"));
+        quellRepository.save(neuesMitglied("Anna", "Beispiel"));
+
+        Path exportiert = Files.createTempDirectory("kasse-import-vollstaendig").resolve("mitglieder.xlsx");
+        quellService.exportiereMitgliederliste(exportiert);
+
+        Database zielDatenbank = TestDatabase.create();
+        MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
+        AuditLogRepository zielAuditLog = new AuditLogRepository(zielDatenbank);
+        MitgliedService zielMitgliedService = new MitgliedService(zielRepository, zielAuditLog);
         BerichtService zielService = new BerichtService(new BuchungRepository(zielDatenbank),
-                new KategorieRepository(zielDatenbank),
-                new MitgliedService(new MitgliedRepository(zielDatenbank), new AuditLogRepository(zielDatenbank)),
+                new KategorieRepository(zielDatenbank), new AktivitaetRepository(zielDatenbank),
+                zielMitgliedService, new GeschaeftsjahrService(new GeschaeftsjahrRepository(zielDatenbank)),
                 new VereinRepository(zielDatenbank));
 
         MitgliederImportErgebnis ergebnis = zielService.importiereMitgliederliste(exportiert);
 
-        assertEquals(1, ergebnis.importiert());
+        assertEquals(3, ergebnis.importiert());
+        assertTrue(ergebnis.fehler().isEmpty());
+        assertEquals(3, zielRepository.findAll().size());
+        // Lueckenlose ids ab 1 und je ein Verlaufseintrag - das Protokollieren laeuft nach dem
+        // Commit und darf dabei nicht uebersprungen werden.
+        assertEquals(List.of(1L, 2L, 3L),
+                zielRepository.findAll().stream().map(Mitglied::getId).sorted().toList());
+        for (Mitglied m : zielRepository.findAll()) {
+            assertEquals(1, zielMitgliedService.findVerlauf(m.getId()).size());
+        }
+    }
+
+    /** Alle Beanstandungen einer Zeile auf einmal, damit eine Korrekturrunde genuegt. */
+    @Test
+    void importMeldetAlleFehlerEinerZeileAufEinmal() throws Exception {
+        Database quellDatenbank = TestDatabase.create();
+        MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
+        quellRepository.save(neuesMitglied("Erika", "Musterfrau"));
+        Path exportiert = Files.createTempDirectory("kasse-import-mehrfachfehler").resolve("mitglieder.xlsx");
+        berichtService(quellDatenbank, quellRepository).exportiereMitgliederliste(exportiert);
+
+        // Spalte 3 = Nachname, Spalte 11 = Status, Spalte 15 = Mandatsreferenz (MITGLIEDER_SPALTEN).
+        setzeZellen(exportiert, 1, Map.of(3, "", 11, "Passiv", 15, "abc"));
+
+        Database zielDatenbank = TestDatabase.create();
+        MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
+        MitgliederImportErgebnis ergebnis =
+                berichtService(zielDatenbank, zielRepository).importiereMitgliederliste(exportiert);
+
+        assertEquals(0, ergebnis.importiert());
+        assertEquals(3, ergebnis.fehler().size(), "erwartet: Nachname, Status und Mandatsreferenz, war: "
+                + ergebnis.fehler());
+        assertTrue(ergebnis.fehler().stream().allMatch(f -> f.startsWith("Zeile 2:")), ergebnis.fehler().toString());
+        assertTrue(zielRepository.findAll().isEmpty());
+    }
+
+    @Test
+    void importLehntDateiOhneDatenzeilenAb() throws Exception {
+        Database quellDatenbank = TestDatabase.create();
+        MitgliedRepository quellRepository = new MitgliedRepository(quellDatenbank);
+        Path exportiert = Files.createTempDirectory("kasse-import-leer").resolve("mitglieder.xlsx");
+        berichtService(quellDatenbank, quellRepository).exportiereMitgliederliste(exportiert);
+
+        Database zielDatenbank = TestDatabase.create();
+        MitgliedRepository zielRepository = new MitgliedRepository(zielDatenbank);
+        MitgliederImportErgebnis ergebnis =
+                berichtService(zielDatenbank, zielRepository).importiereMitgliederliste(exportiert);
+
+        assertEquals(0, ergebnis.importiert());
         assertEquals(1, ergebnis.fehler().size());
+        assertTrue(ergebnis.fehler().get(0).contains("keine Datenzeilen"), ergebnis.fehler().toString());
     }
 
     @Test
     void importLehntDateiMitFalscherKopfzeileAb() throws Exception {
         Database database = TestDatabase.create();
         BerichtService berichtService = new BerichtService(new BuchungRepository(database),
-                new KategorieRepository(database),
+                new KategorieRepository(database), new AktivitaetRepository(database),
                 new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
-                new VereinRepository(database));
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
 
         Path falscheDatei = Files.createTempDirectory("kasse-mitgliederliste-falsch").resolve("falsch.xlsx");
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
@@ -426,6 +506,521 @@ class BerichtServiceTest {
         }
 
         assertThrows(IOException.class, () -> berichtService.importiereMitgliederliste(falscheDatei));
+    }
+
+    /** Nullbuchungen (HBCI-Mitteilungen der Bank, siehe BerichtService.hatBetrag) wurden wegen
+     * der Einordnung betrag >= 0 als Einnahme gezaehlt und erzeugten im Kassenbericht eine Zeile
+     * "(ohne Kategorie)" mit 0,00 Euro. Hier wird der PDF-Text ausgelesen, weil die Aufteilung
+     * nach Kategorien im Kassenbericht sonst nirgends nach aussen sichtbar ist. */
+    @Test
+    void kassenberichtLaesstBuchungenOhneBetragAus() throws IOException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        BerichtService berichtService = new BerichtService(
+                buchungRepository, kategorieRepository, new AktivitaetRepository(database),
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie beitraege = kategorieRepository.findAll().stream()
+                .filter(k -> k.getName().equals("Mitgliedsbeiträge"))
+                .findFirst().orElseThrow();
+
+        buchungRepository.insert(neueBuchung(konto.getId(), beitraege.getId(),
+                LocalDate.of(2026, 3, 1), new BigDecimal("100.00")));
+        // Die Mitteilung der Bank: Betrag 0, keine Kategorie.
+        buchungRepository.insert(neueBuchung(konto.getId(), null,
+                LocalDate.of(2026, 3, 31), new BigDecimal("0.00")));
+
+        Geschaeftsjahr jahr = new GeschaeftsjahrRepository(database).save(neuesJahr());
+        Path ziel = Files.createTempDirectory("kasse-nullbuchung-test").resolve("kassenbericht.pdf");
+        berichtService.erstelleKassenbericht(ziel, konto, jahr);
+
+        String text = pdfText(ziel);
+        assertTrue(text.contains("Mitgliedsbeiträge"), "echte Buchung fehlt im Bericht: " + text);
+        assertFalse(text.contains("(ohne Kategorie)"), "Nullbuchung taucht im Bericht auf: " + text);
+    }
+
+    @Test
+    void steuerreportLaesstBuchungenOhneBetragAus() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        BerichtService berichtService = new BerichtService(
+                buchungRepository, kategorieRepository, new AktivitaetRepository(database),
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        buchungRepository.insert(neueBuchung(konto.getId(), null,
+                LocalDate.of(2026, 3, 31), new BigDecimal("0.00")));
+
+        SteuerreportDaten daten = berichtService.berechneSteuerreport(konto, 2026);
+
+        // Ohne Kategorie faellt die Buchung in den Ideeller Bereich (siehe berechneSteuerreport).
+        assertTrue(daten.einnahmenProKategorieIdeell().isEmpty(),
+                "Nullbuchung wurde als Einnahme gezaehlt: " + daten.einnahmenProKategorieIdeell());
+        assertTrue(daten.ausgabenProKategorieIdeell().isEmpty(),
+                "Nullbuchung wurde als Ausgabe gezaehlt: " + daten.ausgabenProKategorieIdeell());
+    }
+
+    private String pdfText(Path pdf) throws IOException {
+        PdfReader reader = new PdfReader(pdf.toString());
+        try {
+            StringBuilder text = new StringBuilder();
+            PdfTextExtractor extractor = new PdfTextExtractor(reader);
+            for (int seite = 1; seite <= reader.getNumberOfPages(); seite++) {
+                text.append(extractor.getTextFromPage(seite)).append('\n');
+            }
+            return text.toString();
+        } finally {
+            reader.close();
+        }
+    }
+
+    @Test
+    void journalZeigtAlleBuchungenDesJahresMitLaufendemSaldo() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
+        BerichtService berichtService = journalService(database);
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
+        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
+
+        // Zwei Buchungen am selben Tag: die Reihenfolge muss (datum, id) folgen, sonst laeuft
+        // der Saldo nicht monoton.
+        Buchung erste = buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00");
+        erste.setVerwendungszweck("Spende Theater");
+        erste.setRechnungsnummer("2026-001");
+        buchungRepository.insert(erste);
+        Buchung zweite = buchung(konto, spenden, null, LocalDate.of(2026, 3, 1), "-40.00");
+        buchungRepository.insert(zweite);
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2026, 3, 5), "15.00"));
+
+        BuchungsjournalDaten daten = berichtService.berechneBuchungsjournal(konto, neuesJahr());
+
+        assertEquals(3, daten.zeilen().size());
+        assertEquals(50000L, daten.startsaldoCent());
+        // Startsaldo 500,00 + 100,00 - 40,00 + 15,00
+        assertEquals(List.of(60000L, 56000L, 57500L),
+                daten.zeilen().stream().map(BuchungsjournalDaten.Zeile::saldoCent).toList());
+        assertEquals(List.of(10000L, -4000L, 1500L),
+                daten.zeilen().stream().map(BuchungsjournalDaten.Zeile::betragCent).toList());
+
+        BuchungsjournalDaten.Zeile zeile = daten.zeilen().get(0);
+        assertEquals(LocalDate.of(2026, 3, 1), zeile.datum());
+        assertEquals("2026-001", zeile.rechnungsnummer());
+        assertEquals("Geldspenden", zeile.kategorie());
+        assertEquals("Sankt Martin", zeile.aktivitaet());
+        assertEquals("Spende Theater", zeile.verwendungszweck());
+        // Ohne Zuordnung bleiben die Felder leer, kein Sammelposten wie in den Summenberichten.
+        assertEquals("", daten.zeilen().get(2).kategorie());
+        assertEquals("", daten.zeilen().get(2).aktivitaet());
+    }
+
+    /** Die Zusage, dass Journal und Buchungsuebersicht nie unterschiedliche Saldi zeigen: beide
+     * leiten sie aus GeschaeftsjahrService.berechneLaufendeSalden ab. */
+    @Test
+    void journalSaldoStimmtMitDerBuchungsuebersichtUeberein() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie spenden = kategorie(new KategorieRepository(database), "Geldspenden");
+
+        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 1), "100.00"));
+        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 1), "-40.00"));
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2026, 7, 9), "15.00"));
+        Geschaeftsjahr jahr = geschaeftsjahrRepository.save(neuesJahr());
+
+        BuchungsjournalDaten daten = journalService(database).berechneBuchungsjournal(konto, jahr);
+        Map<Long, Long> uebersicht = new GeschaeftsjahrService(geschaeftsjahrRepository)
+                .berechneLaufendeSalden(buchungRepository.findAll(), geschaeftsjahrRepository.findAll());
+
+        List<Long> ausDerUebersicht = buchungRepository.findAll().stream()
+                .sorted(Comparator.comparing(Buchung::getBuchungsdatum).thenComparing(Buchung::getId))
+                .map(b -> uebersicht.get(b.getId()))
+                .toList();
+        assertEquals(ausDerUebersicht,
+                daten.zeilen().stream().map(BuchungsjournalDaten.Zeile::saldoCent).toList());
+    }
+
+    @Test
+    void journalEndsaldoEntsprichtDerLetztenZeile() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2026, 3, 1), "100.00"));
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2026, 4, 1), "-40.00"));
+
+        BuchungsjournalDaten daten = journalService(database).berechneBuchungsjournal(konto, neuesJahr());
+
+        assertEquals(6000L, daten.summeCent());
+        assertEquals(daten.startsaldoCent() + daten.summeCent(), daten.endsaldoCent());
+        assertEquals(daten.zeilen().get(daten.zeilen().size() - 1).saldoCent(), daten.endsaldoCent());
+    }
+
+    /** Dieselbe Buchungsmenge wie der Kassenbericht - sonst waeren die Summen beider Dokumente
+     * nicht vergleichbar. */
+    @Test
+    void journalLaesstStornierteUndNullbuchungenAus() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2026, 3, 1), "100.00"));
+        Buchung storniert = buchung(konto, null, null, LocalDate.of(2026, 3, 2), "999.00");
+        buchungRepository.insert(storniert);
+        buchungRepository.storno(storniert.getId());
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2026, 3, 3), "0.00"));
+        buchungRepository.insert(buchung(konto, null, null, LocalDate.of(2025, 12, 31), "777.00"));
+
+        BuchungsjournalDaten daten = journalService(database).berechneBuchungsjournal(konto, neuesJahr());
+
+        assertEquals(1, daten.zeilen().size());
+        assertEquals(10000L, daten.zeilen().get(0).betragCent());
+    }
+
+    @Test
+    void journalErzeugtQuerformatPdf() throws IOException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        VereinRepository vereinRepository = new VereinRepository(database);
+        Verein verein = new Verein();
+        verein.setName("Förderverein Musterschule e. V.");
+        vereinRepository.save(verein);
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie spenden = kategorie(new KategorieRepository(database), "Geldspenden");
+        Buchung b = buchung(konto, spenden, null, LocalDate.of(2026, 3, 1), "100.00");
+        b.setVerwendungszweck("SVWZ+St. Martin - Weckmänner DATUM 07.11.2025");
+        buchungRepository.insert(b);
+
+        Path ziel = Files.createTempDirectory("kasse-journal").resolve("journal.pdf");
+        journalService(database).erstelleBuchungsjournal(ziel, konto, neuesJahr());
+
+        PdfReader reader = new PdfReader(ziel.toString());
+        try {
+            assertTrue(reader.getPageSize(1).getWidth() > reader.getPageSize(1).getHeight(),
+                    "PDF muss im Querformat sein: " + reader.getPageSize(1));
+            // Die Seite selbst muss quer sein, nicht bloss per /Rotate gedreht - sonst stellen
+            // Werkzeuge, die /Rotate ignorieren, den Bericht hochkant dar.
+            assertEquals(0, reader.getPageRotation(1));
+        } finally {
+            reader.close();
+        }
+
+        String text = pdfText(ziel);
+        assertTrue(text.contains("Umsätze"), text);
+        assertTrue(text.contains("Verwendungszweck"), text);
+        // Die Spalte muss breit genug fuer ihre Beschriftung sein - sonst steht dort
+        // "Kontoauszu" / "g" auf zwei Zeilen.
+        assertTrue(text.contains("Kontoauszug"), "Spaltenkopf umgebrochen: " + text);
+        assertTrue(text.contains("Weckmänner"), text);
+        assertTrue(text.contains("Startsaldo"), text);
+        assertTrue(text.contains("Endsaldo"), text);
+        assertFalse(text.contains("Unterschrift"), "Unterschriften waren nicht gewuenscht: " + text);
+    }
+
+    private BerichtService journalService(Database database) {
+        return new BerichtService(new BuchungRepository(database), new KategorieRepository(database),
+                new AktivitaetRepository(database),
+                new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)),
+                new VereinRepository(database));
+    }
+
+    @Test
+    void anhangSchluesseltJedeKategorieNachAktivitaetAuf() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
+                        new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
+        Kategorie beitraege = kategorie(kategorieRepository, "Mitgliedsbeiträge");
+        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
+        Aktivitaet weihnachtsmarkt = aktivitaet(aktivitaetRepository, "Weihnachtsmarkt");
+
+        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00"));
+        buchungRepository.insert(buchung(konto, spenden, weihnachtsmarkt, LocalDate.of(2026, 3, 2), "50.00"));
+        // Dieselbe Kategorie ohne Aktivitaet: muss als Restposten erscheinen, damit sich die
+        // Unterzeilen auf die Kategoriesumme addieren.
+        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 3), "25.00"));
+        // Kategorie, in der keine Buchung eine Aktivitaet traegt: keine Unterzeilen.
+        buchungRepository.insert(buchung(konto, beitraege, null, LocalDate.of(2026, 3, 4), "24.00"));
+
+        KassenberichtAnhangDaten daten = berichtService.berechneKassenberichtAnhang(konto, neuesJahr());
+
+        assertEquals(2, daten.einnahmen().size());
+        KassenberichtAnhangDaten.KategorieBlock spendenBlock = daten.einnahmen().get(0);
+        assertEquals("Geldspenden", spendenBlock.kategorie());
+        assertEquals(17500L, spendenBlock.summeCent());
+        // Reihenfolge des ersten Vorkommens, Restposten ohne Sonderbehandlung.
+        assertEquals(List.of("Sankt Martin", "Weihnachtsmarkt", "(ohne Aktivität)"),
+                spendenBlock.aktivitaeten().stream()
+                        .map(KassenberichtAnhangDaten.AktivitaetSumme::aktivitaet).toList());
+        assertEquals(spendenBlock.summeCent(), spendenBlock.aktivitaeten().stream()
+                .mapToLong(KassenberichtAnhangDaten.AktivitaetSumme::summeCent).sum());
+
+        KassenberichtAnhangDaten.KategorieBlock beitragsBlock = daten.einnahmen().get(1);
+        assertEquals("Mitgliedsbeiträge", beitragsBlock.kategorie());
+        assertEquals(2400L, beitragsBlock.summeCent());
+        assertTrue(beitragsBlock.aktivitaeten().isEmpty(),
+                "ohne jede Aktivitaet soll die Kategoriezeile allein stehen: " + beitragsBlock.aktivitaeten());
+    }
+
+    /** Der Mehrwert des Anhangs: eine Aktivitaet verteilt sich ueber mehrere Kategorien und ueber
+     * Einnahmen und Ausgaben - in der Aufschluesselung je Kategorie ist ihr Ergebnis nicht
+     * ablesbar. */
+    @Test
+    void anhangFasstAktivitaetUeberKategorienUndVorzeichenZusammen() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
+                        new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie verkauf = kategorie(kategorieRepository, "Kuchen- und Getränkeverkauf");
+        Kategorie einkauf = kategorie(kategorieRepository, "Wareneinkauf für Verkäufe");
+        Kategorie feste = kategorie(kategorieRepository, "Schulfeste und Veranstaltungen");
+        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
+
+        buchungRepository.insert(buchung(konto, verkauf, martin, LocalDate.of(2026, 3, 1), "2004.21"));
+        buchungRepository.insert(buchung(konto, einkauf, martin, LocalDate.of(2026, 3, 2), "-532.03"));
+        buchungRepository.insert(buchung(konto, feste, martin, LocalDate.of(2026, 3, 3), "-1190.00"));
+
+        KassenberichtAnhangDaten daten = berichtService.berechneKassenberichtAnhang(konto, neuesJahr());
+
+        assertEquals(1, daten.aktivitaeten().size());
+        KassenberichtAnhangDaten.AktivitaetErgebnis martinErgebnis = daten.aktivitaeten().get(0);
+        assertEquals("Sankt Martin", martinErgebnis.aktivitaet());
+        assertEquals(200421L, martinErgebnis.einnahmenCent());
+        assertEquals(172203L, martinErgebnis.ausgabenCent());
+        assertEquals(28218L, martinErgebnis.ergebnisCent());
+    }
+
+    /** Anhang und Kassenbericht muessen dieselbe Buchungsmenge auswerten - sonst behaupten zwei
+     * Dokumente derselben Kassenpruefung unterschiedliche Summen. */
+    @Test
+    void anhangSummenStimmenMitDenAbschnittssummenUeberein() {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
+                        new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
+        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
+        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00"));
+        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 2), "-40.00"));
+        buchungRepository.insert(buchung(konto, null, martin, LocalDate.of(2026, 3, 3), "15.00"));
+        // Darf in keiner Summe auftauchen: storniert bzw. ausserhalb des Geschaeftsjahres.
+        Buchung storniert = buchung(konto, spenden, martin, LocalDate.of(2026, 3, 4), "999.00");
+        buchungRepository.insert(storniert);
+        buchungRepository.storno(storniert.getId());
+        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2025, 12, 31), "777.00"));
+
+        KassenberichtAnhangDaten daten = berichtService.berechneKassenberichtAnhang(konto, neuesJahr());
+
+        long einnahmen = daten.einnahmen().stream()
+                .mapToLong(KassenberichtAnhangDaten.KategorieBlock::summeCent).sum();
+        long ausgaben = daten.ausgaben().stream()
+                .mapToLong(KassenberichtAnhangDaten.KategorieBlock::summeCent).sum();
+        assertEquals(11500L, einnahmen);
+        assertEquals(4000L, ausgaben);
+        // Die Aktivitaetstabelle ist eine andere Sicht auf dieselben Buchungen und muss daher
+        // genau dieselben Summen ergeben.
+        assertEquals(einnahmen, daten.aktivitaeten().stream()
+                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::einnahmenCent).sum());
+        assertEquals(ausgaben, daten.aktivitaeten().stream()
+                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::ausgabenCent).sum());
+    }
+
+    @Test
+    void anhangErzeugtPdfOhneSaldenUndUnterschriften() throws IOException {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        KategorieRepository kategorieRepository = new KategorieRepository(database);
+        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
+        VereinRepository vereinRepository = new VereinRepository(database);
+        Verein verein = new Verein();
+        verein.setName("Förderverein Musterschule e. V.");
+        vereinRepository.save(verein);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
+                        new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), vereinRepository);
+
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
+        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
+        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00"));
+        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 2), "-40.00"));
+
+        Path ziel = Files.createTempDirectory("kasse-anhang").resolve("anhang.pdf");
+        berichtService.erstelleKassenberichtAnhang(ziel, konto, neuesJahr());
+
+        String text = pdfText(ziel);
+        assertTrue(text.contains("Kassenbericht Anhang"), text);
+        assertTrue(text.contains("Förderverein Musterschule e. V."), text);
+        assertTrue(text.contains("Kategorie / Aktivität"), text);
+        assertTrue(text.contains("Sankt Martin"), text);
+        assertTrue(text.contains("Aktivitäten insgesamt"), text);
+
+        // Bewusst nicht im Anhang: die stehen im Kassenbericht selbst.
+        assertFalse(text.contains("Startsaldo"), "Startsaldo gehoert nicht in den Anhang: " + text);
+        assertFalse(text.contains("Endsaldo"), "Endsaldo gehoert nicht in den Anhang: " + text);
+        assertFalse(text.contains("Unterschrift"), "Unterschriften gehoeren nicht in den Anhang: " + text);
+    }
+
+    private Kategorie kategorie(KategorieRepository repository, String name) {
+        return repository.findAll().stream().filter(k -> k.getName().equals(name))
+                .findFirst().orElseThrow(() -> new IllegalStateException("Starter-Kategorie fehlt: " + name));
+    }
+
+    private Aktivitaet aktivitaet(AktivitaetRepository repository, String name) {
+        Aktivitaet aktivitaet = new Aktivitaet();
+        aktivitaet.setName(name);
+        return repository.save(aktivitaet);
+    }
+
+    private Buchung buchung(Konto konto, Kategorie kategorie, Aktivitaet aktivitaet, LocalDate datum, String betrag) {
+        Buchung buchung = neueBuchung(konto.getId(), kategorie != null ? kategorie.getId() : null,
+                datum, new BigDecimal(betrag));
+        buchung.setAktivitaetId(aktivitaet != null ? aktivitaet.getId() : null);
+        return buchung;
+    }
+
+    @Test
+    void mitgliederberichtBerechnetKennzahlenDerAktivenMitglieder() {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        BerichtService berichtService = berichtService(database, mitgliedRepository);
+
+        mitgliedRepository.save(mitgliedMitBeitrag("Erika", "Musterfrau", MitgliedStatus.AKTIV, "24.00"));
+        mitgliedRepository.save(mitgliedMitBeitrag("Max", "Mustermann", MitgliedStatus.AKTIV, "12.00"));
+        mitgliedRepository.save(mitgliedMitBeitrag("Anna", "Beispiel", MitgliedStatus.AKTIV, "120.00"));
+        // Ohne Jahresbeitrag: zaehlt bei den Mitgliedern mit, nicht bei den Betraegen.
+        mitgliedRepository.save(mitgliedMitBeitrag("Ohne", "Beitrag", MitgliedStatus.AKTIV, null));
+        // Inaktive bleiben komplett aussen vor.
+        mitgliedRepository.save(mitgliedMitBeitrag("Alt", "Mitglied", MitgliedStatus.INAKTIV, "999.00"));
+
+        MitgliederberichtDaten daten = berichtService.berechneMitgliederbericht();
+
+        assertEquals(4, daten.mitglieder());
+        assertEquals(15600L, daten.summeCent());
+        assertEquals(1200L, daten.minCent());
+        assertEquals(12000L, daten.maxCent());
+        // 156,00 / 3 = 52,00 - der Durchschnitt bezieht sich auf die drei Mitglieder mit Beitrag.
+        assertEquals(5200L, daten.durchschnittCent());
+    }
+
+    /** Ohne hinterlegte Betraege ist 0,00 Euro als Minimum/Maximum/Durchschnitt eine falsche
+     * Aussage - die Werte bleiben leer und das PDF zeigt einen Strich. */
+    @Test
+    void mitgliederberichtLaesstBeitragswerteOhneBetraegeLeer() {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        mitgliedRepository.save(mitgliedMitBeitrag("Ohne", "Beitrag", MitgliedStatus.AKTIV, null));
+
+        MitgliederberichtDaten daten = berichtService(database, mitgliedRepository).berechneMitgliederbericht();
+
+        assertEquals(1, daten.mitglieder());
+        assertEquals(0L, daten.summeCent());
+        assertNull(daten.minCent());
+        assertNull(daten.maxCent());
+        assertNull(daten.durchschnittCent());
+    }
+
+    @Test
+    void mitgliederberichtErzeugtPdfMitDenKennzahlen() throws IOException {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        VereinRepository vereinRepository = new VereinRepository(database);
+        Verein verein = new Verein();
+        verein.setName("Förderverein Musterschule e. V.");
+        vereinRepository.save(verein);
+
+        mitgliedRepository.save(mitgliedMitBeitrag("Erika", "Musterfrau", MitgliedStatus.AKTIV, "24.00"));
+        mitgliedRepository.save(mitgliedMitBeitrag("Alt", "Mitglied", MitgliedStatus.INAKTIV, "999.00"));
+
+        Path ziel = Files.createTempDirectory("kasse-mitgliederbericht").resolve("mitgliederbericht.pdf");
+        berichtService(database, mitgliedRepository).erstelleMitgliederbericht(ziel);
+
+        String text = pdfText(ziel);
+        assertTrue(text.contains("Mitgliederbericht"), text);
+        assertTrue(text.contains("Förderverein Musterschule e. V."), text);
+        assertTrue(text.contains("Stand:"), text);
+        assertTrue(text.contains("Mitglieder und Jahresbeitrag"), text);
+        assertTrue(text.contains("Jahresbeitrag Durchschnitt"), text);
+
+        // Abgewaehlte Bestandteile duerfen nicht zurueckkehren.
+        assertFalse(text.contains("Inaktiv"), "Spalte Inaktiv entfernt: " + text);
+        assertFalse(text.contains("Gesamt"), "Spalte Gesamt entfernt: " + text);
+        assertFalse(text.contains("davon mit Jahresbeitrag"), "Zeile entfernt: " + text);
+        assertFalse(text.contains("unberücksichtigt"), "Fussnote entfernt: " + text);
+        assertFalse(text.contains("Erstellt am"), "Schlusszeile entfernt, Datum steht oben: " + text);
+        // Der Jahresbeitrag des inaktiven Mitglieds darf nirgends auftauchen.
+        assertFalse(text.contains("999,00"), "Inaktive zaehlen nicht mit: " + text);
+    }
+
+    private Mitglied mitgliedMitBeitrag(String vorname, String nachname, MitgliedStatus status, String betrag) {
+        Mitglied mitglied = neuesMitglied(vorname, nachname);
+        mitglied.setStatus(status);
+        if (betrag != null) {
+            mitglied.setJahresbeitragEuro(new BigDecimal(betrag));
+        }
+        return mitglied;
+    }
+
+    private BerichtService berichtService(Database database, MitgliedRepository mitgliedRepository) {
+        return new BerichtService(new BuchungRepository(database), new KategorieRepository(database),
+                new AktivitaetRepository(database), new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+    }
+
+    private Mitglied neuesMitglied(String vorname, String nachname) {
+        Mitglied mitglied = new Mitglied();
+        mitglied.setVorname(vorname);
+        mitglied.setNachname(nachname);
+        return mitglied;
+    }
+
+    /** Schreibt einzelne Zellen einer exportierten Datei um - so entstehen Werte, die der Export
+     * selbst nie erzeugen koennte (unbekannter Status, nichtnumerische Mandatsreferenz). */
+    private void setzeZellen(Path xlsx, int zeilenIndex, Map<Integer, String> werte) throws Exception {
+        byte[] inhalt = Files.readAllBytes(xlsx);
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new java.io.ByteArrayInputStream(inhalt))) {
+            Row zeile = workbook.getSheetAt(0).getRow(zeilenIndex);
+            werte.forEach((spalte, wert) -> {
+                Cell zelle = zeile.getCell(spalte);
+                if (zelle == null) {
+                    zelle = zeile.createCell(spalte);
+                }
+                zelle.setCellValue(wert);
+            });
+            try (java.io.OutputStream out = Files.newOutputStream(xlsx)) {
+                workbook.write(out);
+            }
+        }
     }
 
     private Buchung neueBuchung(Long kontoId, Long kategorieId, LocalDate datum, BigDecimal betrag) {

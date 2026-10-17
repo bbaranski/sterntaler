@@ -28,7 +28,7 @@ public class KategorieRepository {
         this.database = database;
     }
 
-        public List<Kategorie> findAll() {
+    public List<Kategorie> findAll() {
         String sql = "SELECT * FROM kategorie";
         return query(sql);
     }

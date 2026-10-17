@@ -94,8 +94,8 @@ public final class AppContext {
         CredentialStore credentialStore = new CredentialStore();
         MitgliedService mitgliedService = new MitgliedService(mitgliedRepository, auditLogRepository);
         GeschaeftsjahrService geschaeftsjahrService = new GeschaeftsjahrService(geschaeftsjahrRepository);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository, mitgliedService,
-                vereinRepository);
+        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
+                aktivitaetRepository, mitgliedService, geschaeftsjahrService, vereinRepository);
         KontobewegungenExportService kontobewegungenExportService = new KontobewegungenExportService(
                 buchungRepository, kontoRepository, kategorieRepository, aktivitaetRepository);
         BriefvorlageService briefvorlageService = new BriefvorlageService(briefvorlageRepository, vorlagenVerzeichnis);

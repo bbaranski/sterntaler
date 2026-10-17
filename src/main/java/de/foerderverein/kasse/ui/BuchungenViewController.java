@@ -20,6 +20,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -42,6 +43,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.converter.DefaultStringConverter;
 
 import de.foerderverein.kasse.app.AppContext;
 import de.foerderverein.kasse.app.Views;
@@ -63,6 +65,11 @@ public class BuchungenViewController {
     private final ObservableList<Kategorie> kategorienFuerAuswahl = FXCollections.observableArrayList();
     private final ObservableList<Aktivitaet> aktivitaetenFuerAuswahl = FXCollections.observableArrayList();
     private final ObservableList<Geschaeftsjahr> geschaeftsjahreFuerAuswahl = FXCollections.observableArrayList();
+
+    /** Markiert Zellen der Spalte "Rechnungsnummer", in denen die Angabe fehlt, obwohl sie
+     * gebraucht wird (siehe Buchung.fehlendeRechnungsnummer()); Einfaerbung in styles.css. */
+    private static final PseudoClass RECHNUNGSNUMMER_FEHLT =
+            PseudoClass.getPseudoClass("rechnungsnummer-fehlt");
 
     /** Sentinel fuer den Eintrag "(automatisch)" im Geschaeftsjahr-Dropdown: hebt eine feste
      * Zuordnung wieder auf, sodass erneut das Buchungsdatum entscheidet. */
@@ -197,7 +204,7 @@ public class BuchungenViewController {
                 new ReadOnlyStringWrapper(cd.getValue().getQuelle().name()));
 
         rechnungsnummerColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getRechnungsnummer()));
-        rechnungsnummerColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        rechnungsnummerColumn.setCellFactory(col -> rechnungsnummerZelle());
         rechnungsnummerColumn.setOnEditCommit(event -> {
             Buchung b = event.getRowValue();
             String alt = b.getRechnungsnummer();
@@ -320,8 +327,8 @@ public class BuchungenViewController {
         }
 
         // Haelt die Dropdown-Optionen der inline editierbaren Tabellenspalten aktuell.
-        kategorienFuerAuswahl.setAll(KategorieAuswahl.mitBereichKoepfen(kategorienAktiv()));
-        aktivitaetenFuerAuswahl.setAll(aktivitaetenAktiv());
+        kategorienFuerAuswahl.setAll(KategorieAuswahl.alsAuswahlListe(kategorienAktiv()));
+        aktivitaetenFuerAuswahl.setAll(AktivitaetAuswahl.alsAuswahlListe(aktivitaetenAktiv()));
         buchungenTable.refresh();
     }
 
@@ -495,6 +502,22 @@ public class BuchungenViewController {
                     setText(item == null ? "" : item.getName());
                     setGraphic(null);
                 }
+            }
+        };
+    }
+
+    /** Wie eine gewoehnliche Textfeld-Zelle, faerbt aber zusaetzlich fehlende Rechnungsnummern
+     * ein. Die Pruefung braucht die ganze Buchung (Betrag, Gegenkonto, Storno-Status) und damit
+     * die Zeile - der Spaltenwert allein genuegt nicht. */
+    private TableCell<Buchung, String> rechnungsnummerZelle() {
+        return new TextFieldTableCell<>(new DefaultStringConverter()) {
+            @Override
+            public void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                // getTableRow() ist beim ersten Aufbau kurzzeitig null, daher die Pruefung.
+                Buchung buchung = empty || getTableRow() == null ? null : getTableRow().getItem();
+                pseudoClassStateChanged(RECHNUNGSNUMMER_FEHLT,
+                        buchung != null && buchung.fehlendeRechnungsnummer());
             }
         };
     }
