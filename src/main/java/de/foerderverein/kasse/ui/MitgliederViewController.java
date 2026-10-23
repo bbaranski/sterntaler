@@ -13,6 +13,7 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -22,10 +23,12 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.input.MouseButton;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -109,8 +112,33 @@ public class MitgliederViewController {
 
         SpaltenKonfiguration.wiederherstellen(mitgliederTable, "mitglieder");
 
-        mitgliederTable.setItems(mitglieder);
+        // Ein Sortierklick muss das Neuladen nach dem Bearbeiten-Dialog ueberleben: die Tabelle
+        // zeigt eine SortedList, deren Comparator an die Tabelle gebunden ist. Ohne diese
+        // Zwischenschicht setzt mitglieder.setAll(...) in aktualisiereGefilterteListe() die
+        // Zeilen auf die Reihenfolge aus der Datenbank zurueck, obwohl der Sortierpfeil auf der
+        // Spalte stehen bleibt. Nebeneffekt: TabellenSuche arbeitet mit Zeilenindizes aus
+        // table.getItems() und traf bei sortierter Tabelle bisher die falsche Zeile.
+        SortedList<Mitglied> sortierteAnsicht = new SortedList<>(mitglieder);
+        sortierteAnsicht.comparatorProperty().bind(mitgliederTable.comparatorProperty());
+        mitgliederTable.setItems(sortierteAnsicht);
+        // Standardsortierung bei jedem Start: ID aufsteigend. Bewusst nicht gespeichert - eine
+        // manuelle Sortierung gilt nur fuer die laufende Sitzung (SpaltenKonfiguration sichert
+        // Sichtbarkeit und Reihenfolge der Spalten, nicht die Sortierung).
+        idColumn.setSortType(TableColumn.SortType.ASCENDING);
+        mitgliederTable.getSortOrder().setAll(idColumn);
         mitgliederTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        // Doppelklick auf eine Zeile oeffnet den Bearbeiten-Dialog. Der Handler haengt an der
+        // Zeile und nicht an der Tabelle, damit ein Doppelklick in den leeren Bereich unterhalb
+        // der letzten Zeile nichts aufmacht.
+        mitgliederTable.setRowFactory(tv -> {
+            TableRow<Mitglied> zeile = new TableRow<>();
+            zeile.setOnMouseClicked(event -> {
+                if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2 && !zeile.isEmpty()) {
+                    onBearbeiten();
+                }
+            });
+            return zeile;
+        });
         mitgliederTable.getSelectionModel().getSelectedItems().addListener((ListChangeListener<Mitglied>) change -> {
             int anzahl = mitgliederTable.getSelectionModel().getSelectedItems().size();
             bearbeitenButton.setDisable(anzahl != 1);

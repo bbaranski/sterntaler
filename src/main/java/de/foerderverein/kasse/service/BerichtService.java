@@ -32,8 +32,12 @@ import org.openpdf.text.Font;
 import org.openpdf.text.PageSize;
 import org.openpdf.text.Rectangle;
 import org.openpdf.text.Paragraph;
+import org.openpdf.text.pdf.BaseFont;
+import org.openpdf.text.pdf.PdfContentByte;
 import org.openpdf.text.pdf.PdfPCell;
 import org.openpdf.text.pdf.PdfPTable;
+import org.openpdf.text.pdf.PdfPageEventHelper;
+import org.openpdf.text.pdf.PdfTemplate;
 import org.openpdf.text.pdf.PdfWriter;
 
 import de.foerderverein.kasse.domain.Aktivitaet;
@@ -110,12 +114,15 @@ public class BerichtService {
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         Document document = new Document(PageSize.A4, 40, 40, 50, 50);
         try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
-            PdfWriter.getInstance(document, out);
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+            writer.setPageEvent(new Seitenzahlen());
             document.open();
 
             Font titel = new Font(Font.HELVETICA, 16, Font.BOLD);
             Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
+            Font saldoZeile = betragFett(11);
+            Font saldoAbschluss = betragFett(12);
 
             document.add(new Paragraph("Kassenbericht " + jahr.getBezeichnung(), titel));
             for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
@@ -124,7 +131,7 @@ public class BerichtService {
             document.add(new Paragraph(konto.getBezeichnung() + " (" + konto.getIban() + ")", untertitel));
             document.add(new Paragraph("Zeitraum: " + jahr.getStartDatum().format(DATUM_FORMAT)
                     + " - " + jahr.getEndDatum().format(DATUM_FORMAT), untertitel));
-            document.add(new Paragraph("Startsaldo: " + BETRAG_FORMAT.format(jahr.getStartsaldoEuro()), untertitel));
+            document.add(new Paragraph("Startsaldo: " + BETRAG_FORMAT.format(jahr.getStartsaldoEuro()), saldoZeile));
             document.add(leerzeile());
 
             document.add(new Paragraph("Einnahmen", abschnitt));
@@ -137,15 +144,15 @@ public class BerichtService {
 
             long saldoZeitraum = summeEinnahmen - summeAusgaben;
             long endsaldo = jahr.getStartsaldoCent() + saldoZeitraum;
-            document.add(new Paragraph("Saldo des Zeitraums: " + BETRAG_FORMAT.format(BigDecimal.valueOf(saldoZeitraum, 2)), abschnitt));
-            document.add(new Paragraph("Endsaldo: " + BETRAG_FORMAT.format(BigDecimal.valueOf(endsaldo, 2)), abschnitt));
+            document.add(new Paragraph("Saldo des Zeitraums: " + BETRAG_FORMAT.format(BigDecimal.valueOf(saldoZeitraum, 2)), saldoAbschluss));
+            document.add(new Paragraph("Endsaldo: " + BETRAG_FORMAT.format(BigDecimal.valueOf(endsaldo, 2)), saldoAbschluss));
             document.add(leerzeile());
             document.add(leerzeile());
 
             document.add(new Paragraph("Erstellt am " + LocalDate.now().format(DATUM_FORMAT), untertitel));
             document.add(leerzeile());
             document.add(new Paragraph("_______________________________          _______________________________", untertitel));
-            document.add(new Paragraph("Datum, Unterschrift Kassenwart/-in          Datum, Unterschrift Kassenpruefer/-in", untertitel));
+            document.add(new Paragraph("Datum, Unterschrift Kassenwart/-in          Datum, Unterschrift Kassenprüfer/-in", untertitel));
 
             // Muss vor dem Schliessen des OutputStreams durch try-with-resources passieren:
             // document.close() schreibt noch Trailer/Xref-Tabelle in den Stream.
@@ -158,7 +165,9 @@ public class BerichtService {
     /** Alle Buchungen eines Geschaeftsjahres einzeln, als Gegenstueck zu den
      * Summenberichten. Im Querformat, weil acht Spalten im Hochformat nicht nebeneinander
      * passen. Buchungsmenge und Endsaldo entsprechen dem Kassenbericht. Erscheint in der
-     * Oberflaeche und im PDF-Titel als "Umsätze". */
+     * Oberflaeche und im PDF-Titel als "Kassenpruefbericht" - er geht mit Unterschriftenzeile
+     * und Entlastungsempfehlung an die Mitgliederversammlung; im Code heisst er weiter
+     * Buchungsjournal. */
     public void erstelleBuchungsjournal(Path ziel, Konto konto, Geschaeftsjahr jahr) throws IOException {
         BuchungsjournalDaten daten = berechneBuchungsjournal(konto, jahr);
 
@@ -169,14 +178,17 @@ public class BerichtService {
         Document document = new Document(
                 new Rectangle(PageSize.A4.getHeight(), PageSize.A4.getWidth()), 40, 40, 50, 50);
         try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
-            PdfWriter.getInstance(document, out);
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+            writer.setPageEvent(new Seitenzahlen());
             document.open();
 
             Font titel = new Font(Font.HELVETICA, 16, Font.BOLD);
             Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
+            Font saldoZeile = betragFett(11);
+            Font saldoAbschluss = betragFett(12);
 
-            document.add(new Paragraph("Umsätze " + jahr.getBezeichnung(), titel));
+            document.add(new Paragraph("Kassenprüfbericht " + jahr.getBezeichnung(), titel));
             for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
                 document.add(zeile);
             }
@@ -184,21 +196,33 @@ public class BerichtService {
             document.add(new Paragraph("Zeitraum: " + jahr.getStartDatum().format(DATUM_FORMAT)
                     + " - " + jahr.getEndDatum().format(DATUM_FORMAT), untertitel));
             document.add(new Paragraph("Startsaldo: "
-                    + BETRAG_FORMAT.format(BigDecimal.valueOf(daten.startsaldoCent(), 2)), untertitel));
+                    + BETRAG_FORMAT.format(BigDecimal.valueOf(daten.startsaldoCent(), 2)), saldoZeile));
             document.add(leerzeile());
 
             document.add(journalTabelle(daten.zeilen()));
             document.add(leerzeile());
             document.add(new Paragraph("Summe der Beträge: "
-                    + BETRAG_FORMAT.format(BigDecimal.valueOf(daten.summeCent(), 2)), abschnitt));
+                    + BETRAG_FORMAT.format(BigDecimal.valueOf(daten.summeCent(), 2)), saldoAbschluss));
             document.add(new Paragraph("Endsaldo: "
-                    + BETRAG_FORMAT.format(BigDecimal.valueOf(daten.endsaldoCent(), 2)), abschnitt));
+                    + BETRAG_FORMAT.format(BigDecimal.valueOf(daten.endsaldoCent(), 2)), saldoAbschluss));
+            document.add(leerzeile());
+
+            document.add(new Paragraph("Die Kassenprüfung hat keine Beanstandungen ergeben."
+                    + " Die Kassenprüfer/-innen empfehlen der Mitgliederversammlung die Entlastung"
+                    + " des Vorstands.", untertitel));
+            document.add(leerzeile());
+            document.add(leerzeile());
+
+            document.add(new Paragraph("Erstellt am " + LocalDate.now().format(DATUM_FORMAT), untertitel));
+            document.add(leerzeile());
+            document.add(new Paragraph("_______________________________          _______________________________", untertitel));
+            document.add(new Paragraph("Datum, Unterschrift Kassenwart/-in          Datum, Unterschrift Kassenprüfer/-in", untertitel));
 
             // Muss vor dem Schliessen des OutputStreams durch try-with-resources passieren:
             // document.close() schreibt noch Trailer/Xref-Tabelle in den Stream.
             document.close();
         } catch (DocumentException e) {
-            throw new IOException("Umsätze konnten nicht erzeugt werden", e);
+            throw new IOException("Kassenprüfbericht konnte nicht erzeugt werden", e);
         }
     }
 
@@ -292,184 +316,7 @@ public class BerichtService {
         return new PdfPCell(new org.openpdf.text.Phrase(text, font));
     }
 
-    /** Anhang zum Kassenbericht: dieselbe Gliederung nach Kategorien, je Kategorie aber zusaetzlich
-     * aufgeschluesselt nach Aktivitaet, und am Ende das Ergebnis je Aktivitaet ueber alle
-     * Kategorien. Bewusst ohne Start-/Endsaldo und ohne Unterschriftenzeilen: die stehen im
-     * Kassenbericht, dem der Anhang beiliegt - zwei Dokumente, die denselben Endsaldo behaupten,
-     * waeren eine Fehlerquelle. */
-    public void erstelleKassenberichtAnhang(Path ziel, Konto konto, Geschaeftsjahr jahr) throws IOException {
-        KassenberichtAnhangDaten daten = berechneKassenberichtAnhang(konto, jahr);
-
-        Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
-        Document document = new Document(PageSize.A4, 40, 40, 50, 50);
-        try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
-            PdfWriter.getInstance(document, out);
-            document.open();
-
-            Font titel = new Font(Font.HELVETICA, 16, Font.BOLD);
-            Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
-            Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
-
-            document.add(new Paragraph("Kassenbericht Anhang " + jahr.getBezeichnung(), titel));
-            for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
-                document.add(zeile);
-            }
-            document.add(new Paragraph(konto.getBezeichnung() + " (" + konto.getIban() + ")", untertitel));
-            document.add(new Paragraph("Zeitraum: " + jahr.getStartDatum().format(DATUM_FORMAT)
-                    + " - " + jahr.getEndDatum().format(DATUM_FORMAT), untertitel));
-            document.add(leerzeile());
-
-            document.add(new Paragraph("Einnahmen", abschnitt));
-            document.add(anhangTabelle(daten.einnahmen()));
-            document.add(leerzeile());
-
-            document.add(new Paragraph("Ausgaben", abschnitt));
-            document.add(anhangTabelle(daten.ausgaben()));
-            document.add(leerzeile());
-
-            document.add(new Paragraph("Aktivitäten insgesamt", abschnitt));
-            document.add(aktivitaetenTabelle(daten.aktivitaeten()));
-
-            // Muss vor dem Schliessen des OutputStreams durch try-with-resources passieren:
-            // document.close() schreibt noch Trailer/Xref-Tabelle in den Stream.
-            document.close();
-        } catch (DocumentException e) {
-            throw new IOException("Kassenbericht Anhang konnte nicht erzeugt werden", e);
-        }
-    }
-
-    /** Getrennt von der PDF-Erzeugung, damit die Zahlen pruefbar sind - wie bei
-     * berechneSteuerreport(...). Liest dieselbe Buchungsmenge wie der Kassenbericht. */
-    KassenberichtAnhangDaten berechneKassenberichtAnhang(Konto konto, Geschaeftsjahr jahr) {
-        Map<Long, Kategorie> kategorienById = new LinkedHashMap<>();
-        for (Kategorie k : kategorieRepository.findAll()) {
-            kategorienById.put(k.getId(), k);
-        }
-        Map<Long, Aktivitaet> aktivitaetenById = new LinkedHashMap<>();
-        for (Aktivitaet a : aktivitaetRepository.findAll()) {
-            aktivitaetenById.put(a.getId(), a);
-        }
-
-        // LinkedHashMap durchgaengig: die Reihenfolge ist die des ersten Vorkommens in den nach
-        // Datum sortierten Buchungen - dieselbe Logik, nach der der Kassenbericht seine
-        // Kategorien anordnet.
-        Map<String, Map<String, Long>> einnahmen = new LinkedHashMap<>();
-        Map<String, Map<String, Long>> ausgaben = new LinkedHashMap<>();
-        Map<String, long[]> jeAktivitaet = new LinkedHashMap<>();
-
-        for (Buchung b : buchungenFuer(konto, jahr)) {
-            Kategorie k = kategorienById.get(b.getKategorieId());
-            String kategorieName = k != null ? k.getName() : OHNE_KATEGORIE;
-            Aktivitaet a = aktivitaetenById.get(b.getAktivitaetId());
-            String aktivitaetName = a != null ? a.getName() : OHNE_AKTIVITAET;
-            boolean istEinnahme = b.getBetragCent() >= 0;
-            long betrag = Math.abs(b.getBetragCent());
-
-            (istEinnahme ? einnahmen : ausgaben)
-                    .computeIfAbsent(kategorieName, n -> new LinkedHashMap<>())
-                    .merge(aktivitaetName, betrag, Long::sum);
-            long[] summen = jeAktivitaet.computeIfAbsent(aktivitaetName, n -> new long[2]);
-            summen[istEinnahme ? 0 : 1] += betrag;
-        }
-
-        return new KassenberichtAnhangDaten(bloecke(einnahmen), bloecke(ausgaben),
-                jeAktivitaet.entrySet().stream()
-                        .map(e -> new KassenberichtAnhangDaten.AktivitaetErgebnis(
-                                e.getKey(), e.getValue()[0], e.getValue()[1]))
-                        .toList());
-    }
-
-    private List<KassenberichtAnhangDaten.KategorieBlock> bloecke(Map<String, Map<String, Long>> jeKategorie) {
-        List<KassenberichtAnhangDaten.KategorieBlock> ergebnis = new ArrayList<>();
-        for (Map.Entry<String, Map<String, Long>> eintrag : jeKategorie.entrySet()) {
-            Map<String, Long> jeAktivitaet = eintrag.getValue();
-            long summe = jeAktivitaet.values().stream().mapToLong(Long::longValue).sum();
-            // Traegt keine Buchung der Kategorie eine Aktivitaet, bleibt die Kategoriezeile allein:
-            // eine einzelne Unterzeile "(ohne Aktivitaet)" mit demselben Betrag waere nur Rauschen.
-            boolean nurRestposten = jeAktivitaet.size() == 1 && jeAktivitaet.containsKey(OHNE_AKTIVITAET);
-            List<KassenberichtAnhangDaten.AktivitaetSumme> zeilen = nurRestposten
-                    ? List.of()
-                    : jeAktivitaet.entrySet().stream()
-                            .map(e -> new KassenberichtAnhangDaten.AktivitaetSumme(e.getKey(), e.getValue()))
-                            .toList();
-            ergebnis.add(new KassenberichtAnhangDaten.KategorieBlock(eintrag.getKey(), summe, zeilen));
-        }
-        return ergebnis;
-    }
-
-    private PdfPTable anhangTabelle(List<KassenberichtAnhangDaten.KategorieBlock> bloecke) {
-        Font fett = new Font(Font.HELVETICA, 10, Font.BOLD);
-        PdfPTable tabelle = new PdfPTable(2);
-        tabelle.setWidthPercentage(100);
-        try {
-            tabelle.setWidths(new float[] {70, 30});
-        } catch (DocumentException e) {
-            // Feste Spaltenzahl, kann hier nicht auftreten.
-        }
-        tabelle.addCell(kopfzelle("Kategorie / Aktivität"));
-        tabelle.addCell(kopfzelle("Betrag"));
-        // Der Anhang wird mehrseitig: ohne Kopfzeilenwiederholung stehen die Zeilen auf der
-        // Folgeseite ohne Spaltenbeschriftung.
-        tabelle.setHeaderRows(1);
-        if (bloecke.isEmpty()) {
-            PdfPCell leer = new PdfPCell(new org.openpdf.text.Phrase("(keine Buchungen)"));
-            leer.setColspan(2);
-            tabelle.addCell(leer);
-        }
-        for (KassenberichtAnhangDaten.KategorieBlock block : bloecke) {
-            tabelle.addCell(new PdfPCell(new org.openpdf.text.Phrase(block.kategorie(), fett)));
-            tabelle.addCell(betragZelle(block.summeCent(), fett));
-            for (KassenberichtAnhangDaten.AktivitaetSumme zeile : block.aktivitaeten()) {
-                PdfPCell name = new PdfPCell(new org.openpdf.text.Phrase(zeile.aktivitaet()));
-                name.setPaddingLeft(18);
-                tabelle.addCell(name);
-                tabelle.addCell(betragZelle(zeile.summeCent()));
-            }
-        }
-        tabelle.addCell(new PdfPCell(new org.openpdf.text.Phrase("Summe", fett)));
-        tabelle.addCell(betragZelle(bloecke.stream()
-                .mapToLong(KassenberichtAnhangDaten.KategorieBlock::summeCent).sum(), fett));
-        return tabelle;
-    }
-
-    /** Zeigt, was die Aufschluesselung je Kategorie nicht zeigen kann: eine Aktivitaet verteilt
-     * sich ueber mehrere Kategorien und ueber beide Abschnitte. */
-    private PdfPTable aktivitaetenTabelle(List<KassenberichtAnhangDaten.AktivitaetErgebnis> aktivitaeten) {
-        Font fett = new Font(Font.HELVETICA, 10, Font.BOLD);
-        PdfPTable tabelle = new PdfPTable(4);
-        tabelle.setWidthPercentage(100);
-        try {
-            tabelle.setWidths(new float[] {40, 20, 20, 20});
-        } catch (DocumentException e) {
-            // Feste Spaltenzahl, kann hier nicht auftreten.
-        }
-        tabelle.addCell(kopfzelle("Aktivität"));
-        for (String spalte : new String[] {"Einnahmen", "Ausgaben", "Ergebnis"}) {
-            tabelle.addCell(kopfzelle(spalte));
-        }
-        tabelle.setHeaderRows(1);
-        if (aktivitaeten.isEmpty()) {
-            PdfPCell leer = new PdfPCell(new org.openpdf.text.Phrase("(keine Buchungen)"));
-            leer.setColspan(4);
-            tabelle.addCell(leer);
-        }
-        for (KassenberichtAnhangDaten.AktivitaetErgebnis e : aktivitaeten) {
-            tabelle.addCell(e.aktivitaet());
-            tabelle.addCell(betragZelle(e.einnahmenCent()));
-            tabelle.addCell(betragZelle(e.ausgabenCent()));
-            tabelle.addCell(betragZelle(e.ergebnisCent()));
-        }
-        tabelle.addCell(new PdfPCell(new org.openpdf.text.Phrase("Summe", fett)));
-        tabelle.addCell(betragZelle(aktivitaeten.stream()
-                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::einnahmenCent).sum(), fett));
-        tabelle.addCell(betragZelle(aktivitaeten.stream()
-                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::ausgabenCent).sum(), fett));
-        tabelle.addCell(betragZelle(aktivitaeten.stream()
-                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::ergebnisCent).sum(), fett));
-        return tabelle;
-    }
-
-    /** Jaehrliche "Ergaenzung zur Steuererklaerung": Gegenueberstellung von Einnahmen und
+    /** Jaehrliche "Einnahmen-Ueberschuss-Rechnung": Gegenueberstellung von Einnahmen und
      * Ausgaben, klassifiziert nach den vier steuerlichen Sphaeren (Bereich) der jeweiligen
      * Kategorie (siehe Kategorie.getBereich()) - Aktivitaeten/Veranstaltungen spielen hier keine
      * Rolle mehr, sie sind reines optionales Reporting-Metadatum. Anders als der Kassenbericht
@@ -491,14 +338,15 @@ public class BerichtService {
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         Document document = new Document(PageSize.A4, 40, 40, 50, 50);
         try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
-            PdfWriter.getInstance(document, out);
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+            writer.setPageEvent(new Seitenzahlen());
             document.open();
 
             Font titel = new Font(Font.HELVETICA, 16, Font.BOLD);
             Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
 
-            document.add(new Paragraph("Ergänzung zur Steuererklärung " + jahr, titel));
+            document.add(new Paragraph("Einnahmen-Überschuss-Rechnung " + jahr, titel));
             for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
                 document.add(zeile);
             }
@@ -570,11 +418,11 @@ public class BerichtService {
             document.add(new Paragraph("Erstellt am " + LocalDate.now().format(DATUM_FORMAT), untertitel));
             document.add(leerzeile());
             document.add(new Paragraph("_______________________________          _______________________________", untertitel));
-            document.add(new Paragraph("Datum, Unterschrift Kassenwart/-in          Datum, Unterschrift Kassenpruefer/-in", untertitel));
+            document.add(new Paragraph("Datum, Unterschrift Kassenwart/-in          Datum, Unterschrift Kassenprüfer/-in", untertitel));
 
             document.close();
         } catch (DocumentException e) {
-            throw new IOException("Steuerreport konnte nicht erzeugt werden", e);
+            throw new IOException("Einnahmen-Überschuss-Rechnung konnte nicht erzeugt werden", e);
         }
     }
 
@@ -663,14 +511,15 @@ public class BerichtService {
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         Document document = new Document(PageSize.A4, 40, 40, 50, 50);
         try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
-            PdfWriter.getInstance(document, out);
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+            writer.setPageEvent(new Seitenzahlen());
             document.open();
 
             Font titel = new Font(Font.HELVETICA, 16, Font.BOLD);
             Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
 
-            document.add(new Paragraph("Mitgliederbericht", titel));
+            document.add(new Paragraph("Mitgliederentwicklung", titel));
             for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
                 document.add(zeile);
             }
@@ -684,12 +533,131 @@ public class BerichtService {
             // document.close() schreibt noch Trailer/Xref-Tabelle in den Stream.
             document.close();
         } catch (DocumentException e) {
-            throw new IOException("Mitgliederbericht konnte nicht erzeugt werden", e);
+            throw new IOException("Mitgliederentwicklung konnte nicht erzeugt werden", e);
         }
     }
 
     /** Getrennt von der PDF-Erzeugung, damit die Kennzahlen pruefbar sind - wie bei
      * berechneSteuerreport(...). */
+    /** Alle aktiven Mitglieder mit ihren Stammdaten, nach Id aufsteigend - das Gegenstueck zur
+     * Mitgliederentwicklung, die nur Kennzahlen zeigt. Im Querformat und in kleiner Schrift, weil
+     * die Spalten im Hochformat nicht nebeneinander passen. Kopfzeilen wie in der
+     * Mitgliederentwicklung. */
+    public void erstelleMitgliederuebersicht(Path ziel) throws IOException {
+        List<Mitglied> mitglieder = mitgliedService.findAll().stream()
+                .filter(m -> m.getStatus() == MitgliedStatus.AKTIV)
+                .sorted(Comparator.comparing(Mitglied::getId,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+
+        Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
+        // Querformat wie beim Kassenpruefbericht, und aus demselben Grund direkt als
+        // Querformat-Seite statt per /Rotate (siehe erstelleBuchungsjournal). Seitlich schmalere
+        // Raender als die uebrigen Berichte: 18 Spalten brauchen jeden Punkt, und bei 40 pt
+        // brechen Orte und Notizen mitten im Wort um.
+        Document document = new Document(
+                new Rectangle(PageSize.A4.getHeight(), PageSize.A4.getWidth()), 25, 25, 50, 50);
+        try (FileOutputStream out = new FileOutputStream(ziel.toFile())) {
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+            writer.setPageEvent(new Seitenzahlen());
+            document.open();
+
+            Font titel = new Font(Font.HELVETICA, 16, Font.BOLD);
+            Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
+            Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
+
+            document.add(new Paragraph("Mitgliederübersicht", titel));
+            for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
+                document.add(zeile);
+            }
+            document.add(new Paragraph("Stand: " + LocalDate.now().format(DATUM_FORMAT), untertitel));
+            document.add(leerzeile());
+
+            document.add(mitgliederTabelle(mitglieder));
+
+            // Muss vor dem Schliessen des OutputStreams durch try-with-resources passieren:
+            // document.close() schreibt noch Trailer/Xref-Tabelle in den Stream.
+            document.close();
+        } catch (DocumentException e) {
+            throw new IOException("Mitgliederübersicht konnte nicht erzeugt werden", e);
+        }
+    }
+
+    /** Spalten der Mitgliederuebersicht: die des Mitgliederexports (MITGLIEDER_SPALTEN) ohne
+     * Austrittsdatum, Status und Sammellastschrift. Der Bericht zeigt nur aktive Mitglieder -
+     * Austrittsdatum und Status haetten dort ohnehin in jeder Zeile denselben Inhalt. */
+    private static final String[] MITGLIEDERUEBERSICHT_SPALTEN = {
+            "Id", "Anrede", "Vorname", "Nachname", "Straße", "PLZ", "Ort", "Telefon", "E-Mail",
+            "Eintrittsdatum", "Jahresbeitrag", "IBAN", "BIC", "Mandatsreferenz", "Notiz"
+    };
+
+    private PdfPTable mitgliederTabelle(List<Mitglied> mitglieder) {
+        Font klein = new Font(Font.HELVETICA, 6, Font.NORMAL);
+        Font kleinFett = new Font(Font.HELVETICA, 6, Font.BOLD);
+        PdfPTable tabelle = new PdfPTable(MITGLIEDERUEBERSICHT_SPALTEN.length);
+        tabelle.setWidthPercentage(100);
+        try {
+            // Breiten in Punkt bei A4-Querformat und 25 pt Rand (Summe 792), je Spalte 4 pt
+            // Zellenrand eingerechnet. Untergrenze ist die Breite der Beschriftung bei 6 pt fett:
+            // "Sammellastschrift" und "Mandatsreferenz" sind einzelne Woerter, die in einer zu
+            // schmalen Spalte abgeschnitten wuerden statt umzubrechen. Darueber hinaus so
+            // bemessen, dass die haeufigen einteiligen Werte - Ort, Telefon, IBAN, Datum - in
+            // eine Zeile passen; mehrteilige (Doppelnamen, lange E-Mail-Adressen) brechen an
+            // ihrer Trennstelle um.
+            tabelle.setWidths(new float[] {
+                    18, 27, 38, 62, 56, 21, 50, 52, 125, 45, 44, 80, 49, 52, 73});
+        } catch (DocumentException e) {
+            // Feste Spaltenzahl, kann hier nicht auftreten.
+        }
+        for (String spalte : MITGLIEDERUEBERSICHT_SPALTEN) {
+            tabelle.addCell(kopfzelle(spalte, kleinFett));
+        }
+        // Die Liste wird mehrseitig: ohne Kopfzeilenwiederholung stehen die Zeilen der
+        // Folgeseiten ohne Spaltenbeschriftung.
+        tabelle.setHeaderRows(1);
+
+        if (mitglieder.isEmpty()) {
+            PdfPCell leer = new PdfPCell(new org.openpdf.text.Phrase("(keine aktiven Mitglieder)", klein));
+            leer.setColspan(MITGLIEDERUEBERSICHT_SPALTEN.length);
+            tabelle.addCell(leer);
+        }
+        // Spaltenreihenfolge und Schreibweise der Werte wie in exportiereMitgliederliste (nur
+        // ohne die drei dort zusaetzlichen Spalten) - beide geben dieselben Stammdaten aus und
+        // sollen nicht auseinanderlaufen.
+        for (Mitglied m : mitglieder) {
+            tabelle.addCell(textZelle(m.getId() != null ? String.valueOf(m.getId()) : "", klein));
+            tabelle.addCell(textZelle(anredeText(m.getAnrede()), klein));
+            tabelle.addCell(textZelle(wert(m.getVorname()), klein));
+            tabelle.addCell(textZelle(wert(m.getNachname()), klein));
+            tabelle.addCell(textZelle(wert(m.getStrasse()), klein));
+            tabelle.addCell(textZelle(wert(m.getPlz()), klein));
+            tabelle.addCell(textZelle(wert(m.getOrt()), klein));
+            tabelle.addCell(textZelle(wert(m.getTelefon()), klein));
+            tabelle.addCell(textZelle(wert(m.getEmail()), klein));
+            tabelle.addCell(textZelle(wert(m.getEintrittsdatum()), klein));
+            tabelle.addCell(m.getJahresbeitragCent() != null
+                    ? betragZelle(m.getJahresbeitragCent(), klein)
+                    : textZelle("", klein));
+            tabelle.addCell(textZelle(wert(m.getIban()), klein));
+            tabelle.addCell(textZelle(wert(m.getBic()), klein));
+            tabelle.addCell(textZelle(m.getMandatsreferenz() != null
+                    ? String.valueOf(m.getMandatsreferenz()) : "", klein));
+            tabelle.addCell(textZelle(wert(m.getNotiz()), klein));
+        }
+        return tabelle;
+    }
+
+    private static String anredeText(Anrede anrede) {
+        if (anrede == null) {
+            return "";
+        }
+        return switch (anrede) {
+            case HERR -> "Herr";
+            case FRAU -> "Frau";
+            case FAMILIE -> "Familie";
+        };
+    }
+
     MitgliederberichtDaten berechneMitgliederbericht() {
         List<Mitglied> aktive = mitgliedService.findAll().stream()
                 .filter(m -> m.getStatus() == MitgliedStatus.AKTIV)
@@ -785,6 +753,69 @@ public class BerichtService {
 
     private Paragraph leerzeile() {
         return new Paragraph(" ");
+    }
+
+    /** Fusszeile "Seite x von y" auf jeder Seite jedes Berichts. Die Gesamtzahl der Seiten steht
+     * erst fest, wenn das Dokument geschrieben ist - jede Seite laesst dafuer ein PdfTemplate
+     * frei, das beim Schliessen einmal mit der endgueltigen Zahl gefuellt wird und auf allen
+     * Seiten zugleich erscheint. */
+    private static final class Seitenzahlen extends PdfPageEventHelper {
+
+        private static final float SCHRIFTGROESSE = 9;
+
+        private BaseFont schrift;
+        private PdfTemplate gesamtseiten;
+
+        @Override
+        public void onOpenDocument(PdfWriter writer, Document document) {
+            try {
+                schrift = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+            } catch (DocumentException | IOException e) {
+                throw new IllegalStateException("Schrift fuer die Seitenzahlen nicht verfuegbar", e);
+            }
+            gesamtseiten = writer.getDirectContent().createTemplate(40, SCHRIFTGROESSE + 2);
+        }
+
+        @Override
+        public void onEndPage(PdfWriter writer, Document document) {
+            String text = "Seite " + writer.getPageNumber() + " von ";
+            float textBreite = schrift.getWidthPoint(text, SCHRIFTGROESSE);
+            // Zentriert unter dem Satzspiegel, mit der Ziffernbreite der Gesamtzahl (grob zwei
+            // Stellen) im Mittelpunkt - sonst wandert die Zeile mit wachsender Seitenzahl.
+            float ziffernBreite = schrift.getWidthPoint("00", SCHRIFTGROESSE);
+            float x = (document.left() + document.right() - textBreite - ziffernBreite) / 2;
+            float y = document.bottom() - 20;
+
+            PdfContentByte inhalt = writer.getDirectContent();
+            inhalt.beginText();
+            inhalt.setFontAndSize(schrift, SCHRIFTGROESSE);
+            inhalt.setTextMatrix(x, y);
+            inhalt.showText(text);
+            inhalt.endText();
+            inhalt.addTemplate(gesamtseiten, x + textBreite, y);
+        }
+
+        @Override
+        public void onCloseDocument(PdfWriter writer, Document document) {
+            // getPageNumber() steht hier bereits eine Seite hinter der letzten geschriebenen.
+            gesamtseiten.beginText();
+            gesamtseiten.setFontAndSize(schrift, SCHRIFTGROESSE);
+            gesamtseiten.setTextMatrix(0, 0);
+            gesamtseiten.showText(String.valueOf(writer.getPageNumber() - 1));
+            gesamtseiten.endText();
+        }
+    }
+
+    /** Fette Schrift fuer Zeilen, die einen Geldbetrag enthalten. Fuer Zeichen jenseits von
+     * Latin-1 - hier das Euro-Zeichen - ersetzt PdfChunk eine Schrift ohne explizit gesetzte
+     * BaseFont durch die in OpenPDF mitgelieferte LiberationSans-Regular. Eine fette Variante
+     * davon liefert OpenPDF nicht mit, der Fettdruck aus Font.BOLD faellt also ersatzlos weg.
+     * Mit explizit gesetzter BaseFont greift die Ersetzung nicht, und Helvetica-Bold kennt in
+     * WinAnsi-Kodierung das Euro-Zeichen. Der Style bleibt bewusst ungesetzt: zu einer expliziten
+     * BaseFont wuerde Font.BOLD zusaetzlich kuenstlichen Fettdruck ueber den Zeichenrand legen. */
+    private Font betragFett(float groesse) throws DocumentException, IOException {
+        return new Font(BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI,
+                BaseFont.NOT_EMBEDDED), groesse);
     }
 
     /** Briefkopf-Zeilen aus den Vereins-Stammdaten (siehe VereinDialogController) - leer, wenn
@@ -954,8 +985,8 @@ public class BerichtService {
     /** Beruecksichtigt eine ausdrueckliche Geschaeftsjahr-Zuordnung der Buchung, die vom
      * Buchungsdatum abweichen kann (siehe GeschaeftsjahrService.findeFuer) - sonst wuerde der
      * Kassenbericht am Stichtag andere Buchungen zeigen als die Saldo-Spalte der Uebersicht. */
-    /** Die Buchungen, die Kassenbericht und Anhang zugrunde legen - gemeinsame Stelle, damit
-     * beide Dokumente nie unterschiedliche Mengen auswerten. */
+    /** Die Buchungen, die Kassenbericht und Kassenpruefbericht zugrunde legen - gemeinsame
+     * Stelle, damit beide Dokumente nie unterschiedliche Mengen auswerten. */
     private List<Buchung> buchungenFuer(Konto konto, Geschaeftsjahr jahr) {
         return buchungRepository.findAll().stream()
                 .filter(b -> b.getKontoId().equals(konto.getId()))

@@ -97,7 +97,8 @@ public final class AppContext {
         BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
                 aktivitaetRepository, mitgliedService, geschaeftsjahrService, vereinRepository);
         KontobewegungenExportService kontobewegungenExportService = new KontobewegungenExportService(
-                buchungRepository, kontoRepository, kategorieRepository, aktivitaetRepository);
+                buchungRepository, kontoRepository, kategorieRepository, aktivitaetRepository,
+                geschaeftsjahrService);
         BriefvorlageService briefvorlageService = new BriefvorlageService(briefvorlageRepository, vorlagenVerzeichnis);
 
         return new AppContext(

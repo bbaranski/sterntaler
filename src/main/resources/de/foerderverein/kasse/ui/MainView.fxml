@@ -29,10 +29,12 @@
                 <Menu text="Berichte">
                     <items>
                         <MenuItem text="Kassenbericht…" onAction="#onKassenbericht" />
-                        <MenuItem text="Kassenbericht Anhang…" onAction="#onKassenberichtAnhang" />
-                        <MenuItem text="Umsätze…" onAction="#onBuchungsjournal" />
-                        <MenuItem text="Ergänzung zur Steuererklärung…" onAction="#onSteuerreport" />
-                        <MenuItem text="Mitgliederbericht…" onAction="#onMitgliederbericht" />
+                        <MenuItem text="Kassenprüfbericht…" onAction="#onBuchungsjournal" />
+                        <SeparatorMenuItem />
+                        <MenuItem text="Mitgliederentwicklung…" onAction="#onMitgliederbericht" />
+                        <MenuItem text="Mitgliederübersicht…" onAction="#onMitgliederuebersicht" />
+                        <SeparatorMenuItem />
+                        <MenuItem text="Einnahmen-Überschuss-Rechnung…" onAction="#onSteuerreport" />
                     </items>
                 </Menu>
                 <Menu text="Import">

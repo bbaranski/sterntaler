@@ -20,6 +20,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -275,7 +276,18 @@ public class BuchungenViewController {
 
         SpaltenKonfiguration.wiederherstellen(buchungenTable, "buchungen");
 
-        buchungenTable.setItems(buchungen);
+        // Ein Sortierklick muss das Neuladen ueberleben - nach jeder Inline-Aenderung laeuft
+        // ladeBuchungen(), und ohne diese Zwischenschicht setzt buchungen.setAll(...) die Zeilen
+        // auf die Reihenfolge aus der Datenbank zurueck, obwohl der Sortierpfeil stehen bleibt.
+        // Dieselbe Loesung wie in der Mitgliederansicht.
+        SortedList<Buchung> sortierteAnsicht = new SortedList<>(buchungen);
+        sortierteAnsicht.comparatorProperty().bind(buchungenTable.comparatorProperty());
+        buchungenTable.setItems(sortierteAnsicht);
+        // Standardsortierung bei jedem Start: ID absteigend, neueste Buchungen also oben. Die
+        // Spalte ist standardmaessig ausgeblendet (siehe FXML) - sortiert wird trotzdem nach ihr.
+        // Bewusst nicht gespeichert, eine manuelle Sortierung gilt nur fuer die laufende Sitzung.
+        idColumn.setSortType(TableColumn.SortType.DESCENDING);
+        buchungenTable.getSortOrder().setAll(idColumn);
         buchungenTable.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(Buchung item, boolean empty) {

@@ -170,34 +170,15 @@ public class MainController {
         });
     }
 
-    /** Anhang zum Kassenbericht mit der Aufschluesselung je Aktivitaet - braucht dieselbe Auswahl
-     * von Konto und Geschaeftsjahr wie der Kassenbericht selbst. */
-    @FXML
-    private void onKassenberichtAnhang() {
-        waehleKontoUndJahr("Kassenbericht Anhang", (konto, jahr) -> {
-            String dateiname = jahr.getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
-            File datei = waehleZieldatei("Kassenbericht Anhang speichern",
-                    "Kassenbericht-Anhang-" + dateiname + ".pdf");
-            if (datei == null) {
-                return;
-            }
-            try {
-                ctx.berichtService.erstelleKassenberichtAnhang(datei.toPath(), konto, jahr);
-                oeffneDatei(datei);
-            } catch (IOException e) {
-                zeigeFehler("Kassenbericht Anhang konnte nicht erstellt werden", e);
-            }
-        });
-    }
-
     /** Alle Buchungen eines Geschaeftsjahres einzeln - erscheint in der Oberflaeche als
-     * "Umsätze", im Code weiter als Buchungsjournal (siehe
+     * "Kassenprüfbericht", im Code weiter als Buchungsjournal (siehe
      * BerichtService.erstelleBuchungsjournal). Querformat. */
     @FXML
     private void onBuchungsjournal() {
-        waehleKontoUndJahr("Umsätze", (konto, jahr) -> {
+        waehleKontoUndJahr("Kassenprüfbericht", (konto, jahr) -> {
             String dateiname = jahr.getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
-            File datei = waehleZieldatei("Umsätze speichern", "Umsätze-" + dateiname + ".pdf");
+            File datei = waehleZieldatei("Kassenprüfbericht speichern",
+                    "Kassenprüfbericht-" + dateiname + ".pdf");
             if (datei == null) {
                 return;
             }
@@ -205,7 +186,7 @@ public class MainController {
                 ctx.berichtService.erstelleBuchungsjournal(datei.toPath(), konto, jahr);
                 oeffneDatei(datei);
             } catch (IOException e) {
-                zeigeFehler("Umsätze konnten nicht erstellt werden", e);
+                zeigeFehler("Kassenprüfbericht konnte nicht erstellt werden", e);
             }
         });
     }
@@ -279,7 +260,7 @@ public class MainController {
         Konto konto = konten.get(0);
         if (konten.size() > 1) {
             ChoiceDialog<Konto> kontoAuswahl = new ChoiceDialog<>(konto, konten);
-            kontoAuswahl.setHeaderText("Fuer welches Konto soll der Steuerreport erstellt werden?");
+            kontoAuswahl.setHeaderText("Fuer welches Konto soll die Einnahmen-Überschuss-Rechnung erstellt werden?");
             Optional<Konto> gewaehlt = kontoAuswahl.showAndWait();
             if (gewaehlt.isEmpty()) {
                 return;
@@ -288,7 +269,7 @@ public class MainController {
         }
 
         TextInputDialog jahrDialog = new TextInputDialog(String.valueOf(java.time.LocalDate.now().getYear()));
-        jahrDialog.setTitle("Ergänzung zur Steuererklärung");
+        jahrDialog.setTitle("Einnahmen-Überschuss-Rechnung");
         jahrDialog.setHeaderText("Für welches Jahr soll der Bericht erstellt werden?");
         jahrDialog.setContentText("Jahr:");
         Optional<String> eingabe = jahrDialog.showAndWait();
@@ -310,8 +291,8 @@ public class MainController {
         }
 
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Steuerreport speichern");
-        fileChooser.setInitialFileName("Steuerreport-" + jahr + ".pdf");
+        fileChooser.setTitle("Einnahmen-Überschuss-Rechnung speichern");
+        fileChooser.setInitialFileName("Einnahmen-Überschuss-Rechnung-" + jahr + ".pdf");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
         File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
         if (datei == null) {
@@ -322,7 +303,7 @@ public class MainController {
             ctx.berichtService.erstelleSteuerreport(datei.toPath(), konto, jahr);
             oeffneDatei(datei);
         } catch (IOException e) {
-            zeigeFehler("Steuerreport konnte nicht erstellt werden", e);
+            zeigeFehler("Einnahmen-Überschuss-Rechnung konnte nicht erstellt werden", e);
         }
     }
 
@@ -383,14 +364,15 @@ public class MainController {
         }
     }
 
-    /** Kennzahlen zu den Mitgliedern als PDF. Anders als Kassenbericht und Steuerreport ohne
+    /** Kennzahlen zu den Mitgliedern als PDF. Anders als Kassenbericht und
+     * Einnahmen-Ueberschuss-Rechnung ohne
      * Auswahl von Konto und Geschaeftsjahr - der Bericht ist eine Momentaufnahme des gesamten
      * Mitgliederbestands. */
     @FXML
     private void onMitgliederbericht() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Mitgliederbericht speichern");
-        fileChooser.setInitialFileName("Mitgliederbericht-" + LocalDate.now() + ".pdf");
+        fileChooser.setTitle("Mitgliederentwicklung speichern");
+        fileChooser.setInitialFileName("Mitgliederentwicklung-" + LocalDate.now() + ".pdf");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
         File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
         if (datei == null) {
@@ -401,7 +383,28 @@ public class MainController {
             ctx.berichtService.erstelleMitgliederbericht(datei.toPath());
             oeffneDatei(datei);
         } catch (IOException e) {
-            zeigeFehler("Mitgliederbericht konnte nicht erstellt werden", e);
+            zeigeFehler("Mitgliederentwicklung konnte nicht erstellt werden", e);
+        }
+    }
+
+    /** Alle aktiven Mitglieder mit allen Spalten als PDF - wie die Mitgliederentwicklung ohne
+     * Auswahl von Konto und Geschaeftsjahr, die Mitglieder haengen an keinem der beiden. */
+    @FXML
+    private void onMitgliederuebersicht() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Mitgliederübersicht speichern");
+        fileChooser.setInitialFileName("Mitgliederübersicht-" + LocalDate.now() + ".pdf");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
+        File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
+        if (datei == null) {
+            return;
+        }
+
+        try {
+            ctx.berichtService.erstelleMitgliederuebersicht(datei.toPath());
+            oeffneDatei(datei);
+        } catch (IOException e) {
+            zeigeFehler("Mitgliederübersicht konnte nicht erstellt werden", e);
         }
     }
 

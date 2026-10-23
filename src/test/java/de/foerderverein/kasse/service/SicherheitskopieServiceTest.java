@@ -70,7 +70,8 @@ class SicherheitskopieServiceTest {
                 new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
         KontobewegungenExportService kontobewegungenExportService = new KontobewegungenExportService(
                 buchungRepository, new KontoRepository(database), new KategorieRepository(database),
-                new AktivitaetRepository(database));
+                new AktivitaetRepository(database),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)));
 
         service = new SicherheitskopieService(kontobewegungenExportService, berichtService, belegeVerzeichnis,
                 databaseFile);

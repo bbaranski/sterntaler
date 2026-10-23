@@ -11,7 +11,9 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -188,6 +190,56 @@ class BerichtServiceTest {
         berichtService.erstelleKassenbericht(ziel2027, konto, jahr2027);
         assertTrue(Files.exists(ziel2026));
         assertTrue(Files.exists(ziel2027));
+    }
+
+    /** Waechter gegen vergessene Spalten: zu jedem Feld von Mitglied muss es eine Spalte im
+     * Export geben, und zu jeder Spalte ein Feld. Schlaegt fehl, sobald Mitglied erweitert wird,
+     * ohne den Export nachzuziehen. Die Zuordnung steht bewusst ausgeschrieben: ein Abgleich
+     * "Anzahl == Anzahl" wuerde ein entferntes gegen ein neues Feld aufrechnen. */
+    @Test
+    void jedesFeldVonMitgliedHatEineSpalteImExport() throws Exception {
+        Map<String, String> spalteJeFeld = new LinkedHashMap<>();
+        spalteJeFeld.put("id", "Id");
+        spalteJeFeld.put("anrede", "Anrede");
+        spalteJeFeld.put("vorname", "Vorname");
+        spalteJeFeld.put("nachname", "Nachname");
+        spalteJeFeld.put("strasse", "Straße");
+        spalteJeFeld.put("plz", "PLZ");
+        spalteJeFeld.put("ort", "Ort");
+        spalteJeFeld.put("telefon", "Telefon");
+        spalteJeFeld.put("email", "E-Mail");
+        spalteJeFeld.put("eintrittsdatum", "Eintrittsdatum");
+        spalteJeFeld.put("austrittsdatum", "Austrittsdatum");
+        spalteJeFeld.put("status", "Status");
+        spalteJeFeld.put("jahresbeitragCent", "Jahresbeitrag");
+        spalteJeFeld.put("iban", "IBAN");
+        spalteJeFeld.put("bic", "BIC");
+        spalteJeFeld.put("mandatsreferenz", "Mandatsreferenz");
+        spalteJeFeld.put("sammellastschrift", "Sammellastschrift");
+        spalteJeFeld.put("notiz", "Notiz");
+
+        List<String> felder = java.util.Arrays.stream(Mitglied.class.getDeclaredFields())
+                .filter(f -> !java.lang.reflect.Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
+                .map(java.lang.reflect.Field::getName)
+                .sorted()
+                .toList();
+        assertEquals(felder, spalteJeFeld.keySet().stream().sorted().toList(),
+                "Mitglied und Exportspalten laufen auseinander");
+
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        Path ziel = Files.createTempDirectory("kasse-mitglieder-spalten").resolve("mitglieder.xlsx");
+        berichtService(database, mitgliedRepository).exportiereMitgliederliste(ziel);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(ziel.toFile())) {
+            Row kopfzeile = workbook.getSheetAt(0).getRow(0);
+            List<String> kopf = new ArrayList<>();
+            for (int i = 0; i < kopfzeile.getLastCellNum(); i++) {
+                kopf.add(kopfzeile.getCell(i).getStringCellValue());
+            }
+            assertEquals(spalteJeFeld.values().stream().sorted().toList(), kopf.stream().sorted().toList(),
+                    "Kopfzeile der Exportdatei weicht von der Zuordnung ab");
+        }
     }
 
     @Test
@@ -715,7 +767,7 @@ class BerichtServiceTest {
         }
 
         String text = pdfText(ziel);
-        assertTrue(text.contains("Umsätze"), text);
+        assertTrue(text.contains("Kassenprüfbericht"), text);
         assertTrue(text.contains("Verwendungszweck"), text);
         // Die Spalte muss breit genug fuer ihre Beschriftung sein - sonst steht dort
         // "Kontoauszu" / "g" auf zwei Zeilen.
@@ -723,7 +775,10 @@ class BerichtServiceTest {
         assertTrue(text.contains("Weckmänner"), text);
         assertTrue(text.contains("Startsaldo"), text);
         assertTrue(text.contains("Endsaldo"), text);
-        assertFalse(text.contains("Unterschrift"), "Unterschriften waren nicht gewuenscht: " + text);
+        // Der Bericht geht unterschrieben an die Mitgliederversammlung.
+        assertTrue(text.contains("Entlastung"), text);
+        assertTrue(text.contains("Unterschrift Kassenprüfer/-in"), text);
+        assertTrue(text.contains("Seite 1 von 1"), "Seitennummerierung fehlt: " + text);
     }
 
     private BerichtService journalService(Database database) {
@@ -732,163 +787,6 @@ class BerichtServiceTest {
                 new MitgliedService(new MitgliedRepository(database), new AuditLogRepository(database)),
                 new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)),
                 new VereinRepository(database));
-    }
-
-    @Test
-    void anhangSchluesseltJedeKategorieNachAktivitaetAuf() {
-        Database database = TestDatabase.create();
-        BuchungRepository buchungRepository = new BuchungRepository(database);
-        KategorieRepository kategorieRepository = new KategorieRepository(database);
-        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
-                        new AuditLogRepository(database)),
-                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
-
-        Konto konto = new KontoRepository(database).save(neuesKonto());
-        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
-        Kategorie beitraege = kategorie(kategorieRepository, "Mitgliedsbeiträge");
-        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
-        Aktivitaet weihnachtsmarkt = aktivitaet(aktivitaetRepository, "Weihnachtsmarkt");
-
-        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00"));
-        buchungRepository.insert(buchung(konto, spenden, weihnachtsmarkt, LocalDate.of(2026, 3, 2), "50.00"));
-        // Dieselbe Kategorie ohne Aktivitaet: muss als Restposten erscheinen, damit sich die
-        // Unterzeilen auf die Kategoriesumme addieren.
-        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 3), "25.00"));
-        // Kategorie, in der keine Buchung eine Aktivitaet traegt: keine Unterzeilen.
-        buchungRepository.insert(buchung(konto, beitraege, null, LocalDate.of(2026, 3, 4), "24.00"));
-
-        KassenberichtAnhangDaten daten = berichtService.berechneKassenberichtAnhang(konto, neuesJahr());
-
-        assertEquals(2, daten.einnahmen().size());
-        KassenberichtAnhangDaten.KategorieBlock spendenBlock = daten.einnahmen().get(0);
-        assertEquals("Geldspenden", spendenBlock.kategorie());
-        assertEquals(17500L, spendenBlock.summeCent());
-        // Reihenfolge des ersten Vorkommens, Restposten ohne Sonderbehandlung.
-        assertEquals(List.of("Sankt Martin", "Weihnachtsmarkt", "(ohne Aktivität)"),
-                spendenBlock.aktivitaeten().stream()
-                        .map(KassenberichtAnhangDaten.AktivitaetSumme::aktivitaet).toList());
-        assertEquals(spendenBlock.summeCent(), spendenBlock.aktivitaeten().stream()
-                .mapToLong(KassenberichtAnhangDaten.AktivitaetSumme::summeCent).sum());
-
-        KassenberichtAnhangDaten.KategorieBlock beitragsBlock = daten.einnahmen().get(1);
-        assertEquals("Mitgliedsbeiträge", beitragsBlock.kategorie());
-        assertEquals(2400L, beitragsBlock.summeCent());
-        assertTrue(beitragsBlock.aktivitaeten().isEmpty(),
-                "ohne jede Aktivitaet soll die Kategoriezeile allein stehen: " + beitragsBlock.aktivitaeten());
-    }
-
-    /** Der Mehrwert des Anhangs: eine Aktivitaet verteilt sich ueber mehrere Kategorien und ueber
-     * Einnahmen und Ausgaben - in der Aufschluesselung je Kategorie ist ihr Ergebnis nicht
-     * ablesbar. */
-    @Test
-    void anhangFasstAktivitaetUeberKategorienUndVorzeichenZusammen() {
-        Database database = TestDatabase.create();
-        BuchungRepository buchungRepository = new BuchungRepository(database);
-        KategorieRepository kategorieRepository = new KategorieRepository(database);
-        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
-                        new AuditLogRepository(database)),
-                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
-
-        Konto konto = new KontoRepository(database).save(neuesKonto());
-        Kategorie verkauf = kategorie(kategorieRepository, "Kuchen- und Getränkeverkauf");
-        Kategorie einkauf = kategorie(kategorieRepository, "Wareneinkauf für Verkäufe");
-        Kategorie feste = kategorie(kategorieRepository, "Schulfeste und Veranstaltungen");
-        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
-
-        buchungRepository.insert(buchung(konto, verkauf, martin, LocalDate.of(2026, 3, 1), "2004.21"));
-        buchungRepository.insert(buchung(konto, einkauf, martin, LocalDate.of(2026, 3, 2), "-532.03"));
-        buchungRepository.insert(buchung(konto, feste, martin, LocalDate.of(2026, 3, 3), "-1190.00"));
-
-        KassenberichtAnhangDaten daten = berichtService.berechneKassenberichtAnhang(konto, neuesJahr());
-
-        assertEquals(1, daten.aktivitaeten().size());
-        KassenberichtAnhangDaten.AktivitaetErgebnis martinErgebnis = daten.aktivitaeten().get(0);
-        assertEquals("Sankt Martin", martinErgebnis.aktivitaet());
-        assertEquals(200421L, martinErgebnis.einnahmenCent());
-        assertEquals(172203L, martinErgebnis.ausgabenCent());
-        assertEquals(28218L, martinErgebnis.ergebnisCent());
-    }
-
-    /** Anhang und Kassenbericht muessen dieselbe Buchungsmenge auswerten - sonst behaupten zwei
-     * Dokumente derselben Kassenpruefung unterschiedliche Summen. */
-    @Test
-    void anhangSummenStimmenMitDenAbschnittssummenUeberein() {
-        Database database = TestDatabase.create();
-        BuchungRepository buchungRepository = new BuchungRepository(database);
-        KategorieRepository kategorieRepository = new KategorieRepository(database);
-        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
-                        new AuditLogRepository(database)),
-                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
-
-        Konto konto = new KontoRepository(database).save(neuesKonto());
-        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
-        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
-        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00"));
-        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 2), "-40.00"));
-        buchungRepository.insert(buchung(konto, null, martin, LocalDate.of(2026, 3, 3), "15.00"));
-        // Darf in keiner Summe auftauchen: storniert bzw. ausserhalb des Geschaeftsjahres.
-        Buchung storniert = buchung(konto, spenden, martin, LocalDate.of(2026, 3, 4), "999.00");
-        buchungRepository.insert(storniert);
-        buchungRepository.storno(storniert.getId());
-        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2025, 12, 31), "777.00"));
-
-        KassenberichtAnhangDaten daten = berichtService.berechneKassenberichtAnhang(konto, neuesJahr());
-
-        long einnahmen = daten.einnahmen().stream()
-                .mapToLong(KassenberichtAnhangDaten.KategorieBlock::summeCent).sum();
-        long ausgaben = daten.ausgaben().stream()
-                .mapToLong(KassenberichtAnhangDaten.KategorieBlock::summeCent).sum();
-        assertEquals(11500L, einnahmen);
-        assertEquals(4000L, ausgaben);
-        // Die Aktivitaetstabelle ist eine andere Sicht auf dieselben Buchungen und muss daher
-        // genau dieselben Summen ergeben.
-        assertEquals(einnahmen, daten.aktivitaeten().stream()
-                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::einnahmenCent).sum());
-        assertEquals(ausgaben, daten.aktivitaeten().stream()
-                .mapToLong(KassenberichtAnhangDaten.AktivitaetErgebnis::ausgabenCent).sum());
-    }
-
-    @Test
-    void anhangErzeugtPdfOhneSaldenUndUnterschriften() throws IOException {
-        Database database = TestDatabase.create();
-        BuchungRepository buchungRepository = new BuchungRepository(database);
-        KategorieRepository kategorieRepository = new KategorieRepository(database);
-        AktivitaetRepository aktivitaetRepository = new AktivitaetRepository(database);
-        VereinRepository vereinRepository = new VereinRepository(database);
-        Verein verein = new Verein();
-        verein.setName("Förderverein Musterschule e. V.");
-        vereinRepository.save(verein);
-        BerichtService berichtService = new BerichtService(buchungRepository, kategorieRepository,
-                aktivitaetRepository, new MitgliedService(new MitgliedRepository(database),
-                        new AuditLogRepository(database)),
-                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), vereinRepository);
-
-        Konto konto = new KontoRepository(database).save(neuesKonto());
-        Kategorie spenden = kategorie(kategorieRepository, "Geldspenden");
-        Aktivitaet martin = aktivitaet(aktivitaetRepository, "Sankt Martin");
-        buchungRepository.insert(buchung(konto, spenden, martin, LocalDate.of(2026, 3, 1), "100.00"));
-        buchungRepository.insert(buchung(konto, spenden, null, LocalDate.of(2026, 3, 2), "-40.00"));
-
-        Path ziel = Files.createTempDirectory("kasse-anhang").resolve("anhang.pdf");
-        berichtService.erstelleKassenberichtAnhang(ziel, konto, neuesJahr());
-
-        String text = pdfText(ziel);
-        assertTrue(text.contains("Kassenbericht Anhang"), text);
-        assertTrue(text.contains("Förderverein Musterschule e. V."), text);
-        assertTrue(text.contains("Kategorie / Aktivität"), text);
-        assertTrue(text.contains("Sankt Martin"), text);
-        assertTrue(text.contains("Aktivitäten insgesamt"), text);
-
-        // Bewusst nicht im Anhang: die stehen im Kassenbericht selbst.
-        assertFalse(text.contains("Startsaldo"), "Startsaldo gehoert nicht in den Anhang: " + text);
-        assertFalse(text.contains("Endsaldo"), "Endsaldo gehoert nicht in den Anhang: " + text);
-        assertFalse(text.contains("Unterschrift"), "Unterschriften gehoeren nicht in den Anhang: " + text);
     }
 
     private Kategorie kategorie(KategorieRepository repository, String name) {
@@ -966,7 +864,7 @@ class BerichtServiceTest {
         berichtService(database, mitgliedRepository).erstelleMitgliederbericht(ziel);
 
         String text = pdfText(ziel);
-        assertTrue(text.contains("Mitgliederbericht"), text);
+        assertTrue(text.contains("Mitgliederentwicklung"), text);
         assertTrue(text.contains("Förderverein Musterschule e. V."), text);
         assertTrue(text.contains("Stand:"), text);
         assertTrue(text.contains("Mitglieder und Jahresbeitrag"), text);
@@ -989,6 +887,87 @@ class BerichtServiceTest {
             mitglied.setJahresbeitragEuro(new BigDecimal(betrag));
         }
         return mitglied;
+    }
+
+    @Test
+    void mitgliederuebersichtListetAktiveMitgliederMitAllenSpalten() throws IOException {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        VereinRepository vereinRepository = new VereinRepository(database);
+        Verein verein = new Verein();
+        verein.setName("Förderverein Musterschule e. V.");
+        vereinRepository.save(verein);
+
+        Mitglied erika = mitgliedMitBeitrag("Erika", "Musterfrau", MitgliedStatus.AKTIV, "24.00");
+        erika.setAnrede(Anrede.FRAU);
+        erika.setStrasse("Musterstraße 1");
+        erika.setPlz("12345");
+        erika.setOrt("Musterstadt");
+        erika.setEmail("erika@example.de");
+        erika.setIban("DE02120300000000202051");
+        erika.setMandatsreferenz(7L);
+        mitgliedRepository.save(erika);
+        mitgliedRepository.save(mitgliedMitBeitrag("Bernd", "Beispiel", MitgliedStatus.AKTIV, "48.00"));
+        mitgliedRepository.save(mitgliedMitBeitrag("Alt", "Ausgetreten", MitgliedStatus.INAKTIV, "999.00"));
+
+        Path ziel = Files.createTempDirectory("kasse-mitgliederuebersicht").resolve("uebersicht.pdf");
+        berichtService(database, mitgliedRepository).erstelleMitgliederuebersicht(ziel);
+
+        PdfReader reader = new PdfReader(ziel.toString());
+        try {
+            assertTrue(reader.getPageSize(1).getWidth() > reader.getPageSize(1).getHeight(),
+                    "PDF muss im Querformat sein: " + reader.getPageSize(1));
+            assertEquals(0, reader.getPageRotation(1));
+        } finally {
+            reader.close();
+        }
+
+        String text = pdfText(ziel);
+        // Kopfzeilen wie in der Mitgliederentwicklung.
+        assertTrue(text.contains("Mitgliederübersicht"), text);
+        assertTrue(text.contains("Förderverein Musterschule e. V."), text);
+        assertTrue(text.contains("Stand:"), text);
+        // Alle Spalten des Berichts, mit ungekuerzter Beschriftung.
+        for (String spalte : new String[] {"Id", "Anrede", "Vorname", "Nachname", "Straße", "PLZ", "Ort",
+                "Telefon", "E-Mail", "Eintrittsdatum", "Jahresbeitrag", "IBAN", "BIC",
+                "Mandatsreferenz", "Notiz"}) {
+            assertTrue(text.contains(spalte), "Spalte fehlt: " + spalte + " in " + text);
+        }
+        // Abgewaehlte Spalten duerfen nicht zurueckkehren.
+        for (String spalte : new String[] {"Austrittsdatum", "Status", "Sammellastschrift"}) {
+            assertFalse(text.contains(spalte), "Spalte entfernt: " + spalte + " in " + text);
+        }
+        assertTrue(text.contains("Musterfrau"), text);
+        assertTrue(text.contains("DE02120300000000202051"), text);
+        assertTrue(text.contains("Frau"), text);
+        assertTrue(text.contains("24,00"), text);
+        // Inaktive Mitglieder gehoeren nicht in diesen Bericht.
+        assertFalse(text.contains("Ausgetreten"), "Inaktive duerfen nicht erscheinen: " + text);
+        assertFalse(text.contains("999,00"), "Inaktive duerfen nicht erscheinen: " + text);
+        assertTrue(text.contains("Seite 1 von 1"), "Seitennummerierung fehlt: " + text);
+    }
+
+    /** Nach Id aufsteigend, unabhaengig davon, in welcher Reihenfolge die Mitglieder angelegt
+     * oder zuletzt geaendert wurden. */
+    @Test
+    void mitgliederuebersichtSortiertNachIdAufsteigend() throws IOException {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+
+        Mitglied zuerst = mitgliedRepository.save(mitgliedMitBeitrag("Zacharias", "Zuerst", MitgliedStatus.AKTIV, "10.00"));
+        Mitglied danach = mitgliedRepository.save(mitgliedMitBeitrag("Anton", "Danach", MitgliedStatus.AKTIV, "20.00"));
+        // Das zuerst angelegte Mitglied zuletzt anfassen - eine Sortierung nach Aenderung oder
+        // Name wuerde hier eine andere Reihenfolge liefern als die nach Id.
+        zuerst.setOrt("Musterstadt");
+        mitgliedRepository.save(zuerst);
+
+        Path ziel = Files.createTempDirectory("kasse-mitgliederuebersicht").resolve("sortierung.pdf");
+        berichtService(database, mitgliedRepository).erstelleMitgliederuebersicht(ziel);
+
+        String text = pdfText(ziel);
+        assertTrue(zuerst.getId() < danach.getId(), "Testannahme: aufsteigend vergebene Ids");
+        assertTrue(text.indexOf("Zuerst") < text.indexOf("Danach"),
+                "Reihenfolge muss der Id folgen: " + text);
     }
 
     private BerichtService berichtService(Database database, MitgliedRepository mitgliedRepository) {

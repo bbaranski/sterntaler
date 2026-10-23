@@ -17,6 +17,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Buchung;
+import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
 import de.foerderverein.kasse.persistence.AktivitaetRepository;
@@ -26,10 +27,10 @@ import de.foerderverein.kasse.persistence.KontoRepository;
 
 /** Export aller Kontobewegungen (Buchungen) als Excel-Datei fuer die direkte Weiterverarbeitung
  * (Betrag als echte Zahl, damit sich die Spalte in Excel direkt summieren laesst). Enthaelt
- * saemtliche Felder von Buchung (auch die technischen wie HBCI-Import-Hash oder Storno-Referenz) -
- * bewusst keine zusaetzlichen, nur zur Laufzeit berechneten Spalten wie Geschaeftsjahr oder
- * laufendes Saldo, die es in der Tabellenansicht der App gibt, aber kein Feld von Buchung selbst
- * sind. */
+ * saemtliche Felder von Buchung (auch die technischen wie HBCI-Import-Hash oder Storno-Referenz)
+ * und das Geschaeftsjahr. Bewusst nicht enthalten ist das laufende Saldo: es ergibt sich erst aus
+ * der nach Konto und Geschaeftsjahr sortierten Reihenfolge und waere in einer Datei ueber alle
+ * Konten hinweg nicht nachvollziehbar. */
 public class KontobewegungenExportService {
 
     private static final DateTimeFormatter DATUM_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -39,14 +40,17 @@ public class KontobewegungenExportService {
     private final KontoRepository kontoRepository;
     private final KategorieRepository kategorieRepository;
     private final AktivitaetRepository aktivitaetRepository;
+    private final GeschaeftsjahrService geschaeftsjahrService;
 
     public KontobewegungenExportService(BuchungRepository buchungRepository, KontoRepository kontoRepository,
                                          KategorieRepository kategorieRepository,
-                                         AktivitaetRepository aktivitaetRepository) {
+                                         AktivitaetRepository aktivitaetRepository,
+                                         GeschaeftsjahrService geschaeftsjahrService) {
         this.buchungRepository = buchungRepository;
         this.kontoRepository = kontoRepository;
         this.kategorieRepository = kategorieRepository;
         this.aktivitaetRepository = aktivitaetRepository;
+        this.geschaeftsjahrService = geschaeftsjahrService;
     }
 
     public void exportiereAlleBuchungenAlsExcel(Path ziel) throws IOException {
@@ -63,12 +67,15 @@ public class KontobewegungenExportService {
             aktivitaetenById.put(a.getId(), a);
         }
 
+        List<Geschaeftsjahr> geschaeftsjahre = geschaeftsjahrService.findAll();
+
         List<Buchung> buchungen = buchungRepository.findAll();
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
 
-        String[] spalten = {"Id", "Datum", "Wertstellung", "Konto", "Kontoauszug", "Betrag", "Währung", "Kategorie",
-                "Aktivität", "Verwendungszweck", "Rechnungsnummer", "Gegenkonto IBAN", "Gegenkonto Name", "Quelle",
-                "HBCI-Import-Hash", "Storniert", "Storno-Referenz-Id", "Erstellt von", "Erstellt am", "Geändert am"};
+        String[] spalten = {"Id", "Datum", "Geschäftsjahr", "Wertstellung", "Konto", "Kontoauszug", "Betrag",
+                "Währung", "Kategorie", "Aktivität", "Verwendungszweck", "Rechnungsnummer", "Gegenkonto IBAN",
+                "Gegenkonto Name", "Quelle", "HBCI-Import-Hash", "Storniert", "Storno-Referenz-Id",
+                "Erstellt von", "Erstellt am", "Geändert am"};
 
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Kontobewegungen");
@@ -93,26 +100,32 @@ public class KontobewegungenExportService {
                 Row zeile = sheet.createRow(zeilenIndex++);
                 zeile.createCell(0).setCellValue(b.getId());
                 zeile.createCell(1).setCellValue(b.getBuchungsdatum().format(DATUM_FORMAT));
-                zeile.createCell(2).setCellValue(b.getWertstellung() != null ? b.getWertstellung().format(DATUM_FORMAT) : "");
-                zeile.createCell(3).setCellValue(konto != null ? konto.getBezeichnung() : "");
-                zeile.createCell(4).setCellValue(wert(b.getKontoauszug()));
-                zeile.createCell(5).setCellValue(b.getBetragEuro().doubleValue());
-                zeile.createCell(6).setCellValue(wert(b.getWaehrung()));
-                zeile.createCell(7).setCellValue(kategorie != null ? kategorie.getName() : "");
-                zeile.createCell(8).setCellValue(aktivitaet != null ? aktivitaet.getName() : "");
-                zeile.createCell(9).setCellValue(wert(b.getVerwendungszweck()));
-                zeile.createCell(10).setCellValue(wert(b.getRechnungsnummer()));
-                zeile.createCell(11).setCellValue(wert(b.getGegenkontoIban()));
-                zeile.createCell(12).setCellValue(wert(b.getGegenkontoName()));
-                zeile.createCell(13).setCellValue(b.getQuelle().name());
-                zeile.createCell(14).setCellValue(wert(b.getHbciImportHash()));
-                zeile.createCell(15).setCellValue(b.isStorniert() ? "Ja" : "Nein");
+                // Dieselbe Zuordnung wie in der Buchungsansicht: eine ausdrueckliche
+                // Uebersteuerung am Buchungssatz, sonst das Jahr, in dessen Zeitraum das
+                // Buchungsdatum faellt (siehe GeschaeftsjahrService.findeFuer). Leer, solange
+                // kein Geschaeftsjahr den Zeitraum abdeckt.
+                zeile.createCell(2).setCellValue(geschaeftsjahrService.findeFuer(b, geschaeftsjahre)
+                        .map(Geschaeftsjahr::getBezeichnung).orElse(""));
+                zeile.createCell(3).setCellValue(b.getWertstellung() != null ? b.getWertstellung().format(DATUM_FORMAT) : "");
+                zeile.createCell(4).setCellValue(konto != null ? konto.getBezeichnung() : "");
+                zeile.createCell(5).setCellValue(wert(b.getKontoauszug()));
+                zeile.createCell(6).setCellValue(b.getBetragEuro().doubleValue());
+                zeile.createCell(7).setCellValue(wert(b.getWaehrung()));
+                zeile.createCell(8).setCellValue(kategorie != null ? kategorie.getName() : "");
+                zeile.createCell(9).setCellValue(aktivitaet != null ? aktivitaet.getName() : "");
+                zeile.createCell(10).setCellValue(wert(b.getVerwendungszweck()));
+                zeile.createCell(11).setCellValue(wert(b.getRechnungsnummer()));
+                zeile.createCell(12).setCellValue(wert(b.getGegenkontoIban()));
+                zeile.createCell(13).setCellValue(wert(b.getGegenkontoName()));
+                zeile.createCell(14).setCellValue(b.getQuelle().name());
+                zeile.createCell(15).setCellValue(wert(b.getHbciImportHash()));
+                zeile.createCell(16).setCellValue(b.isStorniert() ? "Ja" : "Nein");
                 if (b.getStornoReferenzId() != null) {
-                    zeile.createCell(16).setCellValue(b.getStornoReferenzId());
+                    zeile.createCell(17).setCellValue(b.getStornoReferenzId());
                 }
-                zeile.createCell(17).setCellValue(wert(b.getErstelltVon()));
-                zeile.createCell(18).setCellValue(b.getErstelltAm() != null ? b.getErstelltAm().format(ZEITPUNKT_FORMAT) : "");
-                zeile.createCell(19).setCellValue(b.getGeaendertAm() != null ? b.getGeaendertAm().format(ZEITPUNKT_FORMAT) : "");
+                zeile.createCell(18).setCellValue(wert(b.getErstelltVon()));
+                zeile.createCell(19).setCellValue(b.getErstelltAm() != null ? b.getErstelltAm().format(ZEITPUNKT_FORMAT) : "");
+                zeile.createCell(20).setCellValue(b.getGeaendertAm() != null ? b.getGeaendertAm().format(ZEITPUNKT_FORMAT) : "");
             }
 
             for (int i = 0; i < spalten.length; i++) {
