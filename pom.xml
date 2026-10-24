@@ -389,6 +389,11 @@
                    Programmverzeichnis (siehe maven-resources-plugin oben) und im
                    Ueber-Dialog. -->
               <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
+              <!-- Das Schuerzen-Logo als Programmicon. Die .icns enthaelt je Groesse
+                   eine eigene Zeichnung: ab 128 px die Fassung mit Sternenregen,
+                   darunter die kompakte ohne - in 32 px waeren die fallenden Sterne
+                   nur noch Rauschen. Siehe logo/README.md. -->
+              <icon>${project.basedir}/logo/sterntaler.icns</icon>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -463,6 +468,11 @@
                    Programmverzeichnis (siehe maven-resources-plugin oben) und im
                    Ueber-Dialog. -->
               <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
+              <!-- Das Schuerzen-Logo als Programmicon. Die .icns enthaelt je Groesse
+                   eine eigene Zeichnung: ab 128 px die Fassung mit Sternenregen,
+                   darunter die kompakte ohne - in 32 px waeren die fallenden Sterne
+                   nur noch Rauschen. Siehe logo/README.md. -->
+              <icon>${project.basedir}/logo/sterntaler.icns</icon>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -529,6 +539,8 @@
                    Programmverzeichnis (siehe maven-resources-plugin oben) und im
                    Ueber-Dialog. -->
               <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
+              <!-- Siehe die Anmerkung in den macOS-Profilen; Windows braucht .ico. -->
+              <icon>${project.basedir}/logo/sterntaler.ico</icon>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>

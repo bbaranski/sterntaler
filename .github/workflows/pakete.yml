@@ -28,13 +28,16 @@ jobs:
         include:
           - laeufer: macos-latest
             bezeichnung: macOS (Apple Silicon)
-            artefakt: Sterntaler-macOS-arm64
+            artefakt: Sterntaler-macOS-AppleSilicon
+            kennung: macOS-AppleSilicon
           - laeufer: macos-13
             bezeichnung: macOS (Intel)
-            artefakt: Sterntaler-macOS-x86_64
+            artefakt: Sterntaler-macOS-Intel
+            kennung: macOS-Intel
           - laeufer: windows-latest
             bezeichnung: Windows
             artefakt: Sterntaler-Windows
+            kennung: Windows
 
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +58,20 @@ jobs:
       # Betriebssystem und Architektur des Laeufers.
       - name: Paket schnueren
         run: mvn -B jpackage:jpackage
+
+      # Beide Mac-Laeufer erzeugen eine Datei desselben Namens. Am Release unterscheidet
+      # GitHub die Dateien allein am Namen - ohne diesen Schritt scheitert der zweite Upload,
+      # und es waere ohnehin nicht erkennbar, welches Paket fuer welchen Mac gilt.
+      - name: Dateinamen um die Plattform ergaenzen
+        shell: bash
+        run: |
+          cd target/dist
+          for datei in *; do
+            basis="${datei%.*}"
+            endung="${datei##*.}"
+            mv "$datei" "${basis}-${{ matrix.kennung }}.${endung}"
+          done
+          ls -l
 
       - name: Ergebnis hochladen
         uses: actions/upload-artifact@v4

@@ -21,6 +21,35 @@ Beide Ansichten, das vollständige Menü und alle fünf Berichte zeigt der Rundg
 **[Sterntaler im Bild](docs/screenshots.md)** — durchgehend mit einer frei erfundenen
 Beispielkasse.
 
+## Download
+
+Fertige Programmversionen gibt es unter
+**[Releases](https://github.com/bbaranski/sterntaler/releases/latest)**. Welche Datei die
+richtige ist:
+
+| Ihr System | Datei im Namen | Java nötig? |
+| --- | --- | --- |
+| Mac ab M1 (2020 und neuer) | `macOS-AppleSilicon.dmg` | nein |
+| Mac mit Intel-Prozessor | `macOS-Intel.dmg` | nein |
+| Windows | `Windows.exe` | nein |
+| beliebig, ohne Installation | `Windows-und-Mac.zip` | ja, Java 21 |
+
+Die drei Installationspakete bringen ihre eigene Java-Laufzeit mit; auf dem Zielrechner muss
+nichts weiter installiert sein. Das ZIP enthält stattdessen ein einzelnes Programm samt
+Startskripten für beide Systeme und setzt ein installiertes
+[Java 21](https://adoptium.net) voraus.
+
+**Beim ersten Start** melden beide Betriebssysteme einen unbekannten Entwickler, weil die
+Pakete nicht signiert sind:
+
+- **macOS:** mit der rechten Maustaste auf das Programm klicken und *Öffnen* wählen, dann
+  einmal bestätigen. Danach genügt der Doppelklick.
+- **Windows:** im SmartScreen-Hinweis auf *Weitere Informationen* und dann *Trotzdem
+  ausführen*.
+
+Wer lieber selbst baut, findet die Befehle unter
+[Programmversionen zum Weitergeben](#programmversionen-zum-weitergeben).
+
 ## Nutzerhandbuch
 
 **[docs/handbuch.md](docs/handbuch.md)** — hier im Browser zu lesen, auch als
