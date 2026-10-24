@@ -16,6 +16,9 @@ liegen beim Autor.
 **[PDF](docs/handbuch.pdf)** zum Weitergeben und Ausdrucken. In der laufenden Anwendung steht
 dasselbe Handbuch unter **Hilfe → Handbuch…**.
 
+Einen Rundgang in Bildern — beide Ansichten, das Menü und alle fünf Berichte — gibt es unter
+**[Sterntaler im Bild](docs/screenshots.md)**.
+
 ## Entwicklung
 
 ```sh
