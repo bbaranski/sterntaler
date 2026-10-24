@@ -29,9 +29,6 @@ jobs:
           - laeufer: macos-latest
             bezeichnung: macOS (Apple Silicon)
             artefakt: Sterntaler-macOS-arm64
-          - laeufer: macos-13
-            bezeichnung: macOS (Intel)
-            artefakt: Sterntaler-macOS-x86_64
           - laeufer: windows-latest
             bezeichnung: Windows
             artefakt: Sterntaler-Windows
