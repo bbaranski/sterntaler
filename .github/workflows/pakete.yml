@@ -30,10 +30,6 @@ jobs:
             bezeichnung: macOS (Apple Silicon)
             artefakt: Sterntaler-macOS-AppleSilicon
             kennung: macOS-AppleSilicon
-          - laeufer: macos-13
-            bezeichnung: macOS (Intel)
-            artefakt: Sterntaler-macOS-Intel
-            kennung: macOS-Intel
           - laeufer: windows-latest
             bezeichnung: Windows
             artefakt: Sterntaler-Windows
