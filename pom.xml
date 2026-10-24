@@ -25,6 +25,9 @@
     <logback.version>1.5.38</logback.version>
     <junit.version>5.11.4</junit.version>
     <openpdf.version>3.0.5</openpdf.version>
+    <!-- Nur fuer die Handbuch-Erzeugung, siehe Profil "handbuch" weiter unten -->
+    <flexmark.version>0.64.8</flexmark.version>
+    <openhtmltopdf.version>1.0.10</openhtmltopdf.version>
     <poi.version>5.5.1</poi.version>
 
     <!-- Overridden per OS profile below -->
@@ -111,6 +114,22 @@
       <version>${logback.version}</version>
     </dependency>
 
+    <!-- Handbuch: Markdown -> HTML -> PDF. Bewusst "provided": gebraucht wird das nur beim
+         Erzeugen von docs/handbuch.pdf durch de.foerderverein.kasse.doc.HandbuchPdf, nicht zur
+         Laufzeit der Anwendung - so bleiben die Abhaengigkeiten aus dem Uber-Jar heraus. -->
+    <dependency>
+      <groupId>com.vladsch.flexmark</groupId>
+      <artifactId>flexmark-all</artifactId>
+      <version>${flexmark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.openhtmltopdf</groupId>
+      <artifactId>openhtmltopdf-pdfbox</artifactId>
+      <version>${openhtmltopdf.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -122,6 +141,22 @@
 
   <build>
     <finalName>kasse</finalName>
+    <resources>
+      <!-- Der Standard-Ressourcenordner muss hier mit aufgefuehrt werden: sobald <resources>
+           gesetzt ist, gilt die Voreinstellung nicht mehr. -->
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <!-- Das fertige Handbuch wandert ins Jar, damit "Hilfe -> Handbuch" es ohne Internet
+           anzeigen kann. Erzeugt wird es aus docs/handbuch.md, siehe Profil "handbuch". -->
+      <resource>
+        <directory>docs</directory>
+        <includes>
+          <include>handbuch.pdf</include>
+        </includes>
+        <targetPath>de/foerderverein/kasse/doc</targetPath>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -133,6 +168,28 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
+      </plugin>
+
+      <!-- Erzeugt docs/handbuch.pdf aus docs/handbuch.md: "mvn -o compile exec:java@handbuch".
+           Bewusst an keine Phase gebunden - ein PDF traegt einen Erzeugungszeitpunkt, bei jedem
+           Build neu geschrieben waere die Datei also staendig geaendert, ohne dass sich am Text
+           etwas getan haette. HandbuchPdfTest schlaegt fehl, wenn das Erzeugen vergessen wird. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>handbuch</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>de.foerderverein.kasse.doc.HandbuchPdf</mainClass>
+              <classpathScope>compile</classpathScope>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <!-- Baut ein Uber-Jar inkl. JavaFX (plattformspezifisch) als reine Klassenpfad-Anwendung,
@@ -148,7 +205,11 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <finalName>kasse-app</finalName>
+              <!-- Eigenes Verzeichnis statt target/: jpackage nimmt sein Eingabeverzeichnis
+                   vollstaendig in die Anwendung auf, und in target/ liegen auch classes/,
+                   test-classes/ und das nicht gebuendelte kasse.jar - die haben in einer
+                   ausgelieferten Anwendung nichts zu suchen. -->
+              <outputFile>${project.build.directory}/app/kasse-app.jar</outputFile>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <mainClass>${app.main.class}</mainClass>
@@ -184,6 +245,9 @@
       </activation>
       <properties>
         <javafx.platform>mac-aarch64</javafx.platform>
+        <!-- Ueberschreibbar, z. B. "-Djpackage.type=APP_IMAGE" fuer ein Programmverzeichnis
+             ohne Installationspaket. -->
+        <jpackage.type>DMG</jpackage.type>
       </properties>
       <build>
         <plugins>
@@ -195,24 +259,40 @@
               <name>Foerderverein-Kasse</name>
               <appVersion>1.0.0</appVersion>
               <vendor>Foerderverein</vendor>
-              <input>${project.build.directory}</input>
+              <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
               <mainClass>${app.main.class}</mainClass>
               <destination>${project.build.directory}/dist</destination>
-              <type>DMG</type>
+              <type>${jpackage.type}</type>
               <javaOptions>
                 <option>-Dfile.encoding=UTF-8</option>
               </javaOptions>
+              <!-- Ermittelt mit jdeps (print-module-deps ueber target/app/kasse-app.jar),
+                   ergaenzt um die Module, die jdeps nicht sehen kann,
+                   weil sie ueber Dienste oder Reflexion geladen werden (Logging, JNDI, XML,
+                   TLS-Anbieter, Laenderdaten). jdk.unsupported ist nicht optional: JavaFX
+                   braucht daraus sun.misc.Unsafe, sonst startet die Anwendung zwar, kann ihr
+                   Fenster aber nicht zeichnen. -->
               <addModules>
                 <module>java.base</module>
-                <module>java.sql</module>
-                <module>java.naming</module>
+                <module>java.compiler</module>
                 <module>java.desktop</module>
                 <module>java.logging</module>
+                <module>java.naming</module>
+                <module>java.prefs</module>
+                <module>java.scripting</module>
+                <module>java.security.jgss</module>
+                <module>java.smartcardio</module>
+                <module>java.sql</module>
                 <module>java.xml</module>
-                <module>jdk.crypto.ec</module>
+                <module>java.xml.crypto</module>
                 <module>jdk.crypto.cryptoki</module>
+                <module>jdk.crypto.ec</module>
+                <module>jdk.jfr</module>
                 <module>jdk.localedata</module>
+                <module>jdk.net</module>
+                <module>jdk.security.auth</module>
+                <module>jdk.unsupported</module>
               </addModules>
             </configuration>
           </plugin>
@@ -230,6 +310,7 @@
       </activation>
       <properties>
         <javafx.platform>mac</javafx.platform>
+        <jpackage.type>DMG</jpackage.type>
       </properties>
       <build>
         <plugins>
@@ -241,21 +322,31 @@
               <name>Foerderverein-Kasse</name>
               <appVersion>1.0.0</appVersion>
               <vendor>Foerderverein</vendor>
-              <input>${project.build.directory}</input>
+              <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
               <mainClass>${app.main.class}</mainClass>
               <destination>${project.build.directory}/dist</destination>
-              <type>DMG</type>
+              <type>${jpackage.type}</type>
               <addModules>
                 <module>java.base</module>
-                <module>java.sql</module>
-                <module>java.naming</module>
+                <module>java.compiler</module>
                 <module>java.desktop</module>
                 <module>java.logging</module>
+                <module>java.naming</module>
+                <module>java.prefs</module>
+                <module>java.scripting</module>
+                <module>java.security.jgss</module>
+                <module>java.smartcardio</module>
+                <module>java.sql</module>
                 <module>java.xml</module>
-                <module>jdk.crypto.ec</module>
+                <module>java.xml.crypto</module>
                 <module>jdk.crypto.cryptoki</module>
+                <module>jdk.crypto.ec</module>
+                <module>jdk.jfr</module>
                 <module>jdk.localedata</module>
+                <module>jdk.net</module>
+                <module>jdk.security.auth</module>
+                <module>jdk.unsupported</module>
               </addModules>
             </configuration>
           </plugin>
@@ -272,6 +363,9 @@
       </activation>
       <properties>
         <javafx.platform>win</javafx.platform>
+        <!-- EXE und MSI setzen das WiX Toolset auf dem Baurechner voraus; ohne das liefert
+             "-Djpackage.type=APP_IMAGE" ein startbares Programmverzeichnis. -->
+        <jpackage.type>EXE</jpackage.type>
       </properties>
       <build>
         <plugins>
@@ -283,24 +377,34 @@
               <name>Foerderverein-Kasse</name>
               <appVersion>1.0.0</appVersion>
               <vendor>Foerderverein</vendor>
-              <input>${project.build.directory}</input>
+              <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
               <mainClass>${app.main.class}</mainClass>
               <destination>${project.build.directory}/dist</destination>
-              <type>EXE</type>
+              <type>${jpackage.type}</type>
               <winDirChooser>true</winDirChooser>
               <winMenu>true</winMenu>
               <winShortcut>true</winShortcut>
               <addModules>
                 <module>java.base</module>
-                <module>java.sql</module>
-                <module>java.naming</module>
+                <module>java.compiler</module>
                 <module>java.desktop</module>
                 <module>java.logging</module>
+                <module>java.naming</module>
+                <module>java.prefs</module>
+                <module>java.scripting</module>
+                <module>java.security.jgss</module>
+                <module>java.smartcardio</module>
+                <module>java.sql</module>
                 <module>java.xml</module>
-                <module>jdk.crypto.ec</module>
+                <module>java.xml.crypto</module>
                 <module>jdk.crypto.cryptoki</module>
+                <module>jdk.crypto.ec</module>
+                <module>jdk.jfr</module>
                 <module>jdk.localedata</module>
+                <module>jdk.net</module>
+                <module>jdk.security.auth</module>
+                <module>jdk.unsupported</module>
               </addModules>
             </configuration>
           </plugin>

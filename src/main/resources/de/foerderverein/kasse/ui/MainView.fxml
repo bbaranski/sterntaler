@@ -50,6 +50,11 @@
                         <MenuItem text="Sicherheitskopie…" onAction="#onSicherheitskopie" />
                     </items>
                 </Menu>
+                <Menu text="Hilfe">
+                    <items>
+                        <MenuItem text="Handbuch…" onAction="#onHandbuch" />
+                    </items>
+                </Menu>
             </menus>
         </MenuBar>
     </top>

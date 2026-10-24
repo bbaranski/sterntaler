@@ -3,7 +3,10 @@ package de.foerderverein.kasse.ui;
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +35,8 @@ import de.foerderverein.kasse.service.MitgliederImportErgebnis;
  * Die eigentliche Fachlogik lebt in BuchungenViewController und MitgliederViewController -
  * hier nur Menue-Handler und die Koordination zwischen ihnen. */
 public class MainController {
+
+    private static final String HANDBUCH_RESSOURCE = "/de/foerderverein/kasse/doc/handbuch.pdf";
 
     private final AppContext ctx;
 
@@ -463,6 +468,30 @@ public class MainController {
 
     /** Oeffnet die erzeugte Datei bequemlichkeitshalber im Standardprogramm - schlaegt das fehl
      * (z. B. kein Desktop-Support), ist das kein Fehler, die Datei liegt trotzdem am Zielort. */
+    /** Zeigt das mitgelieferte Nutzerhandbuch im PDF-Betrachter des Systems. Das PDF liegt als
+     * Ressource im Jar (erzeugt aus docs/handbuch.md, siehe HandbuchPdf) und wird dafuer in eine
+     * temporaere Datei geschrieben - aus dem Jar heraus laesst sich nichts oeffnen. Bewusst die
+     * mitgelieferte Fassung statt eines Links auf GitHub: die Anwendung soll ohne Internet
+     * auskommen, und die mitgelieferte Fassung passt immer zur installierten Version. */
+    @FXML
+    private void onHandbuch() {
+        try (InputStream handbuch = getClass().getResourceAsStream(HANDBUCH_RESSOURCE)) {
+            if (handbuch == null) {
+                Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
+                        "Dieser Programmstand enthält kein Handbuch.");
+                hinweis.setHeaderText("Handbuch nicht verfügbar");
+                hinweis.showAndWait();
+                return;
+            }
+            Path ziel = Files.createTempFile("Nutzerhandbuch-Foerderverein-Kasse", ".pdf");
+            Files.copy(handbuch, ziel, StandardCopyOption.REPLACE_EXISTING);
+            ziel.toFile().deleteOnExit();
+            oeffneDatei(ziel.toFile());
+        } catch (IOException e) {
+            zeigeFehler("Handbuch konnte nicht geöffnet werden", e);
+        }
+    }
+
     private void oeffneDatei(File datei) {
         try {
             if (Desktop.isDesktopSupported()) {

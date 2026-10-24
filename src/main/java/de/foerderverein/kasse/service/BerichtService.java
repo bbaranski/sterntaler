@@ -527,7 +527,19 @@ public class BerichtService {
             document.add(leerzeile());
 
             document.add(new Paragraph("Mitglieder und Jahresbeitrag", abschnitt));
-            document.add(kennzahlenTabelle(daten));
+            Font kennzahl = betragNormal(11);
+            document.add(new Paragraph("Mitglieder: " + daten.mitglieder(), kennzahl));
+            document.add(leerzeile());
+            // Der Strich steht fuer "kein aktives Mitglied hat einen Jahresbeitrag" - dieselbe
+            // Bedingung, aus der auch minCent/maxCent/durchschnittCent leer bleiben.
+            document.add(new Paragraph("Jahresbeitrag Summe: "
+                    + betragOderStrich(daten.minCent() == null ? null : daten.summeCent()), kennzahl));
+            document.add(new Paragraph("Jahresbeitrag Minimum: "
+                    + betragOderStrich(daten.minCent()), kennzahl));
+            document.add(new Paragraph("Jahresbeitrag Maximum: "
+                    + betragOderStrich(daten.maxCent()), kennzahl));
+            document.add(new Paragraph("Jahresbeitrag Durchschnitt: "
+                    + betragOderStrich(daten.durchschnittCent()), kennzahl));
 
             // Muss vor dem Schliessen des OutputStreams durch try-with-resources passieren:
             // document.close() schreibt noch Trailer/Xref-Tabelle in den Stream.
@@ -681,52 +693,6 @@ public class BerichtService {
     }
 
     /** Zweispaltig wie die Tabellen des Kassenberichts (siehe kategorieTabelle). */
-    private PdfPTable kennzahlenTabelle(MitgliederberichtDaten daten) {
-        PdfPTable tabelle = new PdfPTable(2);
-        tabelle.setWidthPercentage(100);
-        try {
-            tabelle.setWidths(new float[] {70, 30});
-        } catch (DocumentException e) {
-            // Feste Spaltenzahl, kann hier nicht auftreten.
-        }
-        tabelle.addCell(kopfzelle("Kennzahl"));
-        PdfPCell wertKopf = kopfzelle("Aktiv");
-        wertKopf.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        tabelle.addCell(wertKopf);
-
-        tabelle.addCell("Mitglieder");
-        tabelle.addCell(anzahlZelle(daten.mitglieder()));
-        // Der Strich steht fuer "kein aktives Mitglied hat einen Jahresbeitrag" - dieselbe
-        // Bedingung, aus der auch minCent/maxCent/durchschnittCent leer bleiben.
-        tabelle.addCell("Jahresbeitrag Summe");
-        tabelle.addCell(daten.minCent() == null ? ohneWertZelle() : betragZelle(daten.summeCent()));
-        tabelle.addCell("Jahresbeitrag Minimum");
-        tabelle.addCell(betragOderOhneWert(daten.minCent()));
-        tabelle.addCell("Jahresbeitrag Maximum");
-        tabelle.addCell(betragOderOhneWert(daten.maxCent()));
-        tabelle.addCell("Jahresbeitrag Durchschnitt");
-        tabelle.addCell(betragOderOhneWert(daten.durchschnittCent()));
-        return tabelle;
-    }
-
-    private PdfPCell anzahlZelle(int anzahl) {
-        PdfPCell cell = new PdfPCell(new org.openpdf.text.Phrase(String.valueOf(anzahl)));
-        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        return cell;
-    }
-
-    private PdfPCell betragOderOhneWert(Long cent) {
-        return cent == null ? ohneWertZelle() : betragZelle(cent);
-    }
-
-    /** Kein aktives Mitglied hat einen Jahresbeitrag - 0,00 Euro waere hier eine falsche
-     * Aussage, daher ein Strich. */
-    private PdfPCell ohneWertZelle() {
-        PdfPCell cell = new PdfPCell(new org.openpdf.text.Phrase("—"));
-        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        return cell;
-    }
-
     private long summe(Map<String, Long> summenProKategorie) {
         return summenProKategorie.values().stream().mapToLong(Long::longValue).sum();
     }
@@ -816,6 +782,19 @@ public class BerichtService {
     private Font betragFett(float groesse) throws DocumentException, IOException {
         return new Font(BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI,
                 BaseFont.NOT_EMBEDDED), groesse);
+    }
+
+    /** Wie {@link #betragFett(float)}, nur in normaler Staerke - zur Begruendung der explizit
+     * gesetzten BaseFont siehe dort. */
+    private Font betragNormal(float groesse) throws DocumentException, IOException {
+        return new Font(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI,
+                BaseFont.NOT_EMBEDDED), groesse);
+    }
+
+    /** Betrag als Text, oder ein Strich, wenn kein Wert vorliegt - 0,00 Euro waere dann eine
+     * falsche Aussage. */
+    private String betragOderStrich(Long cent) {
+        return cent == null ? "—" : BETRAG_FORMAT.format(BigDecimal.valueOf(cent, 2));
     }
 
     /** Briefkopf-Zeilen aus den Vereins-Stammdaten (siehe VereinDialogController) - leer, wenn

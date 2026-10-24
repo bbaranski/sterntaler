@@ -868,7 +868,14 @@ class BerichtServiceTest {
         assertTrue(text.contains("Förderverein Musterschule e. V."), text);
         assertTrue(text.contains("Stand:"), text);
         assertTrue(text.contains("Mitglieder und Jahresbeitrag"), text);
-        assertTrue(text.contains("Jahresbeitrag Durchschnitt"), text);
+        // Einzelne Zeilen statt einer Tabelle: Beschriftung und Wert stehen mit Doppelpunkt
+        // beieinander, die Spaltenkoepfe der frueheren Tabelle gibt es nicht mehr.
+        assertTrue(text.contains("Mitglieder: 1"), text);
+        assertTrue(text.contains("Jahresbeitrag Summe: 24,00"), text);
+        assertTrue(text.contains("Jahresbeitrag Minimum: 24,00"), text);
+        assertTrue(text.contains("Jahresbeitrag Maximum: 24,00"), text);
+        assertTrue(text.contains("Jahresbeitrag Durchschnitt: 24,00"), text);
+        assertFalse(text.contains("Kennzahl"), "Tabellenkopf entfernt: " + text);
 
         // Abgewaehlte Bestandteile duerfen nicht zurueckkehren.
         assertFalse(text.contains("Inaktiv"), "Spalte Inaktiv entfernt: " + text);
