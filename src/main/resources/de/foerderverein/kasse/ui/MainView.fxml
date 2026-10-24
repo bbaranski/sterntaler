@@ -53,6 +53,8 @@
                 <Menu text="Hilfe">
                     <items>
                         <MenuItem text="Handbuch…" onAction="#onHandbuch" />
+                        <SeparatorMenuItem />
+                        <MenuItem text="Über Sterntaler…" onAction="#onUeber" />
                     </items>
                 </Menu>
             </menus>

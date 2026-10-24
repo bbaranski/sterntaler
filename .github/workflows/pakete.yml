@@ -89,6 +89,9 @@ jobs:
           mkdir -p paket
           cp target/plattformuebergreifend/Sterntaler.jar paket/
           cp -p start/start.command start/start.bat start/LIESMICH.txt paket/
+          # Lizenz und Drittanbieter-Hinweise stecken auch im Jar; hier noch einmal offen
+          # daneben, damit sie ohne Auspacken des Jars lesbar sind.
+          cp LICENSE DRITTANBIETER.md paket/
           cd paket && zip -X -r ../Sterntaler-Windows-und-Mac.zip .
 
       - name: Ergebnis hochladen

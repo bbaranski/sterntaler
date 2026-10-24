@@ -117,3 +117,48 @@ Windows kollidieren sie nicht (`glass.dll`). Fuer Intel-Macs gibt es das DMG aus
 Das Jar landet bewusst in `target/plattformuebergreifend/` und nicht in `target/app/`: Letzteres
 ist das Eingabeverzeichnis von `jpackage`, das seinen Inhalt vollstaendig uebernimmt - das Jar
 wanderte sonst mit ins DMG.
+
+## Lizenz
+
+Sterntaler steht unter der **MIT-Lizenz** (siehe [LICENSE](LICENSE)),
+Copyright (c) 2026 Bastian Baranski.
+
+Das Programm bringt freie Bibliotheken anderer Urheber mit. Sie sind in
+[DRITTANBIETER.md](DRITTANBIETER.md) aufgefuehrt; die Datei wird erzeugt:
+
+```sh
+mvn -o license:add-third-party@drittanbieter
+```
+
+Drei der Bibliotheken sind doppelt lizenziert. Sterntaler stuetzt sich dabei jeweils auf die
+freizuegigere Wahl: **openpdf** auf die MPL 2.0, **logback** auf die EPL 2.0, **JNA** auf die
+Apache-Lizenz 2.0. Als Bibliothek unter der LGPL bleibt damit allein **hbci4j**; deren
+Forderung, die Bibliothek austauschen zu koennen, erfuellt die Veroeffentlichung des
+Quellcodes von selbst.
+
+In jedem ausgelieferten Paket liegen `LICENSE` und `DRITTANBIETER.md` neben dem Programm
+(macOS: `Sterntaler.app/Contents/app/`, Windows: `app\`), zusaetzlich im Jar und im
+Ueber-Dialog. Bewusst **nicht** benutzt wird dafuer die jpackage-Angabe `--license-file`: Auf
+macOS macht sie aus der Lizenz eine Vereinbarung, die vor dem Oeffnen des DMG zu bestaetigen
+ist, und bei `-Djpackage.type=APP_IMAGE` lehnt jpackage die Angabe ganz ab - also genau beim
+Rueckfallweg ohne WiX.
+
+Zwei Bestandteile tauchen in `DRITTANBIETER.md` nicht auf, weil sie keine
+Maven-Abhaengigkeiten sind:
+
+- die **Java-Laufzeit** in den Installationspaketen — GPLv2 mit Classpath Exception; ihre
+  Lizenztexte legt `jpackage` im Paket unter `runtime/.../legal/` ab (22 Module). Der
+  Quellbezug steht bei [OpenJDK](https://openjdk.org) und [OpenJFX](https://openjfx.io);
+  dieselbe Lizenz gilt fuer das mitgelieferte JavaFX.
+- die Schrift **Liberation Sans** (SIL Open Font License 1.1), die aus dem openpdf-Jar stammt
+  und im Handbuch-PDF eingebettet ist.
+
+### Gewaehrleistung
+
+Die Nutzung erfolgt auf eigene Gefahr. Fuer die Richtigkeit der erzeugten Berichte, Salden und
+Exporte wird keine Gewaehr uebernommen; die Zahlen sind vor jeder Verwendung zu pruefen,
+insbesondere vor einer Kassenpruefung oder einer Abgabe beim Finanzamt. Eine Haftung fuer
+Vorsatz und grobe Fahrlaessigkeit sowie nach dem Produkthaftungsgesetz bleibt unberuehrt.
+
+Der englische Text in [LICENSE](LICENSE) ist die rechtlich massgebliche Fassung; dieser
+Abschnitt dient der Verstaendlichkeit.

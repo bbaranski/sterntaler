@@ -11,6 +11,27 @@
 
   <name>Sterntaler</name>
   <description>Kassenfuehrung fuer den Schul-Foerderverein: Umsatzverwaltung mit HBCI-Anbindung, Mitgliederverwaltung, Berichte.</description>
+  <url>https://github.com/bbaranski/sterntaler</url>
+  <inceptionYear>2026</inceptionYear>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Bastian Baranski</name>
+    </developer>
+  </developers>
+
+  <scm>
+    <url>https://github.com/bbaranski/sterntaler</url>
+    <connection>scm:git:https://github.com/bbaranski/sterntaler.git</connection>
+  </scm>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
@@ -162,6 +183,25 @@
         </includes>
         <targetPath>de/foerderverein/kasse/doc</targetPath>
       </resource>
+      <!-- Lizenz und Drittanbieter-Hinweise wandern wie das Handbuch ins Jar, damit
+           "Hilfe -> Ueber Sterntaler" sie ohne Internet anzeigen kann. -->
+      <resource>
+        <directory>${project.basedir}</directory>
+        <includes>
+          <include>LICENSE</include>
+          <include>DRITTANBIETER.md</include>
+        </includes>
+        <targetPath>de/foerderverein/kasse/doc</targetPath>
+      </resource>
+      <!-- Eigener Ordner nur fuer gefilterte Ressourcen. src/main/resources darf NICHT
+           gefiltert werden: logback.xml enthaelt ${user.home} und ${LOG_DIR} als
+           Logback-Platzhalter. Maven loeste ${user.home} beim Bauen auf und braennte den
+           Pfad des Baurechners ins Release ein - die Protokolle landeten auf fremden
+           Rechnern in einem Verzeichnis, das es dort nicht gibt. -->
+      <resource>
+        <directory>src/main/resources-gefiltert</directory>
+        <filtering>true</filtering>
+      </resource>
     </resources>
     <plugins>
       <plugin>
@@ -174,6 +214,76 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
+      </plugin>
+
+      <!-- Legt Lizenz und Drittanbieter-Hinweise neben das Uber-Jar. jpackage nimmt sein
+           Eingabeverzeichnis vollstaendig auf, damit liegen beide Dateien im fertigen
+           Programm. "licenseFile" allein genuegt dafuer nicht: Das zeigt den Text nur im
+           Installationsprogramm an und installiert ihn nicht mit. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
+          <execution>
+            <id>lizenzdateien-neben-das-jar</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/app</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}</directory>
+                  <includes>
+                    <include>LICENSE</include>
+                    <include>DRITTANBIETER.md</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Erzeugt DRITTANBIETER.md: "mvn -o license:add-third-party@drittanbieter".
+           <phase>none</phase> ist Absicht und darf nicht wegfallen: Das Ziel haengt sich sonst
+           selbst an generate-resources und liefe bei jedem Bau mit. Wie beim Handbuch gilt:
+           von Hand erzeugt, eingecheckt, von LizenzTest bewacht. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>2.4.0</version>
+        <executions>
+          <execution>
+            <id>drittanbieter</id>
+            <phase>none</phase>
+            <goals>
+              <goal>add-third-party</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.basedir}</outputDirectory>
+              <thirdPartyFilename>DRITTANBIETER.md</thirdPartyFilename>
+              <fileTemplate>${project.basedir}/src/license/DRITTANBIETER.md.ftl</fileTemplate>
+              <encoding>UTF-8</encoding>
+              <!-- Weissliste statt Schwarzliste: In die Liste gehoert nur, was auch
+                   ausgeliefert wird. flexmark und openhtmltopdf (provided, nur fuer die
+                   Handbuch-Erzeugung) und JUnit (test) bleiben damit draussen. -->
+              <includedScopes>compile,runtime</includedScopes>
+              <useMissingFile>true</useMissingFile>
+              <missingFile>${project.basedir}/src/license/fehlende-lizenzen.properties</missingFile>
+              <licenseMerges>
+                <licenseMerge>Apache License, Version 2.0|Apache 2.0|Apache-2.0|The Apache Software License, Version 2.0|Apache License 2.0|The Apache License, Version 2.0</licenseMerge>
+                <licenseMerge>MIT License|MIT|The MIT License|The MIT License (MIT)</licenseMerge>
+                <licenseMerge>GNU Lesser General Public License, Version 2.1|LGPL 2.1|LGPL-2.1|GNU Lesser General Public License|LGPL-2.1-or-later|LGPL-2.1-only|GNU Lesser General Public License (LGPL), Version 2.1</licenseMerge>
+                <licenseMerge>Eclipse Distribution License 1.0|EDL 1.0|Eclipse Distribution License - v 1.0</licenseMerge>
+                <!-- BSD-2 und BSD-3 bleiben getrennt: Das sind verschiedene Lizenzen. -->
+                <licenseMerge>BSD 3-Clause License|BSD-3|BSD License</licenseMerge>
+              </licenseMerges>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <!-- Erzeugt docs/handbuch.pdf aus docs/handbuch.md: "mvn -o compile exec:java@handbuch".
@@ -268,6 +378,17 @@
                    "-SNAPSHOT" laesst den Paketbau fehlschlagen. Das ist hier erwuenscht -
                    ausgeliefert wird nur aus einer Release-Fassung heraus. -->
               <appVersion>${project.version}</appVersion>
+              <!-- Bewusst KEIN licenseFile: Auf macOS macht jpackage daraus eine
+                   Lizenzvereinbarung, die vor dem Oeffnen des DMG bestaetigt werden muss -
+                   fuer ein freizuegig lizenziertes Vereinsprogramm unnoetige Huerde, und
+                   automatisiertes Pruefen wird damit unmoeglich. Zudem lehnt jpackage die
+                   Angabe bei "-Djpackage.type=APP_IMAGE" rundweg ab, also genau beim
+                   Rueckfallweg ohne WiX - dasselbe gilt fuer aboutUrl. Von den Angaben hier
+                   vertraegt sich nur copyright mit allen Pakettypen. Lizenz und Hinweise
+                   liegen stattdessen im
+                   Programmverzeichnis (siehe maven-resources-plugin oben) und im
+                   Ueber-Dialog. -->
+              <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -331,6 +452,17 @@
             <configuration>
               <name>Sterntaler</name>
               <appVersion>${project.version}</appVersion>
+              <!-- Bewusst KEIN licenseFile: Auf macOS macht jpackage daraus eine
+                   Lizenzvereinbarung, die vor dem Oeffnen des DMG bestaetigt werden muss -
+                   fuer ein freizuegig lizenziertes Vereinsprogramm unnoetige Huerde, und
+                   automatisiertes Pruefen wird damit unmoeglich. Zudem lehnt jpackage die
+                   Angabe bei "-Djpackage.type=APP_IMAGE" rundweg ab, also genau beim
+                   Rueckfallweg ohne WiX - dasselbe gilt fuer aboutUrl. Von den Angaben hier
+                   vertraegt sich nur copyright mit allen Pakettypen. Lizenz und Hinweise
+                   liegen stattdessen im
+                   Programmverzeichnis (siehe maven-resources-plugin oben) und im
+                   Ueber-Dialog. -->
+              <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -386,6 +518,17 @@
             <configuration>
               <name>Sterntaler</name>
               <appVersion>${project.version}</appVersion>
+              <!-- Bewusst KEIN licenseFile: Auf macOS macht jpackage daraus eine
+                   Lizenzvereinbarung, die vor dem Oeffnen des DMG bestaetigt werden muss -
+                   fuer ein freizuegig lizenziertes Vereinsprogramm unnoetige Huerde, und
+                   automatisiertes Pruefen wird damit unmoeglich. Zudem lehnt jpackage die
+                   Angabe bei "-Djpackage.type=APP_IMAGE" rundweg ab, also genau beim
+                   Rueckfallweg ohne WiX - dasselbe gilt fuer aboutUrl. Von den Angaben hier
+                   vertraegt sich nur copyright mit allen Pakettypen. Lizenz und Hinweise
+                   liegen stattdessen im
+                   Programmverzeichnis (siehe maven-resources-plugin oben) und im
+                   Ueber-Dialog. -->
+              <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>

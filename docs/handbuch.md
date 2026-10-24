@@ -17,6 +17,7 @@ Stand: Oktober 2026
 11. [Jahresabschluss und Kassenprüfung](#jahresabschluss-und-kassenprüfung)
 12. [Datensicherung](#datensicherung)
 13. [Wenn etwas nicht klappt](#wenn-etwas-nicht-klappt)
+14. [Lizenz und Gewährleistung](#lizenz-und-gewährleistung)
 
 ## Worum es geht
 
@@ -36,7 +37,9 @@ Das Programm läuft allein auf Ihrem Rechner. Es gibt keinen Server und kein Ben
 
 Die Abschnitte folgen der Reihenfolge, in der Sie dem Programm zum ersten Mal begegnen: einrichten, buchen, verwalten, auswerten, abschließen, sichern. Wenn Sie die Kasse übernehmen und alles schon eingerichtet ist, steigen Sie bei „Die Buchungsansicht" ein.
 
-Im Programm selbst finden Sie dieses Handbuch unter **Hilfe → Handbuch…**.
+Im Programm selbst finden Sie dieses Handbuch unter **Hilfe → Handbuch…**, und unter
+**Hilfe → Über Sterntaler…** stehen Fassung, Lizenz und die Hinweise zu den mitgelieferten
+Fremdbibliotheken.
 
 ## Programmstart und Datenbankdatei
 
@@ -334,3 +337,19 @@ Die Excel-Dateien und die PDF-Berichte sind der Grund, warum diese Sicherung meh
 **Wer wann was geändert hat**, beantwortet in beiden Ansichten die Schaltfläche **Verlauf…** — für die ausgewählte Buchung oder das ausgewählte Mitglied, mit altem und neuem Wert.
 
 Bevor Sie etwas Größeres reparieren, legen Sie eine Sicherheitskopie an. Dann können Sie in Ruhe probieren.
+
+## Lizenz und Gewährleistung
+
+Sterntaler ist freie Software und steht unter der MIT-Lizenz. Sie dürfen das Programm nutzen,
+weitergeben und verändern; der Quellcode ist offen. Den vollständigen Lizenztext finden Sie in
+der Datei `LICENSE`, die jeder Auslieferung beiliegt.
+
+Das Programm bringt freie Bibliotheken anderer Urheber mit. Deren Lizenzen sind in der Datei
+`DRITTANBIETER.md` aufgeführt; im Programm erreichen Sie beides über **Hilfe → Über
+Sterntaler…**.
+
+**Gewährleistung:** Die Nutzung erfolgt auf eigene Gefahr. Für die Richtigkeit der erzeugten
+Berichte, Salden und Exporte wird keine Gewähr übernommen — prüfen Sie die Zahlen vor jeder
+Verwendung, insbesondere vor einer Kassenprüfung oder einer Abgabe beim Finanzamt. Eine
+Haftung für Vorsatz und grobe Fahrlässigkeit sowie nach dem Produkthaftungsgesetz bleibt
+unberührt.

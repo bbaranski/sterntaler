@@ -15,6 +15,8 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
@@ -25,6 +27,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import de.foerderverein.kasse.app.AppContext;
+import de.foerderverein.kasse.app.Programm;
 import de.foerderverein.kasse.app.Views;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Konto;
@@ -37,6 +40,7 @@ import de.foerderverein.kasse.service.MitgliederImportErgebnis;
 public class MainController {
 
     private static final String HANDBUCH_RESSOURCE = "/de/foerderverein/kasse/doc/handbuch.pdf";
+    private static final String DRITTANBIETER_RESSOURCE = "/de/foerderverein/kasse/doc/DRITTANBIETER.md";
 
     private final AppContext ctx;
 
@@ -475,20 +479,54 @@ public class MainController {
      * auskommen, und die mitgelieferte Fassung passt immer zur installierten Version. */
     @FXML
     private void onHandbuch() {
-        try (InputStream handbuch = getClass().getResourceAsStream(HANDBUCH_RESSOURCE)) {
-            if (handbuch == null) {
-                Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
-                        "Dieser Programmstand enthält kein Handbuch.");
-                hinweis.setHeaderText("Handbuch nicht verfügbar");
+        oeffneMitgelieferteDatei(HANDBUCH_RESSOURCE, "Nutzerhandbuch-Sterntaler", ".pdf",
+                "Dieser Programmstand enthält kein Handbuch.");
+    }
+
+    /** Programmname, Fassung, Urheber und Lizenz - und auf Wunsch die Hinweise zu den
+     * mitgelieferten Fremdbibliotheken. Wer nur das fertige Paket herunterlaedt, sieht weder
+     * die README noch die Dateien im Quellverzeichnis; dieser Dialog ist fuer ihn der einzige
+     * Weg zu den Lizenzangaben. */
+    @FXML
+    private void onUeber() {
+        ButtonType hinweise = new ButtonType("Drittanbieter-Hinweise…", ButtonBar.ButtonData.HELP_2);
+        Alert ueber = new Alert(Alert.AlertType.INFORMATION,
+                "Fassung " + Programm.FASSUNG + "\n\n"
+                        + "Copyright (c) 2026 Bastian Baranski\n"
+                        + "Lizenz: MIT – der vollständige Text steht in der Datei LICENSE.\n\n"
+                        + "Die Nutzung erfolgt auf eigene Gefahr. Für die Richtigkeit der erzeugten"
+                        + " Berichte, Salden und Exporte wird keine Gewähr übernommen; bitte prüfen"
+                        + " Sie die Zahlen vor jeder Verwendung.\n\n"
+                        + "Das Programm verwendet freie Fremdbibliotheken. Deren Lizenzen sind in"
+                        + " DRITTANBIETER.md aufgeführt.",
+                hinweise, ButtonType.CLOSE);
+        ueber.setTitle("Über " + Programm.NAME);
+        ueber.setHeaderText(Programm.NAME);
+        if (ueber.showAndWait().orElse(ButtonType.CLOSE) == hinweise) {
+            // Endung .txt statt .md: Fuer .md hat vor allem Windows haeufig keine Zuordnung,
+            // und oeffneDatei meldet einen gescheiterten Aufruf bewusst nicht.
+            oeffneMitgelieferteDatei(DRITTANBIETER_RESSOURCE, "Drittanbieter-Hinweise-Sterntaler",
+                    ".txt", "Dieser Programmstand enthält die Hinweise nicht.");
+        }
+    }
+
+    /** Schreibt eine im Jar mitgelieferte Datei in eine temporaere Datei und uebergibt sie dem
+     * System - aus dem Jar heraus laesst sich nichts oeffnen. */
+    private void oeffneMitgelieferteDatei(String ressource, String praefix, String endung,
+                                           String fehlendText) {
+        try (InputStream quelle = getClass().getResourceAsStream(ressource)) {
+            if (quelle == null) {
+                Alert hinweis = new Alert(Alert.AlertType.INFORMATION, fehlendText);
+                hinweis.setHeaderText("Nicht verfügbar");
                 hinweis.showAndWait();
                 return;
             }
-            Path ziel = Files.createTempFile("Nutzerhandbuch-Sterntaler", ".pdf");
-            Files.copy(handbuch, ziel, StandardCopyOption.REPLACE_EXISTING);
+            Path ziel = Files.createTempFile(praefix, endung);
+            Files.copy(quelle, ziel, StandardCopyOption.REPLACE_EXISTING);
             ziel.toFile().deleteOnExit();
             oeffneDatei(ziel.toFile());
         } catch (IOException e) {
-            zeigeFehler("Handbuch konnte nicht geöffnet werden", e);
+            zeigeFehler("Datei konnte nicht geöffnet werden", e);
         }
     }
 

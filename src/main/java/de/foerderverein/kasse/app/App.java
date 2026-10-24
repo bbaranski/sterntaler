@@ -32,7 +32,7 @@ public class App extends Application {
         Views.init(context.get());
 
         Parent root = Views.loader("/de/foerderverein/kasse/ui/MainView.fxml").load();
-        stage.setTitle("Sterntaler");
+        stage.setTitle(Programm.NAME);
         stage.setScene(Views.scene(root));
         stage.setWidth(1100);
         stage.setHeight(680);
