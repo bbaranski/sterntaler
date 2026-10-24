@@ -122,12 +122,29 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Wird gebraucht: Die Release-Beschreibung liegt im Repository, nicht in den Artefakten.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: pakete
 
+      # Die Release-Beschreibung kommt aus docs/release-notes/<tag>.md, wenn es die Datei
+      # gibt. Sonst stellt GitHub sie aus den Commit-Betreffen zusammen - fuer Anwender, die
+      # nur ein Programm herunterladen wollen, ist das wertlos.
       - name: Dateien an das Release haengen
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes $(find pakete -type f)
+        run: |
+          notizen="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$notizen" ]; then
+            beschreibung=(--notes-file "$notizen")
+          else
+            echo "::warning::$notizen fehlt - Beschreibung wird aus den Commits erzeugt."
+            beschreibung=(--generate-notes)
+          fi
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Sterntaler ${GITHUB_REF_NAME#v}" \
+            "${beschreibung[@]}" \
+            $(find pakete -type f)
