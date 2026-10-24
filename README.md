@@ -10,14 +10,22 @@ der Kassenwartin oder des Kassenwarts.
 Tests bis zum Handbuch. Die fachlichen Entscheidungen und die Verantwortung für das Ergebnis
 liegen beim Autor.
 
+## Screenshots
+
+Die Buchungsansicht ist der Arbeitsplatz für die Kasse: alle Buchungen eines Kontos mit
+laufendem Saldo, Kategorie und Aktivität direkt in der Zeile änderbar.
+
+![Die Buchungsansicht von Sterntaler](docs/screenshots/ansicht-buchungen.png)
+
+Beide Ansichten, das vollständige Menü und alle fünf Berichte zeigt der Rundgang
+**[Sterntaler im Bild](docs/screenshots.md)** — durchgehend mit einer frei erfundenen
+Beispielkasse.
+
 ## Nutzerhandbuch
 
 **[docs/handbuch.md](docs/handbuch.md)** — hier im Browser zu lesen, auch als
 **[PDF](docs/handbuch.pdf)** zum Weitergeben und Ausdrucken. In der laufenden Anwendung steht
 dasselbe Handbuch unter **Hilfe → Handbuch…**.
-
-Einen Rundgang in Bildern — beide Ansichten, das Menü und alle fünf Berichte — gibt es unter
-**[Sterntaler im Bild](docs/screenshots.md)**.
 
 ## Entwicklung
 
