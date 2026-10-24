@@ -97,7 +97,7 @@ public final class HandbuchPdf {
                 <html xmlns="http://www.w3.org/1999/xhtml">
                 <head>
                   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-                  <title>Nutzerhandbuch Förderverein Kasse</title>
+                  <title>Nutzerhandbuch Sterntaler</title>
                   <style>
                     @page {
                       size: A4;

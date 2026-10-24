@@ -1,4 +1,4 @@
-# Nutzerhandbuch Förderverein Kasse
+# Nutzerhandbuch Sterntaler
 
 Stand: Oktober 2026
 
@@ -20,7 +20,7 @@ Stand: Oktober 2026
 
 ## Worum es geht
 
-„Förderverein Kasse" führt die Kasse eines Schulfördervereins: Einnahmen und Ausgaben eines Kontos, die Mitglieder samt Beiträgen, und daraus die Berichte, die Vorstand, Kassenprüfung und Finanzamt brauchen.
+„Sterntaler" führt die Kasse eines Schulfördervereins: Einnahmen und Ausgaben eines Kontos, die Mitglieder samt Beiträgen, und daraus die Berichte, die Vorstand, Kassenprüfung und Finanzamt brauchen.
 
 Das Programm läuft allein auf Ihrem Rechner. Es gibt keinen Server und kein Benutzerkonto; alle Daten liegen in einer Datei, die Sie selbst auswählen. Wer diese Datei hat, hat die Kasse — deshalb ist die Datensicherung ein eigener Abschnitt am Ende.
 
@@ -39,6 +39,12 @@ Die Abschnitte folgen der Reihenfolge, in der Sie dem Programm zum ersten Mal be
 Im Programm selbst finden Sie dieses Handbuch unter **Hilfe → Handbuch…**.
 
 ## Programmstart und Datenbankdatei
+
+**Was Sie brauchen:** Die Pakete fuer macOS (`.dmg`) und Windows (`.exe`) bringen alles mit, es
+muss nichts weiter installiert sein. Daneben gibt es eine Fassung als einzelne Datei
+`Sterntaler.jar`, die auf beiden Systemen laeuft - sie setzt aber ein installiertes
+Java 21 voraus. Starten Sie diese Fassung ueber `start.command` (macOS) oder `start.bat`
+(Windows); fehlt Java, sagen Ihnen die beiden, wo Sie es bekommen.
 
 Beim Start fragt das Programm als Erstes, mit welcher Datenbankdatei es arbeiten soll. Erst danach öffnet sich das Hauptfenster.
 

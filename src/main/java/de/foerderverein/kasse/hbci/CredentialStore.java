@@ -11,6 +11,9 @@ import com.github.javakeyring.PasswordAccessException;
  * (Windows Credential Manager / macOS Keychain) statt in der Anwendungsdatenbank. */
 public class CredentialStore {
 
+    /** Traegt weiter den alten Programmnamen, obwohl die Anwendung seit 1.0.0 "Sterntaler"
+     * heisst: Unter diesem Schluessel liegen die bereits gespeicherten PINs im Schluesselbund.
+     * Ein Umbenennen wuerde sie unauffindbar machen und die Nutzer muessten sie neu eingeben. */
     private static final String DOMAIN = "Foerderverein-Kasse-HBCI";
     private static final SecureRandom RANDOM = new SecureRandom();
 

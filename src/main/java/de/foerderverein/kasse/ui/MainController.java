@@ -483,7 +483,7 @@ public class MainController {
                 hinweis.showAndWait();
                 return;
             }
-            Path ziel = Files.createTempFile("Nutzerhandbuch-Foerderverein-Kasse", ".pdf");
+            Path ziel = Files.createTempFile("Nutzerhandbuch-Sterntaler", ".pdf");
             Files.copy(handbuch, ziel, StandardCopyOption.REPLACE_EXISTING);
             ziel.toFile().deleteOnExit();
             oeffneDatei(ziel.toFile());

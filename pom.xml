@@ -6,10 +6,10 @@
 
   <groupId>de.foerderverein</groupId>
   <artifactId>kasse</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
   <packaging>jar</packaging>
 
-  <name>Foerderverein Kasse</name>
+  <name>Sterntaler</name>
   <description>Kassenfuehrung fuer den Schul-Foerderverein: Umsatzverwaltung mit HBCI-Anbindung, Mitgliederverwaltung, Berichte.</description>
 
   <properties>
@@ -25,14 +25,20 @@
     <logback.version>1.5.38</logback.version>
     <junit.version>5.11.4</junit.version>
     <openpdf.version>3.0.5</openpdf.version>
-    <!-- Nur fuer die Handbuch-Erzeugung, siehe Profil "handbuch" weiter unten -->
+    <!-- Nur fuer die Handbuch-Erzeugung, siehe exec-Ausfuehrung "handbuch" weiter unten -->
     <flexmark.version>0.64.8</flexmark.version>
     <openhtmltopdf.version>1.0.10</openhtmltopdf.version>
     <poi.version>5.5.1</poi.version>
 
+    <!-- Kommt transitiv ueber openpdf -> brotli4j herein; hier nur, damit das Profil
+         "plattformuebergreifend" die Windows-Natives derselben Fassung nachziehen kann.
+         Nach einem openpdf-Update mit "mvn -o dependency:tree" abgleichen. -->
+    <brotli4j.version>1.23.0</brotli4j.version>
+
     <!-- Overridden per OS profile below -->
     <javafx.platform>mac-aarch64</javafx.platform>
     <app.main.class>de.foerderverein.kasse.app.Launcher</app.main.class>
+    <uber.jar>${project.build.directory}/app/kasse-app.jar</uber.jar>
   </properties>
 
   <dependencies>
@@ -209,7 +215,7 @@
                    vollstaendig in die Anwendung auf, und in target/ liegen auch classes/,
                    test-classes/ und das nicht gebuendelte kasse.jar - die haben in einer
                    ausgelieferten Anwendung nichts zu suchen. -->
-              <outputFile>${project.build.directory}/app/kasse-app.jar</outputFile>
+              <outputFile>${uber.jar}</outputFile>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <mainClass>${app.main.class}</mainClass>
@@ -221,6 +227,7 @@
                   <artifact>*:*</artifact>
                   <excludes>
                     <exclude>module-info.class</exclude>
+                    <exclude>META-INF/versions/*/module-info.class</exclude>
                     <exclude>META-INF/*.SF</exclude>
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
@@ -256,8 +263,11 @@
             <artifactId>jpackage-maven-plugin</artifactId>
             <version>1.8.0</version>
             <configuration>
-              <name>Foerderverein-Kasse</name>
-              <appVersion>1.0.0</appVersion>
+              <name>Sterntaler</name>
+              <!-- jpackage verlangt eine reine Zahlenfolge: Eine Projektfassung mit
+                   "-SNAPSHOT" laesst den Paketbau fehlschlagen. Das ist hier erwuenscht -
+                   ausgeliefert wird nur aus einer Release-Fassung heraus. -->
+              <appVersion>${project.version}</appVersion>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -319,8 +329,8 @@
             <artifactId>jpackage-maven-plugin</artifactId>
             <version>1.8.0</version>
             <configuration>
-              <name>Foerderverein-Kasse</name>
-              <appVersion>1.0.0</appVersion>
+              <name>Sterntaler</name>
+              <appVersion>${project.version}</appVersion>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -374,8 +384,8 @@
             <artifactId>jpackage-maven-plugin</artifactId>
             <version>1.8.0</version>
             <configuration>
-              <name>Foerderverein-Kasse</name>
-              <appVersion>1.0.0</appVersion>
+              <name>Sterntaler</name>
+              <appVersion>${project.version}</appVersion>
               <vendor>Foerderverein</vendor>
               <input>${project.build.directory}/app</input>
               <mainJar>kasse-app.jar</mainJar>
@@ -410,6 +420,86 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <!-- Ein einziges ausfuehrbares Jar fuer Windows x64 UND macOS Apple Silicon, nur ueber
+         "-Pplattformuebergreifend" aktiv. Setzt ein installiertes Java 21 voraus - eine
+         mitgelieferte Laufzeit besteht aus nativem Code und kann nicht fuer zwei Systeme
+         zugleich gelten, dafuer gibt es die jpackage-Profile oben.
+
+         Dieses Profil steht bewusst als letztes: Es setzt javafx.platform fest, und bei
+         gleichnamigen Eigenschaften gewinnt das zuletzt deklarierte Profil.
+
+         Bauen mit:  mvn -Pplattformuebergreifend -Djavafx.platform=mac-aarch64 clean package
+         Das -D gehoert dazu - es haelt die transitive Aufloesung der OpenJFX-Artefakte fest,
+         die sonst dem Baurechner folgt und auf einem fremden Laeufer noch einen dritten
+         Plattformsatz hereinzoege.
+
+         Nicht erweiterbar auf Intel-Macs: Deren JavaFX-Natives heissen genauso wie die fuer
+         Apple Silicon (libglass.dylib und weitere) und wuerden einander im Jar ueberschreiben.
+         Gegen Windows kollidieren sie nicht (glass.dll). -->
+    <profile>
+      <id>plattformuebergreifend</id>
+      <properties>
+        <javafx.platform>mac-aarch64</javafx.platform>
+        <!-- NICHT nach target/app: dort liegt die Eingabe fuer jpackage, und jpackage nimmt
+             sein Eingabeverzeichnis vollstaendig auf - das Jar wanderte sonst mit ins DMG. -->
+        <uber.jar>${project.build.directory}/plattformuebergreifend/Sterntaler.jar</uber.jar>
+      </properties>
+      <dependencies>
+        <!-- Beide Plattformen stehen hier mit literalem Classifier, und das ist der Kern der
+             Sache: Die OpenJFX-POMs waehlen ihren Classifier ueber eigene os-Profile anhand des
+             BAURECHNERS. Ohne diese Festlegung zoege ein Bau auf einem Linux-Laeufer die
+             Linux-Natives statt der Mac-Natives herein, und das Jar liefe auf keinem Mac.
+             Nachweisbar mit "mvn dependency:tree -Pplattformuebergreifend -Djavafx.platform=win":
+             ohne die Eintraege hier verschwindet die Mac-Seite vollstaendig.
+
+             javafx-controls und javafx-fxml stehen fuer die Mac-Seite schon oben in den
+             Basis-Abhaengigkeiten (ueber javafx.platform) und fehlen hier deshalb absichtlich. -->
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-base</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>mac-aarch64</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>mac-aarch64</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-base</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>win</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-graphics</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>win</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-controls</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>win</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.openjfx</groupId>
+          <artifactId>javafx-fxml</artifactId>
+          <version>${javafx.version}</version>
+          <classifier>win</classifier>
+        </dependency>
+        <!-- openpdf zieht ueber brotli4j nur die Natives des Baurechners nach; die Windows-
+             Variante muss daher ausdruecklich dazu. Die beiden liegen in verschiedenen
+             Verzeichnissen im Jar und kollidieren nicht. -->
+        <dependency>
+          <groupId>com.aayushatharva.brotli4j</groupId>
+          <artifactId>native-windows-x86_64</artifactId>
+          <version>${brotli4j.version}</version>
+        </dependency>
+      </dependencies>
     </profile>
   </profiles>
 </project>

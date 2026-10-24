@@ -7,9 +7,14 @@ import java.nio.file.Path;
 
 /** Zentrale Ablageorte der Anwendung. Bewusst ein einfaches Punktverzeichnis unter dem
  * Benutzerverzeichnis statt plattformspezifischer AppData/Library-Pfade - reicht fuer
- * eine Ein-Benutzer-Desktop-Anwendung und ist auf Windows wie macOS identisch herzuleiten. */
+ * eine Ein-Benutzer-Desktop-Anwendung und ist auf Windows wie macOS identisch herzuleiten.
+ *
+ * <p>Das Verzeichnis traegt weiter den alten Programmnamen, obwohl die Anwendung seit 1.0.0
+ * "Sterntaler" heisst: Ein Umbenennen wuerde bestehende Installationen von ihrer Datenbank,
+ * ihren Belegen und ihren Protokollen abschneiden. Sichtbar ist es im Alltag nicht. */
 public final class AppConfig {
 
+    /** Siehe Klassenkommentar: bewusst der alte Name. */
     private static final Path APP_DIR = Path.of(System.getProperty("user.home"), ".foerderverein-kasse");
 
     private AppConfig() {

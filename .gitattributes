@@ -1,0 +1,4 @@
+# Startskripte: Zeilenenden festnageln. cmd.exe kann bei Sprungmarken in Dateien mit
+# Unix-Zeilenenden stolpern, und umgekehrt laeuft ein Shell-Skript mit CR nicht.
+*.bat text eol=crlf
+*.command text eol=lf

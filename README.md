@@ -1,4 +1,4 @@
-# Förderverein Kasse
+# Sterntaler
 
 Kassenführung für einen Schulförderverein: Buchungen mit Belegen, Mitgliederverwaltung,
 Umsatzabruf per HBCI/FinTS und die Berichte für Mitgliederversammlung, Kassenprüfung und
@@ -21,10 +21,39 @@ mvn -o clean package  # Uber-Jar unter target/app/kasse-app.jar
 
 Voraussetzung ist ein JDK 21. Startklasse ist `de.foerderverein.kasse.app.Launcher`.
 
+
+
+### Handbuch ändern
+
+Quelle ist allein `docs/handbuch.md`. Nach jeder Änderung daran das PDF neu erzeugen und
+beides zusammen einchecken:
+
+```sh
+mvn -o compile exec:java@handbuch
+```
+
+Das schreibt `docs/handbuch.pdf` und die Prüfsumme `docs/handbuch.md.sha256`. Bewusst kein
+Schritt des normalen Builds: Ein PDF trägt einen Erzeugungszeitpunkt und wäre sonst nach jedem
+Build geändert, ohne dass sich am Text etwas getan hätte.
+
+Zwei Tests halten Handbuch und Programm zusammen:
+
+| Test | Schlägt fehl, wenn |
+| --- | --- |
+| `HandbuchTest` | ein Menüpunkt hinzukommt oder umbenannt wird, ohne dass das Handbuch es erwähnt |
+| `HandbuchPdfTest` | `docs/handbuch.md` geändert wurde, ohne das PDF neu zu erzeugen |
+
+Die Abhängigkeiten für die PDF-Erzeugung (flexmark, openhtmltopdf) stehen im Geltungsbereich
+`provided` und landen deshalb nicht im ausgelieferten Jar.
+
 ## Programmversionen zum Weitergeben
 
-Die fertigen Pakete bringen ihre eigene Java-Laufzeit mit; auf dem Zielrechner muss nichts
-installiert sein.
+Es gibt zwei Wege: die Pakete je Zielsystem, die ihre eigene Java-Laufzeit mitbringen, und ein
+plattformuebergreifendes Jar, das ein installiertes Java voraussetzt.
+
+### Pakete mit eigener Laufzeit
+
+Auf dem Zielrechner muss nichts installiert sein.
 
 ```sh
 mvn -o clean package      # muss vorher laufen
@@ -53,25 +82,38 @@ Welche JDK-Module in die mitgelieferte Laufzeit wandern, steht in den Profilen d
 Die Liste stammt aus `jdeps` und ist nicht beliebig kuerzbar: Ohne `jdk.unsupported` etwa
 startet die Anwendung zwar, kann ihr Fenster aber nicht zeichnen.
 
-### Handbuch ändern
-
-Quelle ist allein `docs/handbuch.md`. Nach jeder Änderung daran das PDF neu erzeugen und
-beides zusammen einchecken:
+### Eine Fassung fuer Windows und Mac zugleich
 
 ```sh
-mvn -o compile exec:java@handbuch
+mvn clean package -Pplattformuebergreifend -Djavafx.platform=mac-aarch64
+# Ergebnis: target/plattformuebergreifend/Sterntaler.jar
 ```
 
-Das schreibt `docs/handbuch.pdf` und die Prüfsumme `docs/handbuch.md.sha256`. Bewusst kein
-Schritt des normalen Builds: Ein PDF trägt einen Erzeugungszeitpunkt und wäre sonst nach jedem
-Build geändert, ohne dass sich am Text etwas getan hätte.
+Das Jar (~57 MB) startet auf **Windows x64** und auf **Macs ab M1** und setzt dort ein
+installiertes **Java 21** voraus. Weitergegeben wird es als ZIP zusammen mit den Dateien aus
+[start/](start/) - `start.command`, `start.bat` und `LIESMICH.txt`. Die Skripte suchen Java
+(auch ueber `JAVA_HOME` und `/usr/libexec/java_home`), pruefen die Version und melden sonst
+verstaendlich, was fehlt. Als ZIP, weil eine einzeln heruntergeladene `.command` ihr
+Ausfuehrbar-Bit verliert und sich dann nicht doppelklicken laesst.
 
-Zwei Tests halten Handbuch und Programm zusammen:
+Eine mitgelieferte Laufzeit kann es hier nicht geben - die besteht aus nativem Code und gilt
+immer nur fuer ein System. Wer ohne Java-Installation auskommen muss, nimmt die Pakete oben.
 
-| Test | Schlägt fehl, wenn |
-| --- | --- |
-| `HandbuchTest` | ein Menüpunkt hinzukommt oder umbenannt wird, ohne dass das Handbuch es erwähnt |
-| `HandbuchPdfTest` | `docs/handbuch.md` geändert wurde, ohne das PDF neu zu erzeugen |
+**Das `-D` gehoert zum Baubefehl.** Die OpenJFX-POMs waehlen den Classifier ihrer transitiven
+Artefakte ueber eigene `<os>`-Profile, also nach dem Baurechner. Ohne die Festlegung zieht ein
+fremder Laeufer noch einen dritten Plattformsatz herein. Dass beide Zielplattformen ueberhaupt
+im Jar landen, sichern die literalen Classifier im Profil - nachpruefbar mit:
 
-Die Abhängigkeiten für die PDF-Erzeugung (flexmark, openhtmltopdf) stehen im Geltungsbereich
-`provided` und landen deshalb nicht im ausgelieferten Jar.
+```sh
+mvn dependency:tree -Pplattformuebergreifend -Djavafx.platform=win
+```
+
+Dort muessen `javafx-base` und `javafx-graphics` mit `mac-aarch64` **und** `win` auftauchen.
+
+**Intel-Macs deckt dieses Jar nicht ab.** Deren JavaFX-Natives heissen genauso wie die fuer
+Apple Silicon (`libglass.dylib` und weitere) und wuerden einander im Jar ueberschreiben; gegen
+Windows kollidieren sie nicht (`glass.dll`). Fuer Intel-Macs gibt es das DMG aus dem Release.
+
+Das Jar landet bewusst in `target/plattformuebergreifend/` und nicht in `target/app/`: Letzteres
+ist das Eingabeverzeichnis von `jpackage`, das seinen Inhalt vollstaendig uebernimmt - das Jar
+wanderte sonst mit ins DMG.
