@@ -494,6 +494,8 @@ public class MainController {
                 "Fassung " + Programm.FASSUNG + "\n\n"
                         + "Copyright (c) 2026 Bastian Baranski\n"
                         + "Lizenz: MIT – der vollständige Text steht in der Datei LICENSE.\n\n"
+                        + "Entwickelt mit Claude Code; die fachlichen Entscheidungen und die"
+                        + " Verantwortung für das Ergebnis liegen beim Autor.\n\n"
                         + "Die Nutzung erfolgt auf eigene Gefahr. Für die Richtigkeit der erzeugten"
                         + " Berichte, Salden und Exporte wird keine Gewähr übernommen; bitte prüfen"
                         + " Sie die Zahlen vor jeder Verwendung.\n\n"

@@ -5,6 +5,11 @@ Umsatzabruf per HBCI/FinTS und die Berichte für Mitgliederversammlung, Kassenpr
 Finanzamt. JavaFX-Anwendung mit SQLite-Datenbank, läuft ohne Server allein auf dem Rechner
 der Kassenwartin oder des Kassenwarts.
 
+**Zur Entstehung:** Dieses Projekt ist vollständig mit
+[Claude Code](https://claude.com/claude-code) entwickelt worden — vom ersten Entwurf über die
+Tests bis zum Handbuch. Die fachlichen Entscheidungen und die Verantwortung für das Ergebnis
+liegen beim Autor.
+
 ## Nutzerhandbuch
 
 **[docs/handbuch.md](docs/handbuch.md)** — hier im Browser zu lesen, auch als
