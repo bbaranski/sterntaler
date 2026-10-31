@@ -1,28 +1,70 @@
-# Baut die startfertige Programmdatei fuer macOS und Windows.
+# Baut die startfertige Programmdatei fuer macOS und Windows und veroeffentlicht sie.
+#
+# Massgeblich ist die Fassung in der pom.xml: Nach jedem Push auf main schaut der Workflow
+# nach, ob es zu dieser Fassung schon ein Release gibt. Wenn nicht, baut er die Dateien,
+# setzt den Tag v<fassung> auf den gebauten Stand und legt das Release an. Eine neue Fassung
+# zu veroeffentlichen heisst also: Fassung in der pom.xml hochzaehlen, Release-Notizen unter
+# docs/release-notes/v<fassung>.md schreiben, pushen. Tags von Hand braucht es nicht.
 #
 # Das Uber-Jar enthaelt die JavaFX-Natives des Baurechners - die sind plattformgebunden.
-# Deshalb laeuft der Bau je Zielsystem auf einem eigenen Laeufer; das ist der Grund fuer
-# diesen Workflow. Ausgeliefert wird je Plattform ein Jar, das ein installiertes Java 21
-# voraussetzt.
+# Deshalb laeuft der Bau je Zielsystem auf einem eigenen Laeufer; das ist der Grund fuer die
+# Matrix. Ausgeliefert wird je Plattform ein Jar, das ein installiertes Java 21 voraussetzt.
 #
 # Intel-Macs sind nicht dabei: Es gibt keinen Intel-macOS-Laeufer, und quer uebersetzen kann
 # Maven hier nicht - die OpenJFX-POMs waehlen den Classifier ihrer transitiven Artefakte ueber
 # eigene os-Profile, also nach dem Baurechner. Auf einem Intel-Mac liefert "mvn clean package"
 # aber weiter das passende Jar (Profil mac-x86_64 in der pom.xml).
-#
-# Starten: Actions -> "Programmdatei" -> "Run workflow". Bei einem Tag v* entsteht
-# zusaetzlich ein Release mit den Dateien im Anhang.
 name: Programmdatei
 
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+
+# Zwei Pushes kurz nacheinander sollen nicht beide dasselbe Release anlegen wollen.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
+  fassung:
+    name: Fassung pruefen
+    runs-on: ubuntu-latest
+    outputs:
+      fassung: ${{ steps.pom.outputs.fassung }}
+      neu: ${{ steps.vorhanden.outputs.neu }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bewusst ohne Maven: Das waere ein Plugin-Download und eine halbe Minute fuer eine
+      # Zeile XML. Die erste <version> unter <project> ist die Fassung des Projekts.
+      - name: Fassung aus der pom.xml lesen
+        id: pom
+        run: |
+          fassung=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('pom.xml').getroot().find('{http://maven.apache.org/POM/4.0.0}version').text)")
+          echo "fassung=${fassung}" >> "$GITHUB_OUTPUT"
+          echo "Fassung laut pom.xml: ${fassung}"
+
+      - name: Gibt es dafuer schon ein Release?
+        id: vorhanden
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FASSUNG: ${{ steps.pom.outputs.fassung }}
+        run: |
+          if gh release view "v${FASSUNG}" >/dev/null 2>&1; then
+            echo "neu=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Release v${FASSUNG} gibt es schon - es wird nichts gebaut."
+          else
+            echo "neu=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Fassung v${FASSUNG} ist neu - die Dateien werden gebaut."
+          fi
+
   jar:
     name: ${{ matrix.bezeichnung }}
+    needs: fassung
+    if: needs.fassung.outputs.neu == 'true'
     runs-on: ${{ matrix.laeufer }}
     strategy:
       fail-fast: false
@@ -69,8 +111,8 @@ jobs:
 
   release:
     name: Release anlegen
-    needs: [jar]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [fassung, jar]
+    if: needs.fassung.outputs.neu == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -82,22 +124,26 @@ jobs:
         with:
           path: dateien
 
-      # Die Release-Beschreibung kommt aus docs/release-notes/<tag>.md, wenn es die Datei
-      # gibt. Sonst stellt GitHub sie aus den Commit-Betreffen zusammen - fuer Anwender, die
-      # nur ein Programm herunterladen wollen, ist das wertlos.
-      - name: Dateien an das Release haengen
+      # "gh release create" legt den Tag gleich mit an - auf genau dem Stand, aus dem die
+      # Dateien gebaut wurden (--target). Die Beschreibung kommt aus
+      # docs/release-notes/v<fassung>.md, wenn es die Datei gibt. Sonst stellt GitHub sie aus
+      # den Commit-Betreffen zusammen - fuer Anwender, die nur ein Programm herunterladen
+      # wollen, ist das wertlos, deshalb die Warnung.
+      - name: Release anlegen und Dateien anhaengen
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          FASSUNG: ${{ needs.fassung.outputs.fassung }}
         run: |
-          notizen="docs/release-notes/${GITHUB_REF_NAME}.md"
+          notizen="docs/release-notes/v${FASSUNG}.md"
           if [ -f "$notizen" ]; then
             beschreibung=(--notes-file "$notizen")
           else
             echo "::warning::$notizen fehlt - Beschreibung wird aus den Commits erzeugt."
             beschreibung=(--generate-notes)
           fi
-          gh release create "${GITHUB_REF_NAME}" \
-            --title "Sterntaler ${GITHUB_REF_NAME#v}" \
+          gh release create "v${FASSUNG}" \
+            --target "${GITHUB_SHA}" \
+            --title "Sterntaler ${FASSUNG}" \
             "${beschreibung[@]}" \
             $(find dateien -type f)
