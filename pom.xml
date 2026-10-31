@@ -6,7 +6,7 @@
 
   <groupId>de.foerderverein</groupId>
   <artifactId>kasse</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <packaging>jar</packaging>
 
   <name>Sterntaler</name>
@@ -54,7 +54,7 @@
     <!-- Overridden per OS profile below -->
     <javafx.platform>mac-aarch64</javafx.platform>
     <app.main.class>de.foerderverein.kasse.app.Launcher</app.main.class>
-    <uber.jar>${project.build.directory}/app/kasse-app.jar</uber.jar>
+    <uber.jar>${project.build.directory}/app/Sterntaler.jar</uber.jar>
   </properties>
 
   <dependencies>

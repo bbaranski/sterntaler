@@ -43,10 +43,25 @@ Fremdbibliotheken.
 
 ## Programmstart und Datenbankdatei
 
-**Was Sie brauchen:** Sterntaler läuft auf macOS und Windows und setzt ein installiertes
-[Java 21](https://adoptium.net) voraus. Das Programm selbst ist eine einzelne Datei,
-`kasse-app.jar`. Ein Doppelklick darauf startet es; weiß Ihr Rechner mit der Datei nichts
-anzufangen, hilft der Aufruf `java -jar kasse-app.jar`.
+**Was Sie brauchen:** Sterntaler ist eine einzelne Datei, die Sie unter
+[Releases](https://github.com/bbaranski/sterntaler/releases/latest) herunterladen. Welche die
+richtige ist:
+
+| Ihr System | Datei |
+| --- | --- |
+| Mac ab M1 (2020 und neuer) | `Sterntaler-macOS-AppleSilicon.jar` |
+| Windows | `Sterntaler-Windows.jar` |
+
+Dazu muss [Java 21](https://adoptium.net) auf Ihrem Rechner installiert sein; alles andere
+bringt die Datei mit. Für Macs mit Intel-Prozessor gibt es keine fertige Datei zum
+Herunterladen.
+
+**Beim ersten Start** meldet macOS einen unbekannten Entwickler, weil die Datei nicht
+signiert ist: mit der rechten Maustaste darauf klicken, *Öffnen* wählen und einmal bestätigen.
+Danach genügt der Doppelklick. Tut sich auf den Doppelklick gar nichts, ist die Dateiendung
+`.jar` auf Ihrem Rechner nicht mit Java verknüpft — dann starten Sie das Programm im Terminal
+beziehungsweise in der Eingabeaufforderung mit `java -jar` und dem Namen Ihrer Datei, etwa
+`java -jar Sterntaler-Windows.jar`.
 
 Beim Start fragt das Programm als Erstes, mit welcher Datenbankdatei es arbeiten soll. Erst danach öffnet sich das Hauptfenster.
 
