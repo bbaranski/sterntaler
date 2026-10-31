@@ -51,11 +51,6 @@
     <openhtmltopdf.version>1.0.10</openhtmltopdf.version>
     <poi.version>5.5.1</poi.version>
 
-    <!-- Kommt transitiv ueber openpdf -> brotli4j herein; hier nur, damit das Profil
-         "plattformuebergreifend" die Windows-Natives derselben Fassung nachziehen kann.
-         Nach einem openpdf-Update mit "mvn -o dependency:tree" abgleichen. -->
-    <brotli4j.version>1.23.0</brotli4j.version>
-
     <!-- Overridden per OS profile below -->
     <javafx.platform>mac-aarch64</javafx.platform>
     <app.main.class>de.foerderverein.kasse.app.Launcher</app.main.class>
@@ -216,10 +211,9 @@
         <version>3.5.2</version>
       </plugin>
 
-      <!-- Legt Lizenz und Drittanbieter-Hinweise neben das Uber-Jar. jpackage nimmt sein
-           Eingabeverzeichnis vollstaendig auf, damit liegen beide Dateien im fertigen
-           Programm. "licenseFile" allein genuegt dafuer nicht: Das zeigt den Text nur im
-           Installationsprogramm an und installiert ihn nicht mit. -->
+      <!-- Legt Lizenz und Drittanbieter-Hinweise neben das Uber-Jar, damit sie beim
+           Weitergeben des Jars nicht fehlen. Im Jar selbst liegen sie zusaetzlich, siehe
+           <resources> oben - daraus zeigt sie der Ueber-Dialog. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
@@ -308,8 +302,8 @@
         </executions>
       </plugin>
 
-      <!-- Baut ein Uber-Jar inkl. JavaFX (plattformspezifisch) als reine Klassenpfad-Anwendung,
-           damit jpackage kein JavaFX-Modulpfad-Setup braucht. -->
+      <!-- Baut ein Uber-Jar inkl. JavaFX (plattformspezifisch) als reine
+           Klassenpfad-Anwendung: So startet es mit "java -jar" ohne Modulpfad-Setup. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -321,10 +315,10 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <!-- Eigenes Verzeichnis statt target/: jpackage nimmt sein Eingabeverzeichnis
-                   vollstaendig in die Anwendung auf, und in target/ liegen auch classes/,
-                   test-classes/ und das nicht gebuendelte kasse.jar - die haben in einer
-                   ausgelieferten Anwendung nichts zu suchen. -->
+              <!-- Eigenes Verzeichnis statt target/: Dort liegen auch classes/,
+                   test-classes/ und das nicht gebuendelte kasse.jar. Neben dem Uber-Jar
+                   sollen allein Lizenz und Drittanbieter-Hinweise liegen, siehe
+                   maven-resources-plugin oben. -->
               <outputFile>${uber.jar}</outputFile>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
@@ -351,6 +345,9 @@
     </plugins>
   </build>
 
+  <!-- Die Profile legen allein den JavaFX-Classifier anhand des Baurechners fest: Die
+       JavaFX-Natives sind plattformgebunden, und ohne die Festlegung zoege ein fremder
+       Baurechner den falschen Satz herein. -->
   <profiles>
     <profile>
       <id>mac-aarch64</id>
@@ -362,78 +359,7 @@
       </activation>
       <properties>
         <javafx.platform>mac-aarch64</javafx.platform>
-        <!-- Ueberschreibbar, z. B. "-Djpackage.type=APP_IMAGE" fuer ein Programmverzeichnis
-             ohne Installationspaket. -->
-        <jpackage.type>DMG</jpackage.type>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.panteleyev</groupId>
-            <artifactId>jpackage-maven-plugin</artifactId>
-            <version>1.8.0</version>
-            <configuration>
-              <name>Sterntaler</name>
-              <!-- jpackage verlangt eine reine Zahlenfolge: Eine Projektfassung mit
-                   "-SNAPSHOT" laesst den Paketbau fehlschlagen. Das ist hier erwuenscht -
-                   ausgeliefert wird nur aus einer Release-Fassung heraus. -->
-              <appVersion>${project.version}</appVersion>
-              <!-- Bewusst KEIN licenseFile: Auf macOS macht jpackage daraus eine
-                   Lizenzvereinbarung, die vor dem Oeffnen des DMG bestaetigt werden muss -
-                   fuer ein freizuegig lizenziertes Vereinsprogramm unnoetige Huerde, und
-                   automatisiertes Pruefen wird damit unmoeglich. Zudem lehnt jpackage die
-                   Angabe bei "-Djpackage.type=APP_IMAGE" rundweg ab, also genau beim
-                   Rueckfallweg ohne WiX - dasselbe gilt fuer aboutUrl. Von den Angaben hier
-                   vertraegt sich nur copyright mit allen Pakettypen. Lizenz und Hinweise
-                   liegen stattdessen im
-                   Programmverzeichnis (siehe maven-resources-plugin oben) und im
-                   Ueber-Dialog. -->
-              <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
-              <!-- Das Schuerzen-Logo als Programmicon. Die .icns enthaelt je Groesse
-                   eine eigene Zeichnung: ab 128 px die Fassung mit Sternenregen,
-                   darunter die kompakte ohne - in 32 px waeren die fallenden Sterne
-                   nur noch Rauschen. Siehe logo/README.md. -->
-              <icon>${project.basedir}/logo/sterntaler.icns</icon>
-              <vendor>Foerderverein</vendor>
-              <input>${project.build.directory}/app</input>
-              <mainJar>kasse-app.jar</mainJar>
-              <mainClass>${app.main.class}</mainClass>
-              <destination>${project.build.directory}/dist</destination>
-              <type>${jpackage.type}</type>
-              <javaOptions>
-                <option>-Dfile.encoding=UTF-8</option>
-              </javaOptions>
-              <!-- Ermittelt mit jdeps (print-module-deps ueber target/app/kasse-app.jar),
-                   ergaenzt um die Module, die jdeps nicht sehen kann,
-                   weil sie ueber Dienste oder Reflexion geladen werden (Logging, JNDI, XML,
-                   TLS-Anbieter, Laenderdaten). jdk.unsupported ist nicht optional: JavaFX
-                   braucht daraus sun.misc.Unsafe, sonst startet die Anwendung zwar, kann ihr
-                   Fenster aber nicht zeichnen. -->
-              <addModules>
-                <module>java.base</module>
-                <module>java.compiler</module>
-                <module>java.desktop</module>
-                <module>java.logging</module>
-                <module>java.naming</module>
-                <module>java.prefs</module>
-                <module>java.scripting</module>
-                <module>java.security.jgss</module>
-                <module>java.smartcardio</module>
-                <module>java.sql</module>
-                <module>java.xml</module>
-                <module>java.xml.crypto</module>
-                <module>jdk.crypto.cryptoki</module>
-                <module>jdk.crypto.ec</module>
-                <module>jdk.jfr</module>
-                <module>jdk.localedata</module>
-                <module>jdk.net</module>
-                <module>jdk.security.auth</module>
-                <module>jdk.unsupported</module>
-              </addModules>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>
@@ -446,64 +372,7 @@
       </activation>
       <properties>
         <javafx.platform>mac</javafx.platform>
-        <jpackage.type>DMG</jpackage.type>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.panteleyev</groupId>
-            <artifactId>jpackage-maven-plugin</artifactId>
-            <version>1.8.0</version>
-            <configuration>
-              <name>Sterntaler</name>
-              <appVersion>${project.version}</appVersion>
-              <!-- Bewusst KEIN licenseFile: Auf macOS macht jpackage daraus eine
-                   Lizenzvereinbarung, die vor dem Oeffnen des DMG bestaetigt werden muss -
-                   fuer ein freizuegig lizenziertes Vereinsprogramm unnoetige Huerde, und
-                   automatisiertes Pruefen wird damit unmoeglich. Zudem lehnt jpackage die
-                   Angabe bei "-Djpackage.type=APP_IMAGE" rundweg ab, also genau beim
-                   Rueckfallweg ohne WiX - dasselbe gilt fuer aboutUrl. Von den Angaben hier
-                   vertraegt sich nur copyright mit allen Pakettypen. Lizenz und Hinweise
-                   liegen stattdessen im
-                   Programmverzeichnis (siehe maven-resources-plugin oben) und im
-                   Ueber-Dialog. -->
-              <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
-              <!-- Das Schuerzen-Logo als Programmicon. Die .icns enthaelt je Groesse
-                   eine eigene Zeichnung: ab 128 px die Fassung mit Sternenregen,
-                   darunter die kompakte ohne - in 32 px waeren die fallenden Sterne
-                   nur noch Rauschen. Siehe logo/README.md. -->
-              <icon>${project.basedir}/logo/sterntaler.icns</icon>
-              <vendor>Foerderverein</vendor>
-              <input>${project.build.directory}/app</input>
-              <mainJar>kasse-app.jar</mainJar>
-              <mainClass>${app.main.class}</mainClass>
-              <destination>${project.build.directory}/dist</destination>
-              <type>${jpackage.type}</type>
-              <addModules>
-                <module>java.base</module>
-                <module>java.compiler</module>
-                <module>java.desktop</module>
-                <module>java.logging</module>
-                <module>java.naming</module>
-                <module>java.prefs</module>
-                <module>java.scripting</module>
-                <module>java.security.jgss</module>
-                <module>java.smartcardio</module>
-                <module>java.sql</module>
-                <module>java.xml</module>
-                <module>java.xml.crypto</module>
-                <module>jdk.crypto.cryptoki</module>
-                <module>jdk.crypto.ec</module>
-                <module>jdk.jfr</module>
-                <module>jdk.localedata</module>
-                <module>jdk.net</module>
-                <module>jdk.security.auth</module>
-                <module>jdk.unsupported</module>
-              </addModules>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>
@@ -515,146 +384,7 @@
       </activation>
       <properties>
         <javafx.platform>win</javafx.platform>
-        <!-- EXE und MSI setzen das WiX Toolset auf dem Baurechner voraus; ohne das liefert
-             "-Djpackage.type=APP_IMAGE" ein startbares Programmverzeichnis. -->
-        <jpackage.type>EXE</jpackage.type>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.panteleyev</groupId>
-            <artifactId>jpackage-maven-plugin</artifactId>
-            <version>1.8.0</version>
-            <configuration>
-              <name>Sterntaler</name>
-              <appVersion>${project.version}</appVersion>
-              <!-- Bewusst KEIN licenseFile: Auf macOS macht jpackage daraus eine
-                   Lizenzvereinbarung, die vor dem Oeffnen des DMG bestaetigt werden muss -
-                   fuer ein freizuegig lizenziertes Vereinsprogramm unnoetige Huerde, und
-                   automatisiertes Pruefen wird damit unmoeglich. Zudem lehnt jpackage die
-                   Angabe bei "-Djpackage.type=APP_IMAGE" rundweg ab, also genau beim
-                   Rueckfallweg ohne WiX - dasselbe gilt fuer aboutUrl. Von den Angaben hier
-                   vertraegt sich nur copyright mit allen Pakettypen. Lizenz und Hinweise
-                   liegen stattdessen im
-                   Programmverzeichnis (siehe maven-resources-plugin oben) und im
-                   Ueber-Dialog. -->
-              <copyright>Copyright (c) 2026 Bastian Baranski</copyright>
-              <!-- Siehe die Anmerkung in den macOS-Profilen; Windows braucht .ico. -->
-              <icon>${project.basedir}/logo/sterntaler.ico</icon>
-              <vendor>Foerderverein</vendor>
-              <input>${project.build.directory}/app</input>
-              <mainJar>kasse-app.jar</mainJar>
-              <mainClass>${app.main.class}</mainClass>
-              <destination>${project.build.directory}/dist</destination>
-              <type>${jpackage.type}</type>
-              <winDirChooser>true</winDirChooser>
-              <winMenu>true</winMenu>
-              <winShortcut>true</winShortcut>
-              <addModules>
-                <module>java.base</module>
-                <module>java.compiler</module>
-                <module>java.desktop</module>
-                <module>java.logging</module>
-                <module>java.naming</module>
-                <module>java.prefs</module>
-                <module>java.scripting</module>
-                <module>java.security.jgss</module>
-                <module>java.smartcardio</module>
-                <module>java.sql</module>
-                <module>java.xml</module>
-                <module>java.xml.crypto</module>
-                <module>jdk.crypto.cryptoki</module>
-                <module>jdk.crypto.ec</module>
-                <module>jdk.jfr</module>
-                <module>jdk.localedata</module>
-                <module>jdk.net</module>
-                <module>jdk.security.auth</module>
-                <module>jdk.unsupported</module>
-              </addModules>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <!-- Ein einziges ausfuehrbares Jar fuer Windows x64 UND macOS Apple Silicon, nur ueber
-         "-Pplattformuebergreifend" aktiv. Setzt ein installiertes Java 21 voraus - eine
-         mitgelieferte Laufzeit besteht aus nativem Code und kann nicht fuer zwei Systeme
-         zugleich gelten, dafuer gibt es die jpackage-Profile oben.
-
-         Dieses Profil steht bewusst als letztes: Es setzt javafx.platform fest, und bei
-         gleichnamigen Eigenschaften gewinnt das zuletzt deklarierte Profil.
-
-         Bauen mit:  mvn -Pplattformuebergreifend -Djavafx.platform=mac-aarch64 clean package
-         Das -D gehoert dazu - es haelt die transitive Aufloesung der OpenJFX-Artefakte fest,
-         die sonst dem Baurechner folgt und auf einem fremden Laeufer noch einen dritten
-         Plattformsatz hereinzoege.
-
-         Nicht erweiterbar auf Intel-Macs: Deren JavaFX-Natives heissen genauso wie die fuer
-         Apple Silicon (libglass.dylib und weitere) und wuerden einander im Jar ueberschreiben.
-         Gegen Windows kollidieren sie nicht (glass.dll). -->
-    <profile>
-      <id>plattformuebergreifend</id>
-      <properties>
-        <javafx.platform>mac-aarch64</javafx.platform>
-        <!-- NICHT nach target/app: dort liegt die Eingabe fuer jpackage, und jpackage nimmt
-             sein Eingabeverzeichnis vollstaendig auf - das Jar wanderte sonst mit ins DMG. -->
-        <uber.jar>${project.build.directory}/plattformuebergreifend/Sterntaler.jar</uber.jar>
-      </properties>
-      <dependencies>
-        <!-- Beide Plattformen stehen hier mit literalem Classifier, und das ist der Kern der
-             Sache: Die OpenJFX-POMs waehlen ihren Classifier ueber eigene os-Profile anhand des
-             BAURECHNERS. Ohne diese Festlegung zoege ein Bau auf einem Linux-Laeufer die
-             Linux-Natives statt der Mac-Natives herein, und das Jar liefe auf keinem Mac.
-             Nachweisbar mit "mvn dependency:tree -Pplattformuebergreifend -Djavafx.platform=win":
-             ohne die Eintraege hier verschwindet die Mac-Seite vollstaendig.
-
-             javafx-controls und javafx-fxml stehen fuer die Mac-Seite schon oben in den
-             Basis-Abhaengigkeiten (ueber javafx.platform) und fehlen hier deshalb absichtlich. -->
-        <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-base</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>mac-aarch64</classifier>
-        </dependency>
-        <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-graphics</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>mac-aarch64</classifier>
-        </dependency>
-        <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-base</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>win</classifier>
-        </dependency>
-        <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-graphics</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>win</classifier>
-        </dependency>
-        <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-controls</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>win</classifier>
-        </dependency>
-        <dependency>
-          <groupId>org.openjfx</groupId>
-          <artifactId>javafx-fxml</artifactId>
-          <version>${javafx.version}</version>
-          <classifier>win</classifier>
-        </dependency>
-        <!-- openpdf zieht ueber brotli4j nur die Natives des Baurechners nach; die Windows-
-             Variante muss daher ausdruecklich dazu. Die beiden liegen in verschiedenen
-             Verzeichnissen im Jar und kollidieren nicht. -->
-        <dependency>
-          <groupId>com.aayushatharva.brotli4j</groupId>
-          <artifactId>native-windows-x86_64</artifactId>
-          <version>${brotli4j.version}</version>
-        </dependency>
-      </dependencies>
     </profile>
   </profiles>
 </project>

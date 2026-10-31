@@ -43,11 +43,10 @@ Fremdbibliotheken.
 
 ## Programmstart und Datenbankdatei
 
-**Was Sie brauchen:** Die Pakete fuer macOS (`.dmg`) und Windows (`.exe`) bringen alles mit, es
-muss nichts weiter installiert sein. Daneben gibt es eine Fassung als einzelne Datei
-`Sterntaler.jar`, die auf beiden Systemen laeuft - sie setzt aber ein installiertes
-Java 21 voraus. Starten Sie diese Fassung ueber `start.command` (macOS) oder `start.bat`
-(Windows); fehlt Java, sagen Ihnen die beiden, wo Sie es bekommen.
+**Was Sie brauchen:** Sterntaler läuft auf macOS und Windows und setzt ein installiertes
+[Java 21](https://adoptium.net) voraus. Das Programm selbst ist eine einzelne Datei,
+`kasse-app.jar`. Ein Doppelklick darauf startet es; weiß Ihr Rechner mit der Datei nichts
+anzufangen, hilft der Aufruf `java -jar kasse-app.jar`.
 
 Beim Start fragt das Programm als Erstes, mit welcher Datenbankdatei es arbeiten soll. Erst danach öffnet sich das Hauptfenster.
 

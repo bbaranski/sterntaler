@@ -18,10 +18,9 @@ Einige Bibliotheken sind **doppelt lizenziert** und erscheinen deshalb unter meh
 openpdf auf die **MPL 2.0**, logback auf die **EPL 2.0**, JNA auf die **Apache-Lizenz 2.0**.
 Als Bibliothek unter der LGPL bleibt damit allein hbci4j.
 
-Nicht aufgeführt, weil keine Maven-Abhängigkeiten: die in den Installationspaketen
-mitgelieferte **Java-Laufzeit** (GPLv2 mit Classpath Exception; die Lizenztexte liegen im
-Paket unter `runtime/.../legal/`) und die Schrift **Liberation Sans** (SIL Open Font License
-1.1), die im Handbuch-PDF eingebettet ist. Siehe dazu den Abschnitt „Lizenz" in der README.
+Nicht aufgeführt, weil keine Maven-Abhängigkeit: die Schrift **Liberation Sans**
+(SIL Open Font License 1.1), die im Handbuch-PDF eingebettet ist. Siehe dazu den Abschnitt
+„Lizenz" in der README.
 
 Diese Datei wird erzeugt und nicht von Hand gepflegt:
 
