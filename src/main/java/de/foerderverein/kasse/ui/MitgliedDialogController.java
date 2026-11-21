@@ -2,11 +2,11 @@ package de.foerderverein.kasse.ui;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -15,6 +15,7 @@ import javafx.util.StringConverter;
 
 import de.foerderverein.kasse.app.AppContext;
 import de.foerderverein.kasse.domain.Anrede;
+import de.foerderverein.kasse.domain.Datumstext;
 import de.foerderverein.kasse.domain.IbanPruefung;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
@@ -26,8 +27,6 @@ public class MitgliedDialogController {
 
     private final AppContext ctx;
 
-    private static final DateTimeFormatter DATUM_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-
     @FXML private ComboBox<Anrede> anredeCombo;
     @FXML private TextField vornameField;
     @FXML private TextField nachnameField;
@@ -36,8 +35,8 @@ public class MitgliedDialogController {
     @FXML private TextField ortField;
     @FXML private TextField telefonField;
     @FXML private TextField emailField;
-    @FXML private TextField eintrittsdatumField;
-    @FXML private TextField austrittsdatumField;
+    @FXML private DatePicker eintrittsdatumPicker;
+    @FXML private DatePicker austrittsdatumPicker;
     @FXML private ComboBox<MitgliedStatus> statusCombo;
     @FXML private TextField jahresbeitragField;
     @FXML private TextField ibanField;
@@ -50,6 +49,14 @@ public class MitgliedDialogController {
 
     private Mitglied mitglied;
     private boolean gespeichert;
+
+    /** Der gespeicherte Datumstext, so wie er beim Oeffnen vorlag. Gebraucht fuer Altbestaende:
+     * Eintritts- und Austrittsdatum waren freie Textfelder, in denen auch Unlesbares stehen kann
+     * ("Frühjahr 2019"). Solcher Text bleibt im Feld stehen und wird unveraendert
+     * zurueckgeschrieben, solange ihn niemand anfasst - eine Aenderung an einem anderen Feld
+     * darf ihn nicht verwerfen. */
+    private String eintrittsdatumUrsprung;
+    private String austrittsdatumUrsprung;
 
     public MitgliedDialogController(AppContext ctx) {
         this.ctx = ctx;
@@ -78,6 +85,8 @@ public class MitgliedDialogController {
             }
         });
         statusCombo.setItems(FXCollections.observableArrayList(MitgliedStatus.values()));
+        DatumsFeld.konfiguriere(eintrittsdatumPicker);
+        DatumsFeld.konfiguriere(austrittsdatumPicker);
         ibanField.textProperty().addListener((obs, alt, neu) -> aktualisiereIbanHinweis());
     }
 
@@ -87,7 +96,7 @@ public class MitgliedDialogController {
         this.mitglied = bestehend;
         if (bestehend == null) {
             statusCombo.setValue(MitgliedStatus.AKTIV);
-            eintrittsdatumField.setText(LocalDate.now().format(DATUM_FORMAT));
+            eintrittsdatumPicker.setValue(LocalDate.now());
             return;
         }
         anredeCombo.setValue(bestehend.getAnrede());
@@ -98,8 +107,10 @@ public class MitgliedDialogController {
         ortField.setText(bestehend.getOrt());
         telefonField.setText(bestehend.getTelefon());
         emailField.setText(bestehend.getEmail());
-        eintrittsdatumField.setText(bestehend.getEintrittsdatum());
-        austrittsdatumField.setText(bestehend.getAustrittsdatum());
+        eintrittsdatumUrsprung = bestehend.getEintrittsdatum();
+        austrittsdatumUrsprung = bestehend.getAustrittsdatum();
+        zeigeDatum(eintrittsdatumPicker, eintrittsdatumUrsprung);
+        zeigeDatum(austrittsdatumPicker, austrittsdatumUrsprung);
         statusCombo.setValue(bestehend.getStatus());
         jahresbeitragField.setText(bestehend.getJahresbeitragEuro() != null
                 ? bestehend.getJahresbeitragEuro().toPlainString().replace('.', ',') : "");
@@ -155,8 +166,8 @@ public class MitgliedDialogController {
             ziel.setOrt(leerZuNull(ortField.getText()));
             ziel.setTelefon(leerZuNull(telefonField.getText()));
             ziel.setEmail(leerZuNull(emailField.getText()));
-            ziel.setEintrittsdatum(leerZuNull(eintrittsdatumField.getText()));
-            ziel.setAustrittsdatum(leerZuNull(austrittsdatumField.getText()));
+            ziel.setEintrittsdatum(datumText(eintrittsdatumPicker, "Eintrittsdatum", eintrittsdatumUrsprung));
+            ziel.setAustrittsdatum(datumText(austrittsdatumPicker, "Austrittsdatum", austrittsdatumUrsprung));
             ziel.setStatus(statusCombo.getValue() != null ? statusCombo.getValue() : MitgliedStatus.AKTIV);
             ziel.setJahresbeitragEuro(parseJahresbeitrag());
             ziel.setIban(leerZuNull(ibanField.getText()));
@@ -183,6 +194,46 @@ public class MitgliedDialogController {
 
     private String leerZuNull(String text) {
         return text == null || text.isBlank() ? null : text.trim();
+    }
+
+    /** Zeigt einen gespeicherten Datumstext im Feld an. Laesst er sich nicht lesen, bleibt er als
+     * Text stehen, statt stillschweigend zu verschwinden (siehe eintrittsdatumUrsprung). */
+    private void zeigeDatum(DatePicker feld, String text) {
+        LocalDate datum = Datumstext.parse(text);
+        if (datum != null) {
+            feld.setValue(datum);
+        } else if (text != null && !text.isBlank()) {
+            feld.getEditor().setText(text);
+        }
+    }
+
+    /** Das Datum des Feldes als "TT.MM.JJJJ", oder null fuer ein leeres Feld.
+     *
+     * <p>Gelesen wird zuerst der angezeigte Text: Eine Tippeingabe, die der DatePicker noch nicht
+     * uebernommen hat, ginge sonst verloren. Nur wenn er leer ist, zaehlt der hinterlegte Wert -
+     * das deckt den Fall ab, dass das Feld programmatisch gefuellt wurde, ohne dass der Text
+     * schon gesetzt ist.
+     *
+     * <p>Unlesbarer Text bricht das Speichern mit einer Meldung ab. Ausnahme: Er stand
+     * unveraendert schon vorher in der Datenbank - dann wandert er unberuehrt zurueck. */
+    private String datumText(DatePicker feld, String bezeichnung, String ursprung) {
+        String eingabe = feld.getEditor().getText();
+        boolean leer = eingabe == null || eingabe.isBlank();
+        LocalDate datum = Datumstext.parse(eingabe);
+        if (datum == null && leer) {
+            datum = feld.getValue();
+        }
+        if (datum != null) {
+            return Datumstext.text(datum);
+        }
+        if (leer) {
+            return null;
+        }
+        if (ursprung != null && eingabe.trim().equals(ursprung.trim())) {
+            return ursprung;
+        }
+        throw new IllegalArgumentException(bezeichnung + " ungültig - bitte als TT.MM.JJJJ angeben, z. B. "
+                + Datumstext.text(LocalDate.now()));
     }
 
     private Long parseMandatsreferenz() {

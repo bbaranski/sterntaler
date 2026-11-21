@@ -183,6 +183,75 @@ class KontobewegungenExportServiceTest {
         }
     }
 
+    /** Der Export eines Geschaeftsjahres muss dieselbe Zuordnung treffen wie die Spalte
+     * "Geschaeftsjahr": Zeitraum, aber eine Uebersteuerung am Buchungssatz gewinnt. Deshalb hier
+     * drei Buchungen - eine im Zeitraum, eine ausserhalb und eine, die per geschaeftsjahrId ins
+     * Jahr geholt wird, obwohl ihr Datum daneben liegt. */
+    @Test
+    void exportEinesGeschaeftsjahresNimmtNurDessenBuchungen() throws Exception {
+        Database database = TestDatabase.create();
+        BuchungRepository buchungRepository = new BuchungRepository(database);
+        GeschaeftsjahrRepository geschaeftsjahrRepository = new GeschaeftsjahrRepository(database);
+        Konto konto = new KontoRepository(database).save(neuesKonto());
+
+        Geschaeftsjahr jahr2025 = geschaeftsjahrRepository.save(
+                neuesGeschaeftsjahr("2025", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31)));
+        Geschaeftsjahr jahr2026 = geschaeftsjahrRepository.save(
+                neuesGeschaeftsjahr("2026", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)));
+
+        Buchung imJahr = neueBuchung(konto.getId());
+        buchungRepository.insert(imJahr);
+
+        Buchung imVorjahr = neueBuchung(konto.getId());
+        imVorjahr.setBuchungsdatum(LocalDate.of(2025, 6, 1));
+        buchungRepository.insert(imVorjahr);
+
+        Buchung uebersteuert = neueBuchung(konto.getId());
+        uebersteuert.setBuchungsdatum(LocalDate.of(2025, 12, 31));
+        uebersteuert.setGeschaeftsjahrId(jahr2026.getId());
+        buchungRepository.insert(uebersteuert);
+
+        Path ziel = Files.createTempDirectory("kasse-export-jahr").resolve("buchungen-2026.xlsx");
+        exportService(database).exportiereBuchungenEinesGeschaeftsjahresAlsExcel(ziel, jahr2026);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(ziel.toFile())) {
+            Sheet sheet = workbook.getSheet("Kontobewegungen");
+            List<Long> ids = new ArrayList<>();
+            for (int zeile = 1; zeile <= sheet.getLastRowNum(); zeile++) {
+                ids.add((long) sheet.getRow(zeile).getCell(0).getNumericCellValue());
+                assertEquals("2026", sheet.getRow(zeile).getCell(2).getStringCellValue());
+            }
+            assertEquals(List.of(imJahr.getId(), uebersteuert.getId()).stream().sorted().toList(),
+                    ids.stream().sorted().toList(),
+                    "Export des Geschäftsjahres 2026 enthält die falschen Buchungen");
+        }
+
+        // Im Vorjahr bleibt genau die Buchung, deren Datum dort liegt - ohne die uebersteuerte.
+        Path zielVorjahr = Files.createTempDirectory("kasse-export-vorjahr").resolve("buchungen-2025.xlsx");
+        exportService(database).exportiereBuchungenEinesGeschaeftsjahresAlsExcel(zielVorjahr, jahr2025);
+        try (XSSFWorkbook workbook = new XSSFWorkbook(zielVorjahr.toFile())) {
+            Sheet sheet = workbook.getSheet("Kontobewegungen");
+            assertEquals(1, sheet.getLastRowNum(), "2025 enthält nicht genau eine Buchung");
+            assertEquals(imVorjahr.getId(), (long) sheet.getRow(1).getCell(0).getNumericCellValue());
+        }
+
+        // Gegenprobe: ueber alle Kontobewegungen sind es wieder alle drei.
+        Path alle = Files.createTempDirectory("kasse-export-alle").resolve("buchungen.xlsx");
+        exportService(database).exportiereAlleBuchungenAlsExcel(alle);
+        try (XSSFWorkbook workbook = new XSSFWorkbook(alle.toFile())) {
+            assertEquals(3, workbook.getSheet("Kontobewegungen").getLastRowNum(),
+                    "Der Export über alle Kontobewegungen darf nicht filtern");
+        }
+    }
+
+    private Geschaeftsjahr neuesGeschaeftsjahr(String bezeichnung, LocalDate start, LocalDate ende) {
+        Geschaeftsjahr jahr = new Geschaeftsjahr();
+        jahr.setBezeichnung(bezeichnung);
+        jahr.setStartDatum(start);
+        jahr.setEndDatum(ende);
+        return jahr;
+    }
+
     private Konto neuesKonto() {
         Konto konto = new Konto();
         konto.setBezeichnung("Vereinskonto");

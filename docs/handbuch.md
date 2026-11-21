@@ -147,7 +147,7 @@ Fünf Spalten können Sie per Doppelklick in der Zeile selbst bearbeiten, ohne d
 
 Das ist der schnelle Weg, um nach einem Bankabruf einen Stapel Buchungen zu kategorisieren.
 
-**Alle Buchungen als Excel-Datei** bekommen Sie über **Exporte → Kontobewegungen exportieren…** — mit allen Feldern, auch denen, die Sie in der Tabelle ausgeblendet haben, und mit dem Betrag als echter Zahl, sodass sich die Spalte in Excel direkt summieren lässt.
+**Buchungen als Excel-Datei** bekommen Sie über **Exporte → Kontobewegungen exportieren…**. Zuerst fragt das Programm, was hinein soll: *Alle Kontobewegungen* oder nur die eines Geschäftsjahres — zur Auswahl stehen alle angelegten Jahre. Welche Buchungen zu einem Geschäftsjahr zählen, entscheidet dasselbe wie in der Tabelle: der Zeitraum des Jahres, sofern die Buchung nicht ausdrücklich einem anderen Jahr zugeordnet ist. Buchungen, die in kein Geschäftsjahr fallen, stehen deshalb nur im Export über alle Kontobewegungen. Die Datei enthält alle Felder, auch die, die Sie in der Tabelle ausgeblendet haben, und den Betrag als echte Zahl, sodass sich die Spalte in Excel direkt summieren lässt.
 
 ## Buchungen erfassen, ändern und stornieren
 
@@ -220,7 +220,7 @@ Der Reiter **Mitglieder** funktioniert wie die Buchungsansicht: eine Tabelle, Sp
 | Feld | Hinweis |
 | --- | --- |
 | Anrede | Herr, Frau oder Familie — wird in Serienbriefen benutzt |
-| Eintritts-, Austrittsdatum | Freier Text, kein Pflichtfeld |
+| Eintritts-, Austrittsdatum | Datumsfeld im Format TT.MM.JJJJ — über den Kalender wählbar oder eintippbar; kein Pflichtfeld |
 | Status | **Aktiv** oder **Inaktiv** — siehe unten |
 | Jahresbeitrag (Euro) | Grundlage der Mitgliederentwicklung |
 | IBAN, BIC, Mandatsreferenz, Sammellastschrift | Für den Beitragseinzug per Lastschrift |

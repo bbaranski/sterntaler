@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -336,11 +337,46 @@ public class MainController {
         }
     }
 
+    /** Vor dem Speichern die Frage nach dem Umfang: alle Kontobewegungen oder nur die eines
+     * Geschaeftsjahres. Ist noch kein Geschaeftsjahr angelegt, gibt es nichts zu waehlen - dann
+     * exportiert der Menuepunkt ohne Rueckfrage alles. */
     @FXML
     private void onKontobewegungenExport() {
+        record Umfang(String bezeichnung, Geschaeftsjahr jahr) {
+            @Override
+            public String toString() {
+                return bezeichnung;
+            }
+        }
+
+        Umfang alle = new Umfang("Alle Kontobewegungen", null);
+        Umfang gewaehlt = alle;
+
+        List<Geschaeftsjahr> jahre = ctx.geschaeftsjahrService.findAll();
+        if (!jahre.isEmpty()) {
+            List<Umfang> auswahl = new ArrayList<>();
+            auswahl.add(alle);
+            for (Geschaeftsjahr jahr : jahre) {
+                auswahl.add(new Umfang(jahr.getBezeichnung(), jahr));
+            }
+            ChoiceDialog<Umfang> umfangAuswahl = new ChoiceDialog<>(alle, auswahl);
+            umfangAuswahl.setTitle("Kontobewegungen exportieren");
+            umfangAuswahl.setHeaderText("Alle Kontobewegungen oder nur die eines Geschäftsjahres?");
+            Optional<Umfang> antwort = umfangAuswahl.showAndWait();
+            if (antwort.isEmpty()) {
+                return;
+            }
+            gewaehlt = antwort.get();
+        }
+
+        // Wie bei den Berichten: die Bezeichnung kann alles enthalten, was der Nutzer eingetippt
+        // hat - fuer einen Dateinamen muessen die verbotenen Zeichen weichen.
+        String vorschlag = gewaehlt.jahr() == null ? "Kontobewegungen.xlsx"
+                : "Kontobewegungen-" + gewaehlt.jahr().getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_") + ".xlsx";
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Kontobewegungen speichern");
-        fileChooser.setInitialFileName("Kontobewegungen.xlsx");
+        fileChooser.setInitialFileName(vorschlag);
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel-Datei", "*.xlsx"));
         File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
         if (datei == null) {
@@ -349,7 +385,12 @@ public class MainController {
 
         try {
             Path ziel = datei.toPath();
-            ctx.kontobewegungenExportService.exportiereAlleBuchungenAlsExcel(ziel);
+            if (gewaehlt.jahr() == null) {
+                ctx.kontobewegungenExportService.exportiereAlleBuchungenAlsExcel(ziel);
+            } else {
+                ctx.kontobewegungenExportService.exportiereBuchungenEinesGeschaeftsjahresAlsExcel(ziel,
+                        gewaehlt.jahr());
+            }
             oeffneDatei(datei);
         } catch (IOException e) {
             zeigeFehler("Kontobewegungen konnten nicht exportiert werden", e);

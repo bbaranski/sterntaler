@@ -25,7 +25,8 @@ import de.foerderverein.kasse.persistence.BuchungRepository;
 import de.foerderverein.kasse.persistence.KategorieRepository;
 import de.foerderverein.kasse.persistence.KontoRepository;
 
-/** Export aller Kontobewegungen (Buchungen) als Excel-Datei fuer die direkte Weiterverarbeitung
+/** Export der Kontobewegungen (Buchungen) als Excel-Datei - entweder alle oder nur die eines
+ * Geschaeftsjahres - fuer die direkte Weiterverarbeitung
  * (Betrag als echte Zahl, damit sich die Spalte in Excel direkt summieren laesst). Enthaelt
  * saemtliche Felder von Buchung (auch die technischen wie HBCI-Import-Hash oder Storno-Referenz)
  * und das Geschaeftsjahr. Bewusst nicht enthalten ist das laufende Saldo: es ergibt sich erst aus
@@ -54,6 +55,21 @@ public class KontobewegungenExportService {
     }
 
     public void exportiereAlleBuchungenAlsExcel(Path ziel) throws IOException {
+        exportiere(ziel, null);
+    }
+
+    /** Nur die Buchungen eines Geschaeftsjahres. Welche dazugehoeren, entscheidet dieselbe
+     * Zuordnung wie die Spalte "Geschaeftsjahr" und die Buchungsansicht
+     * (GeschaeftsjahrService.findeFuer): eine ausdrueckliche Uebersteuerung am Buchungssatz
+     * gewinnt, sonst zaehlt der Zeitraum. Buchungen ausserhalb jedes Geschaeftsjahres sind
+     * damit nur im Export ueber alle Kontobewegungen enthalten. */
+    public void exportiereBuchungenEinesGeschaeftsjahresAlsExcel(Path ziel, Geschaeftsjahr geschaeftsjahr)
+            throws IOException {
+        exportiere(ziel, geschaeftsjahr);
+    }
+
+    /** nurJahr == null: alle Buchungen. */
+    private void exportiere(Path ziel, Geschaeftsjahr nurJahr) throws IOException {
         Map<Long, Konto> kontenById = new HashMap<>();
         for (Konto k : kontoRepository.findAll()) {
             kontenById.put(k.getId(), k);
@@ -70,6 +86,13 @@ public class KontobewegungenExportService {
         List<Geschaeftsjahr> geschaeftsjahre = geschaeftsjahrService.findAll();
 
         List<Buchung> buchungen = buchungRepository.findAll();
+        if (nurJahr != null) {
+            buchungen = buchungen.stream()
+                    .filter(b -> geschaeftsjahrService.findeFuer(b, geschaeftsjahre)
+                            .filter(g -> nurJahr.getId().equals(g.getId()))
+                            .isPresent())
+                    .toList();
+        }
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
 
         String[] spalten = {"Id", "Datum", "Geschäftsjahr", "Wertstellung", "Konto", "Kontoauszug", "Betrag",

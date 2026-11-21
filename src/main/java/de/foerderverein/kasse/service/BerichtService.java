@@ -44,6 +44,7 @@ import de.foerderverein.kasse.domain.Aktivitaet;
 import de.foerderverein.kasse.domain.Anrede;
 import de.foerderverein.kasse.domain.Bereich;
 import de.foerderverein.kasse.domain.Buchung;
+import de.foerderverein.kasse.domain.Datumstext;
 import de.foerderverein.kasse.domain.Geschaeftsjahr;
 import de.foerderverein.kasse.domain.Kategorie;
 import de.foerderverein.kasse.domain.Konto;
@@ -646,7 +647,8 @@ public class BerichtService {
             tabelle.addCell(textZelle(wert(m.getOrt()), klein));
             tabelle.addCell(textZelle(wert(m.getTelefon()), klein));
             tabelle.addCell(textZelle(wert(m.getEmail()), klein));
-            tabelle.addCell(textZelle(wert(m.getEintrittsdatum()), klein));
+            // Wie in der Anwendung und im Export: TT.MM.JJJJ, siehe Datumstext.anzeige.
+            tabelle.addCell(textZelle(Datumstext.anzeige(wert(m.getEintrittsdatum())), klein));
             tabelle.addCell(m.getJahresbeitragCent() != null
                     ? betragZelle(m.getJahresbeitragCent(), klein)
                     : textZelle("", klein));
@@ -938,8 +940,10 @@ public class BerichtService {
                 zeile.createCell(6).setCellValue(wert(m.getOrt()));
                 zeile.createCell(7).setCellValue(wert(m.getTelefon()));
                 zeile.createCell(8).setCellValue(wert(m.getEmail()));
-                zeile.createCell(9).setCellValue(wert(m.getEintrittsdatum()));
-                zeile.createCell(10).setCellValue(wert(m.getAustrittsdatum()));
+                // Dieselbe Schreibweise wie in der Anwendung - gespeichert sein kann auch
+                // ein Text aus einem fremden Import ("9/26/26"), siehe Datumstext.anzeige.
+                zeile.createCell(9).setCellValue(Datumstext.anzeige(wert(m.getEintrittsdatum())));
+                zeile.createCell(10).setCellValue(Datumstext.anzeige(wert(m.getAustrittsdatum())));
                 zeile.createCell(11).setCellValue(m.getStatus().name());
                 zeile.createCell(12).setCellValue(m.getJahresbeitragEuro() != null
                         ? m.getJahresbeitragEuro().toPlainString().replace('.', ',') : "");

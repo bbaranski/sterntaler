@@ -36,6 +36,7 @@ import javafx.stage.Window;
 import de.foerderverein.kasse.app.AppContext;
 import de.foerderverein.kasse.app.Views;
 import de.foerderverein.kasse.domain.Anrede;
+import de.foerderverein.kasse.domain.Datumstext;
 import de.foerderverein.kasse.domain.Mitglied;
 import de.foerderverein.kasse.domain.MitgliedStatus;
 
@@ -99,8 +100,12 @@ public class MitgliederViewController {
         ortColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getOrt()));
         telefonColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getTelefon()));
         emailColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getEmail()));
-        eintrittsdatumColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getEintrittsdatum()));
-        austrittsdatumColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getAustrittsdatum()));
+        // Gespeichert sind freie Texte, auch solche aus Importen ("9/26/26"). Fuer die Anzeige
+        // werden sie auf TT.MM.JJJJ gebracht, siehe Datumstext.anzeige.
+        eintrittsdatumColumn.setCellValueFactory(
+                cd -> new ReadOnlyStringWrapper(Datumstext.anzeige(cd.getValue().getEintrittsdatum())));
+        austrittsdatumColumn.setCellValueFactory(
+                cd -> new ReadOnlyStringWrapper(Datumstext.anzeige(cd.getValue().getAustrittsdatum())));
         statusColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getStatus().name()));
         jahresbeitragColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getJahresbeitragCent()));
         jahresbeitragColumn.setCellFactory(SpaltenFormat.betragCentZelle(BETRAG_FORMAT));

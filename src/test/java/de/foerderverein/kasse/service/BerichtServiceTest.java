@@ -302,6 +302,36 @@ class BerichtServiceTest {
         }
     }
 
+    /** Eintritts- und Austrittsdatum sind als Text gespeichert, und aus fremden Importen kann
+     * dort jede Schreibweise stehen. Die Exportdatei zeigt sie wie die Anwendung. */
+    @Test
+    void mitgliederexportSchreibtDieDatenInDeutscherSchreibweise() throws Exception {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+        BerichtService berichtService = new BerichtService(new BuchungRepository(database),
+                new KategorieRepository(database), new AktivitaetRepository(database),
+                new MitgliedService(mitgliedRepository, new AuditLogRepository(database)),
+                new GeschaeftsjahrService(new GeschaeftsjahrRepository(database)), new VereinRepository(database));
+
+        Mitglied mitglied = new Mitglied();
+        mitglied.setVorname("Erika");
+        mitglied.setNachname("Musterfrau");
+        // So liefert es der Mitgliederimport aus einer US-formatierten Datei.
+        mitglied.setEintrittsdatum("9/26/26");
+        mitglied.setAustrittsdatum("Frühjahr 2019");
+        mitgliedRepository.save(mitglied);
+
+        Path ziel = Files.createTempDirectory("kasse-mitgliederliste-format").resolve("mitglieder.xlsx");
+        berichtService.exportiereMitgliederliste(ziel);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(ziel.toFile())) {
+            Row datenzeile = workbook.getSheet("Mitglieder").getRow(1);
+            assertEquals("26.09.2026", datenzeile.getCell(9).getStringCellValue());
+            assertEquals("Frühjahr 2019", datenzeile.getCell(10).getStringCellValue(),
+                    "Unlesbares bleibt stehen, statt aus der Datei zu verschwinden");
+        }
+    }
+
     @Test
     void berechneSteuerreportBucketedNachKategorieBereich() {
         Database database = TestDatabase.create();
@@ -913,6 +943,8 @@ class BerichtServiceTest {
         erika.setEmail("erika@example.de");
         erika.setIban("DE02120300000000202051");
         erika.setMandatsreferenz(7L);
+        // So liefert es der Mitgliederimport aus einer US-formatierten Datei.
+        erika.setEintrittsdatum("9/26/26");
         mitgliedRepository.save(erika);
         mitgliedRepository.save(mitgliedMitBeitrag("Bernd", "Beispiel", MitgliedStatus.AKTIV, "48.00"));
         mitgliedRepository.save(mitgliedMitBeitrag("Alt", "Ausgetreten", MitgliedStatus.INAKTIV, "999.00"));
@@ -948,6 +980,9 @@ class BerichtServiceTest {
         assertTrue(text.contains("DE02120300000000202051"), text);
         assertTrue(text.contains("Frau"), text);
         assertTrue(text.contains("24,00"), text);
+        // Datumsangaben wie in der Anwendung, unabhaengig davon, wie sie gespeichert sind.
+        assertTrue(text.contains("26.09.2026"), "Eintrittsdatum nicht in TT.MM.JJJJ: " + text);
+        assertFalse(text.contains("9/26/26"), "Rohe Importschreibweise im Bericht: " + text);
         // Inaktive Mitglieder gehoeren nicht in diesen Bericht.
         assertFalse(text.contains("Ausgetreten"), "Inaktive duerfen nicht erscheinen: " + text);
         assertFalse(text.contains("999,00"), "Inaktive duerfen nicht erscheinen: " + text);
