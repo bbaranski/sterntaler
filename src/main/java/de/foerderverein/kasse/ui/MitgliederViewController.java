@@ -106,6 +106,11 @@ public class MitgliederViewController {
                 cd -> new ReadOnlyStringWrapper(Datumstext.anzeige(cd.getValue().getEintrittsdatum())));
         austrittsdatumColumn.setCellValueFactory(
                 cd -> new ReadOnlyStringWrapper(Datumstext.anzeige(cd.getValue().getAustrittsdatum())));
+        // Ein Klick auf die Spaltenueberschrift soll chronologisch sortieren. Ohne eigene
+        // Reihenfolge verglichen die Spalten ihren Text, und der sortiert 01.03.2026 vor
+        // 15.02.2025.
+        eintrittsdatumColumn.setComparator(Datumstext.VERGLEICH);
+        austrittsdatumColumn.setComparator(Datumstext.VERGLEICH);
         statusColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getStatus().name()));
         jahresbeitragColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getJahresbeitragCent()));
         jahresbeitragColumn.setCellFactory(SpaltenFormat.betragCentZelle(BETRAG_FORMAT));

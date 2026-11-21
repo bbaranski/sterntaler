@@ -266,13 +266,13 @@ Dazu kommen die Vereinsdaten, etwa `{{VereinsName}}`.
 
 Alle Berichte entstehen als PDF. Sie wählen einen Speicherort, danach öffnet das Programm die fertige Datei. Jede Seite trägt unten „Seite x von y", jeder Bericht oben den Briefkopf aus den Vereinsdaten.
 
-Für die ersten beiden Berichte fragt das Programm vorher nach Konto und Geschäftsjahr; gibt es nur ein Konto, entfällt die Frage.
+Für die ersten beiden Berichte fragt das Programm vorher nach Konto und Geschäftsjahr; gibt es nur ein Konto, entfällt diese Frage. Die Mitgliederentwicklung fragt nur nach dem Geschäftsjahr — Mitglieder hängen an keinem Konto.
 
 | Bericht | Was drinsteht | Wann Sie ihn brauchen |
 | --- | --- | --- |
 | **Kassenbericht…** | Einnahmen und Ausgaben je Kategorie, Startsaldo, Saldo des Zeitraums, Endsaldo; Unterschriftenzeile | Der Jahresbericht für die Mitgliederversammlung |
 | **Kassenprüfbericht…** | Jede einzelne Buchung des Jahres mit laufendem Saldo, dazu Entlastungsempfehlung und Unterschriftenzeile | Für die Kassenprüfung — der Beleg, dass der Kassenbericht stimmt |
-| **Mitgliederentwicklung…** | Kennzahlen der aktiven Mitglieder: Anzahl und Jahresbeiträge (Summe, kleinster, größter, Durchschnitt) | Zahlen für den Rechenschaftsbericht |
+| **Mitgliederentwicklung…** | Ein- und Austritte im gewählten Geschäftsjahr, dazu die Kennzahlen der aktiven Mitglieder: Anzahl und Jahresbeiträge (Summe, kleinster, größter, Durchschnitt) | Zahlen für den Rechenschaftsbericht |
 | **Mitgliederübersicht…** | Alle aktiven Mitglieder mit ihren Stammdaten, nach ID sortiert | Die Liste zum Nachschlagen und Abhaken |
 | **Einnahmen-Überschuss-Rechnung…** | Einnahmen und Ausgaben nach den vier steuerlichen Bereichen | Für die Steuererklärung des Vereins |
 
@@ -284,7 +284,9 @@ Für die ersten beiden Berichte fragt das Programm vorher nach Konto und Geschä
 
 **Die Einnahmen-Überschuss-Rechnung** betrachtet immer ein Kalenderjahr, das Sie beim Erstellen eingeben, nicht das Geschäftsjahr. Sie gliedert nach ideellem Bereich, Vermögensverwaltung, Zweckbetrieb und wirtschaftlichem Geschäftsbetrieb — diese Zuordnung kommt allein aus dem Bereich der jeweiligen Kategorie. Stimmt dort etwas nicht, korrigieren Sie es unter **Einstellungen → Kategorien…**, nicht an den Buchungen.
 
-**Mitgliederentwicklung und Mitgliederübersicht** zählen nur aktive Mitglieder und brauchen deshalb weder Konto noch Geschäftsjahr. Sie zeigen immer den heutigen Stand.
+**Die Mitgliederentwicklung** fragt nach dem Geschäftsjahr: Daraus zählt sie, wie viele Mitglieder eingetreten und wie viele ausgetreten sind. Grundlage sind die Eintritts- und Austrittsdaten der Mitglieder; wo keines eingetragen ist oder etwas steht, das sich nicht als Datum lesen lässt, zählt das Mitglied in keinem Jahr mit. Mitgliederzahl und Jahresbeiträge bleiben daneben eine Momentaufnahme des heutigen Bestands über die aktiven Mitglieder — Stammdaten tragen keinen Jahresbezug.
+
+**Die Mitgliederübersicht** zählt nur aktive Mitglieder und braucht weder Konto noch Geschäftsjahr. Sie zeigt immer den heutigen Stand.
 
 ## Jahresabschluss und Kassenprüfung
 
@@ -321,7 +323,7 @@ Darin liegen fünf Dinge:
 | Alle Berichte | Ordner `Berichte` |
 | Alle Belege | Ordner `Belege` |
 
-Im Ordner `Berichte` liegt alles, was sich aus dem Datenbestand erzeugen lässt: je Geschäftsjahr ein Kassenbericht und ein Kassenprüfbericht, je Kalenderjahr mit Buchungen eine Einnahmen-Überschuss-Rechnung, dazu Mitgliederentwicklung und Mitgliederübersicht. Bei mehreren Konten steht das Konto im Dateinamen.
+Im Ordner `Berichte` liegt alles, was sich aus dem Datenbestand erzeugen lässt: je Geschäftsjahr ein Kassenbericht, ein Kassenprüfbericht und eine Mitgliederentwicklung, je Kalenderjahr mit Buchungen eine Einnahmen-Überschuss-Rechnung, dazu die Mitgliederübersicht. Bei mehreren Konten steht das Konto im Dateinamen.
 
 Die Excel-Dateien und die PDF-Berichte sind der Grund, warum diese Sicherung mehr wert ist als eine Dateikopie: Sie können auch ohne dieses Programm gelesen werden, in zehn Jahren und auf jedem Rechner.
 

@@ -2,8 +2,11 @@ package de.foerderverein.kasse.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +54,20 @@ class DatumstextTest {
         assertNull(Datumstext.parse("Frühjahr 2019"));
         assertNull(Datumstext.parse("32.13.2026"));
         assertNull(Datumstext.parse("01.03.26"), "zweistellige Jahreszahl ist nicht eindeutig");
+    }
+
+    /** Die Datumsspalten der Mitgliedertabelle sortieren chronologisch. Alphabetisch stünde der
+     * 01.03.2026 vor dem 15.02.2025. */
+    @Test
+    void vergleichSortiertChronologischUndUnlesbaresNachHinten() {
+        List<String> daten = new ArrayList<>(List.of(
+                "15.02.2025", "01.03.2026", "9/26/26", "Frühjahr 2019", "", "31.12.2025"));
+        daten.sort(Datumstext.VERGLEICH);
+
+        assertEquals(List.of("15.02.2025", "31.12.2025", "01.03.2026", "9/26/26", "", "Frühjahr 2019"),
+                daten,
+                "Erst die lesbaren Daten in zeitlicher Folge, dahinter das Unlesbare nach seinem Text");
+        assertTrue(Datumstext.VERGLEICH.compare(null, "01.03.2026") > 0, "Leere Spalten gehören nach hinten");
     }
 
     /** Was in der Mitgliedertabelle steht: lesbare Texte vereinheitlicht, alles andere

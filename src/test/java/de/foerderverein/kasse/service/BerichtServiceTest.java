@@ -851,9 +851,13 @@ class BerichtServiceTest {
         // Inaktive bleiben komplett aussen vor.
         mitgliedRepository.save(mitgliedMitBeitrag("Alt", "Mitglied", MitgliedStatus.INAKTIV, "999.00"));
 
-        MitgliederberichtDaten daten = berichtService.berechneMitgliederbericht();
+        MitgliederberichtDaten daten = berichtService.berechneMitgliederbericht(neuesJahr());
 
         assertEquals(4, daten.mitglieder());
+        // Keines der Mitglieder hat ein Eintritts- oder Austrittsdatum - ohne Datum laesst sich
+        // niemand einem Jahr zuordnen.
+        assertEquals(0, daten.eintritte());
+        assertEquals(0, daten.austritte());
         assertEquals(15600L, daten.summeCent());
         assertEquals(1200L, daten.minCent());
         assertEquals(12000L, daten.maxCent());
@@ -869,7 +873,7 @@ class BerichtServiceTest {
         MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
         mitgliedRepository.save(mitgliedMitBeitrag("Ohne", "Beitrag", MitgliedStatus.AKTIV, null));
 
-        MitgliederberichtDaten daten = berichtService(database, mitgliedRepository).berechneMitgliederbericht();
+        MitgliederberichtDaten daten = berichtService(database, mitgliedRepository).berechneMitgliederbericht(neuesJahr());
 
         assertEquals(1, daten.mitglieder());
         assertEquals(0L, daten.summeCent());
@@ -887,16 +891,27 @@ class BerichtServiceTest {
         verein.setName("Förderverein Musterschule e. V.");
         vereinRepository.save(verein);
 
-        mitgliedRepository.save(mitgliedMitBeitrag("Erika", "Musterfrau", MitgliedStatus.AKTIV, "24.00"));
-        mitgliedRepository.save(mitgliedMitBeitrag("Alt", "Mitglied", MitgliedStatus.INAKTIV, "999.00"));
+        Mitglied erika = mitgliedMitBeitrag("Erika", "Musterfrau", MitgliedStatus.AKTIV, "24.00");
+        erika.setEintrittsdatum("15.03.2026");
+        mitgliedRepository.save(erika);
+        Mitglied alt = mitgliedMitBeitrag("Alt", "Mitglied", MitgliedStatus.INAKTIV, "999.00");
+        alt.setEintrittsdatum("01.06.2024");
+        alt.setAustrittsdatum("30.06.2026");
+        mitgliedRepository.save(alt);
 
         Path ziel = Files.createTempDirectory("kasse-mitgliederbericht").resolve("mitgliederbericht.pdf");
-        berichtService(database, mitgliedRepository).erstelleMitgliederbericht(ziel);
+        berichtService(database, mitgliedRepository).erstelleMitgliederbericht(ziel, neuesJahr());
 
         String text = pdfText(ziel);
         assertTrue(text.contains("Mitgliederentwicklung"), text);
         assertTrue(text.contains("Förderverein Musterschule e. V."), text);
         assertTrue(text.contains("Stand:"), text);
+        // Das gewaehlte Geschaeftsjahr: in der Ueberschrift und mit seinem Zeitraum.
+        assertTrue(text.contains("Mitgliederentwicklung 2026"), text);
+        assertTrue(text.contains("Zeitraum: 01.01.2026 - 31.12.2026"), text);
+        assertTrue(text.contains("Ein- und Austritte im Geschäftsjahr"), text);
+        assertTrue(text.contains("Neue Mitglieder: 1"), text);
+        assertTrue(text.contains("Ausgetretene Mitglieder: 1"), text);
         assertTrue(text.contains("Mitglieder und Jahresbeitrag"), text);
         // Einzelne Zeilen statt einer Tabelle: Beschriftung und Wert stehen mit Doppelpunkt
         // beieinander, die Spaltenkoepfe der frueheren Tabelle gibt es nicht mehr.
@@ -915,6 +930,49 @@ class BerichtServiceTest {
         assertFalse(text.contains("Erstellt am"), "Schlusszeile entfernt, Datum steht oben: " + text);
         // Der Jahresbeitrag des inaktiven Mitglieds darf nirgends auftauchen.
         assertFalse(text.contains("999,00"), "Inaktive zaehlen nicht mit: " + text);
+    }
+
+    /** Gezaehlt wird ueber alle Mitglieder und nur, was im Zeitraum des gewaehlten Jahres liegt
+     * und sich lesen laesst. */
+    @Test
+    void mitgliederberichtZaehltEinUndAustritteDesGeschaeftsjahres() {
+        Database database = TestDatabase.create();
+        MitgliedRepository mitgliedRepository = new MitgliedRepository(database);
+
+        Mitglied imJahr = neuesMitglied("Neu", "ImJahr");
+        imJahr.setEintrittsdatum("15.03.2026");
+        mitgliedRepository.save(imJahr);
+
+        // Aus einem Import in US-Schreibweise - der 26.09.2026 liegt im Jahr.
+        Mitglied ausImport = neuesMitglied("Aus", "Import");
+        ausImport.setEintrittsdatum("9/26/26");
+        mitgliedRepository.save(ausImport);
+
+        Mitglied vorJahr = neuesMitglied("Alt", "Eingetreten");
+        vorJahr.setEintrittsdatum("31.12.2025");
+        mitgliedRepository.save(vorJahr);
+
+        Mitglied unlesbar = neuesMitglied("Krumm", "Gespeichert");
+        unlesbar.setEintrittsdatum("Frühjahr 2026");
+        mitgliedRepository.save(unlesbar);
+
+        // Im selben Jahr ein- und ausgetreten: zaehlt in beiden Zahlen, obwohl inaktiv.
+        Mitglied hinUndWeg = neuesMitglied("Kurz", "Dabei");
+        hinUndWeg.setStatus(MitgliedStatus.INAKTIV);
+        hinUndWeg.setEintrittsdatum("01.02.2026");
+        hinUndWeg.setAustrittsdatum("30.11.2026");
+        mitgliedRepository.save(hinUndWeg);
+
+        Mitglied austrittSpaeter = neuesMitglied("Spaeter", "Ausgetreten");
+        austrittSpaeter.setStatus(MitgliedStatus.INAKTIV);
+        austrittSpaeter.setAustrittsdatum("01.01.2027");
+        mitgliedRepository.save(austrittSpaeter);
+
+        MitgliederberichtDaten daten = berichtService(database, mitgliedRepository)
+                .berechneMitgliederbericht(neuesJahr());
+
+        assertEquals(3, daten.eintritte(), "ImJahr, Import und Kurz Dabei - sonst niemand");
+        assertEquals(1, daten.austritte(), "nur Kurz Dabei; der Austritt 2027 gehoert nicht dazu");
     }
 
     private Mitglied mitgliedMitBeitrag(String vorname, String nachname, MitgliedStatus status, String betrag) {

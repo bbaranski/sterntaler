@@ -3,6 +3,7 @@ package de.foerderverein.kasse.domain;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Comparator;
 import java.util.List;
 
 /** Die eine Schreibweise fuer Datumsangaben, die als Text gespeichert sind: Eintritts- und
@@ -32,6 +33,18 @@ public final class Datumstext {
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("M/d/yyyy"),
             DateTimeFormatter.ofPattern("M/d/yy"));
+
+    /** Chronologische Reihenfolge fuer gespeicherte Datumstexte - fuer die Datumsspalten der
+     * Mitgliedertabelle, die sonst ihren Text alphabetisch sortieren wuerden: dort stuende der
+     * 01.03.2026 vor dem 15.02.2025.
+     *
+     * <p>Was sich nicht als Datum lesen laesst, auch Leeres, sortiert hinten - und dort nach
+     * seinem Text, damit die Reihenfolge nachvollziehbar bleibt und nicht von der
+     * Ausgangssortierung abhaengt. */
+    public static final Comparator<String> VERGLEICH =
+            Comparator.<String, LocalDate>comparing(Datumstext::parse,
+                            Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(text -> text == null ? "" : text);
 
     private Datumstext() {
     }

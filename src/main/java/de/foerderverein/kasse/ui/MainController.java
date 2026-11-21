@@ -216,15 +216,6 @@ public class MainController {
             hinweis.showAndWait();
             return;
         }
-        List<Geschaeftsjahr> jahre = ctx.geschaeftsjahrService.findAll();
-        if (jahre.isEmpty()) {
-            Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
-                    "Es ist noch kein Geschäftsjahr angelegt. Bitte zuerst unter \"Einstellungen → Geschäftsjahre…\" eines anlegen.");
-            hinweis.setHeaderText("Kein Geschäftsjahr vorhanden");
-            hinweis.showAndWait();
-            return;
-        }
-
         Konto konto = konten.get(0);
         if (konten.size() > 1) {
             ChoiceDialog<Konto> kontoAuswahl = new ChoiceDialog<>(konto, konten);
@@ -237,15 +228,29 @@ public class MainController {
             konto = gewaehlt.get();
         }
 
-        ChoiceDialog<Geschaeftsjahr> jahrAuswahl = new ChoiceDialog<>(jahre.get(0), jahre);
-        jahrAuswahl.setTitle(berichtsname);
-        jahrAuswahl.setHeaderText("Für welches Geschäftsjahr soll der Bericht erstellt werden?");
-        Optional<Geschaeftsjahr> gewaehltesJahr = jahrAuswahl.showAndWait();
+        Optional<Geschaeftsjahr> gewaehltesJahr = waehleGeschaeftsjahr(berichtsname);
         if (gewaehltesJahr.isEmpty()) {
             return;
         }
 
         auftrag.ausfuehren(konto, gewaehltesJahr.get());
+    }
+
+    /** Fragt das Geschaeftsjahr ab. Leer, wenn der Nutzer abbricht oder noch keines angelegt ist -
+     * dann steht vorher ein Hinweis, wo es angelegt wird. */
+    private Optional<Geschaeftsjahr> waehleGeschaeftsjahr(String berichtsname) {
+        List<Geschaeftsjahr> jahre = ctx.geschaeftsjahrService.findAll();
+        if (jahre.isEmpty()) {
+            Alert hinweis = new Alert(Alert.AlertType.INFORMATION,
+                    "Es ist noch kein Geschäftsjahr angelegt. Bitte zuerst unter \"Einstellungen → Geschäftsjahre…\" eines anlegen.");
+            hinweis.setHeaderText("Kein Geschäftsjahr vorhanden");
+            hinweis.showAndWait();
+            return Optional.empty();
+        }
+        ChoiceDialog<Geschaeftsjahr> jahrAuswahl = new ChoiceDialog<>(jahre.get(0), jahre);
+        jahrAuswahl.setTitle(berichtsname);
+        jahrAuswahl.setHeaderText("Für welches Geschäftsjahr soll der Bericht erstellt werden?");
+        return jahrAuswahl.showAndWait();
     }
 
     private File waehleZieldatei(String titel, String vorschlag) {
@@ -414,23 +419,26 @@ public class MainController {
         }
     }
 
-    /** Kennzahlen zu den Mitgliedern als PDF. Anders als Kassenbericht und
-     * Einnahmen-Ueberschuss-Rechnung ohne
-     * Auswahl von Konto und Geschaeftsjahr - der Bericht ist eine Momentaufnahme des gesamten
-     * Mitgliederbestands. */
+    /** Kennzahlen zu den Mitgliedern als PDF. Fragt nur das Geschaeftsjahr ab, kein Konto -
+     * Mitglieder haengen an keinem. Das Jahr zaehlt fuer die Ein- und Austritte; Mitgliederzahl
+     * und Jahresbeitraege bleiben eine Momentaufnahme des Bestands. */
     @FXML
     private void onMitgliederbericht() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Mitgliederentwicklung speichern");
-        fileChooser.setInitialFileName("Mitgliederentwicklung-" + LocalDate.now() + ".pdf");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF-Datei", "*.pdf"));
-        File datei = fileChooser.showSaveDialog(tabPane.getScene().getWindow());
+        Optional<Geschaeftsjahr> gewaehltesJahr = waehleGeschaeftsjahr("Mitgliederentwicklung");
+        if (gewaehltesJahr.isEmpty()) {
+            return;
+        }
+        Geschaeftsjahr jahr = gewaehltesJahr.get();
+
+        String dateiname = jahr.getBezeichnung().replaceAll("[\\\\/:*?\"<>|]", "_");
+        File datei = waehleZieldatei("Mitgliederentwicklung speichern",
+                "Mitgliederentwicklung-" + dateiname + ".pdf");
         if (datei == null) {
             return;
         }
 
         try {
-            ctx.berichtService.erstelleMitgliederbericht(datei.toPath());
+            ctx.berichtService.erstelleMitgliederbericht(datei.toPath(), jahr);
             oeffneDatei(datei);
         } catch (IOException e) {
             zeigeFehler("Mitgliederentwicklung konnte nicht erstellt werden", e);

@@ -80,11 +80,18 @@ public class SicherheitskopieService {
     private void schreibeBerichte(Path berichteOrdner) throws IOException {
         Files.createDirectories(berichteOrdner);
 
-        berichtService.erstelleMitgliederbericht(berichteOrdner.resolve("Mitgliederentwicklung.pdf"));
         berichtService.erstelleMitgliederuebersicht(berichteOrdner.resolve("Mitgliederuebersicht.pdf"));
 
         List<Konto> konten = kontoService.findAll();
         List<Geschaeftsjahr> geschaeftsjahre = geschaeftsjahrService.findAll();
+
+        // Die Mitgliederentwicklung zaehlt Ein- und Austritte je Geschaeftsjahr, also eine Datei
+        // je Jahr - aber unabhaengig vom Konto, Mitglieder haengen an keinem.
+        for (Geschaeftsjahr jahr : geschaeftsjahre) {
+            berichtService.erstelleMitgliederbericht(berichteOrdner.resolve(
+                    "Mitgliederentwicklung-" + dateinamensicher(jahr.getBezeichnung()) + ".pdf"), jahr);
+        }
+
         TreeSet<Integer> jahreMitBuchungen = new TreeSet<>();
         for (Buchung buchung : buchungRepository.findAll()) {
             if (buchung.getBuchungsdatum() != null) {

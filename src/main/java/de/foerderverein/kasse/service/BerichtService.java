@@ -501,13 +501,14 @@ public class BerichtService {
                 einnahmenZweckbetrieb, ausgabenZweckbetrieb, einnahmenGeschaeftsbetrieb, ausgabenGeschaeftsbetrieb);
     }
 
-    /** Kennzahlen zu den Mitgliedern als PDF, im Aufbau wie der Kassenbericht. Anders als dieser
-     * ohne Zeitraum: Mitgliederdaten tragen keinen Geschaeftsjahrbezug, der Bericht ist eine
-     * Momentaufnahme zum Erstellungstag. Inhalt sind die Kennzahlen der Statuszeile der
-     * Mitgliederuebersicht, dort je nach Filter nur fuer eine Gruppe - hier nebeneinander fuer
-     * Aktive, Inaktive und den Gesamtbestand. */
-    public void erstelleMitgliederbericht(Path ziel) throws IOException {
-        MitgliederberichtDaten daten = berechneMitgliederbericht();
+    /** Kennzahlen zu den Mitgliedern als PDF, im Aufbau wie der Kassenbericht.
+     *
+     * <p>Der Bericht vermischt bewusst zwei Betrachtungen, deshalb stehen sie in getrennten
+     * Abschnitten: Mitgliederzahl und Jahresbeitraege sind eine Momentaufnahme zum
+     * Erstellungstag ueber die aktiven Mitglieder - Stammdaten tragen keinen Jahresbezug -,
+     * waehrend Ein- und Austritte aus dem gewaehlten Geschaeftsjahr gezaehlt werden. */
+    public void erstelleMitgliederbericht(Path ziel, Geschaeftsjahr jahr) throws IOException {
+        MitgliederberichtDaten daten = berechneMitgliederbericht(jahr);
 
         Files.createDirectories(ziel.getParent() != null ? ziel.getParent() : ziel);
         Document document = new Document(PageSize.A4, 40, 40, 50, 50);
@@ -520,15 +521,22 @@ public class BerichtService {
             Font untertitel = new Font(Font.HELVETICA, 11, Font.NORMAL);
             Font abschnitt = new Font(Font.HELVETICA, 12, Font.BOLD);
 
-            document.add(new Paragraph("Mitgliederentwicklung", titel));
+            document.add(new Paragraph("Mitgliederentwicklung " + jahr.getBezeichnung(), titel));
             for (Paragraph zeile : vereinKopf(abschnitt, untertitel)) {
                 document.add(zeile);
             }
+            document.add(new Paragraph("Zeitraum: " + jahr.getStartDatum().format(DATUM_FORMAT)
+                    + " - " + jahr.getEndDatum().format(DATUM_FORMAT), untertitel));
             document.add(new Paragraph("Stand: " + LocalDate.now().format(DATUM_FORMAT), untertitel));
             document.add(leerzeile());
 
-            document.add(new Paragraph("Mitglieder und Jahresbeitrag", abschnitt));
             Font kennzahl = betragNormal(11);
+            document.add(new Paragraph("Ein- und Austritte im Geschäftsjahr", abschnitt));
+            document.add(new Paragraph("Neue Mitglieder: " + daten.eintritte(), kennzahl));
+            document.add(new Paragraph("Ausgetretene Mitglieder: " + daten.austritte(), kennzahl));
+            document.add(leerzeile());
+
+            document.add(new Paragraph("Mitglieder und Jahresbeitrag", abschnitt));
             document.add(new Paragraph("Mitglieder: " + daten.mitglieder(), kennzahl));
             document.add(leerzeile());
             // Der Strich steht fuer "kein aktives Mitglied hat einen Jahresbeitrag" - dieselbe
@@ -672,16 +680,22 @@ public class BerichtService {
         };
     }
 
-    MitgliederberichtDaten berechneMitgliederbericht() {
-        List<Mitglied> aktive = mitgliedService.findAll().stream()
+    MitgliederberichtDaten berechneMitgliederbericht(Geschaeftsjahr jahr) {
+        List<Mitglied> alle = mitgliedService.findAll();
+        List<Mitglied> aktive = alle.stream()
                 .filter(m -> m.getStatus() == MitgliedStatus.AKTIV)
                 .toList();
+        // Zu- und Abgaenge ueber alle Mitglieder, nicht nur die aktiven: Wer im Geschaeftsjahr
+        // eingetreten und wieder ausgetreten ist, gehoert in beide Zahlen.
+        int eintritte = (int) alle.stream().filter(m -> imZeitraum(m.getEintrittsdatum(), jahr)).count();
+        int austritte = (int) alle.stream().filter(m -> imZeitraum(m.getAustrittsdatum(), jahr)).count();
+
         List<Long> betraege = aktive.stream()
                 .map(Mitglied::getJahresbeitragCent)
                 .filter(Objects::nonNull)
                 .toList();
         if (betraege.isEmpty()) {
-            return new MitgliederberichtDaten(aktive.size(), 0, null, null, null);
+            return new MitgliederberichtDaten(aktive.size(), 0, null, null, null, eintritte, austritte);
         }
         long summe = betraege.stream().mapToLong(Long::longValue).sum();
         // Auf ganze Cent gerundet - gleichbedeutend mit dem auf zwei Nachkommastellen gerundeten
@@ -691,7 +705,15 @@ public class BerichtService {
         return new MitgliederberichtDaten(aktive.size(), summe,
                 betraege.stream().min(Comparator.naturalOrder()).orElseThrow(),
                 betraege.stream().max(Comparator.naturalOrder()).orElseThrow(),
-                durchschnitt);
+                durchschnitt, eintritte, austritte);
+    }
+
+    /** Liegt ein als Text gespeichertes Eintritts- oder Austrittsdatum im Zeitraum des
+     * Geschaeftsjahres? Leere und unlesbare Angaben zaehlen nicht mit - sie liessen sich keinem
+     * Jahr zuordnen. Welche Schreibweisen lesbar sind, steht in Datumstext. */
+    private boolean imZeitraum(String datumstext, Geschaeftsjahr jahr) {
+        LocalDate datum = Datumstext.parse(datumstext);
+        return datum != null && jahr.enthaelt(datum);
     }
 
     /** Zweispaltig wie die Tabellen des Kassenberichts (siehe kategorieTabelle). */

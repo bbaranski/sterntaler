@@ -124,7 +124,8 @@ class SicherheitskopieServiceTest {
         Path berichte = service.erstelleSicherheitskopie(zielOrdner).resolve("Berichte");
 
         List<String> erwartet = List.of(
-                "Mitgliederentwicklung.pdf",
+                "Mitgliederentwicklung-2026.pdf",
+                "Mitgliederentwicklung-2027.pdf",
                 "Mitgliederuebersicht.pdf",
                 "Kassenbericht-2026.pdf",
                 "Kassenbericht-2027.pdf",
